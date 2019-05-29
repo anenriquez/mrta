@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/anenriquez/mrta_allocation.svg?token=QudZDF4JraaUN8o4yWNo&branch=master)](https://travis-ci.com/anenriquez/mrta_allocation)
+
 # Multi-Robot Task Allocation (MRTA)
 
 Get the requirements:
