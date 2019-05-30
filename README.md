@@ -3,6 +3,10 @@
 # Multi-Robot Task Allocation (MRTA)
 
 ## Installation
+
+Install the repository [mrta_temporal_models](https://github.com/anenriquez/mrta_temporal_models)
+
+
 Get the requirements:
 ```
 pip3 install -r requirements.txt
