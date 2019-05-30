@@ -11,4 +11,5 @@ class ConfigParams(object):
         self.ropods = list()
         self.bidding_rule = ''
         self.auction_time = 0
+        self.type_temporal_network = ''
         self.task_allocator_zyre_params = ZyreParams()

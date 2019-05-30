@@ -42,6 +42,12 @@ class ConfigFileReader(object):
             logger.error('Config error: "auction_time" not specified')
             return ConfigParams()
 
+        if 'type_temporal_network' in config_data.keys():
+            config_params.type_temporal_network = config_data['type_temporal_network']
+        else:
+            logger.error('Config error: "type_temporal_network" not specified')
+            return ConfigParams()
+
         if 'zyre_group_name' in config_data.keys():
             config_params.zyre_group_name = config_data['zyre_group_name']
         else:

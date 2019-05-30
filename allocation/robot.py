@@ -10,6 +10,7 @@ import yaml
 from ropod.pyre_communicator.base_class import RopodPyre
 from allocation.config.config_file_reader import ConfigFileReader
 from temporal.structs.task import Task
+from temporal.networks.stn import STN
 from temporal.networks.stnu import STNU
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -40,7 +41,13 @@ class Robot(RopodPyre):
         self.logger = logging.getLogger('robot: %s' % robot_id)
         self.logger.debug("This is a debug message")
 
-        self.stnu = STNU()
+        type_temporal_network = config_params.type_temporal_network
+
+        if type_temporal_network == 'stn':
+            self.temporal_network = STN()
+        else:
+            self.temporal_network = STNU()
+
         self.scheduled_tasks = list()
         self.dataset_start_time = 0
 
@@ -82,13 +89,15 @@ class Robot(RopodPyre):
         for i in range(0, n_scheduled_tasks + 1):
             self.scheduled_tasks.insert(i, task)
             # TODO check if the robot can make it to the first task in the schedule, if not, return
-            self.stnu.build_stn(self.scheduled_tasks)
-            print(self.stnu)
-            minimal_stnu = self.stnu.floyd_warshall()
-            if self.stnu.is_consistent(minimal_stnu):
-                self.stnu.update_edges(minimal_stnu)
-                self.stnu.update_time_schedule(minimal_stnu)
-                completion_time = self.stnu.get_completion_time()
+            self.temporal_network.build_stn(self.scheduled_tasks)
+            print(self.temporal_network)
+            print(self.temporal_network.nodes.data())
+            print(self.temporal_network.edges.data())
+            minimal_stnu = self.temporal_network.floyd_warshall()
+            if self.temporal_network.is_consistent(minimal_stnu):
+                self.temporal_network.update_edges(minimal_stnu)
+                self.temporal_network.update_time_schedule(minimal_stnu)
+                completion_time = self.temporal_network.get_completion_time()
                 print("Completion time: ", completion_time)
 
             # Restore new_schedule for the next iteration
