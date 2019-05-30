@@ -34,7 +34,7 @@ class Auctioneer(RopodPyre):
         self.bidding_rule = config_params.bidding_rule
         self.zyre_params = config_params.task_allocator_zyre_params
         node_name = 'auctioneer_' + str(self.bidding_rule)
-        super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types)
+        super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
         self.logger = logging.getLogger('auctioneer')
         self.logger.debug("This is a debug message")
@@ -115,7 +115,6 @@ class Auctioneer(RopodPyre):
         message_type = dict_msg['header']['type']
 
         if message_type == 'START':
-            start_time = dict_msg['payload']['start_time']
             dataset_id = dict_msg['payload']['dataset_id']
             self.logger.debug("Received dataset %s", dataset_id)
             dataset = self.read_dataset(dataset_id)
