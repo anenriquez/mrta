@@ -94,6 +94,11 @@ class Robot(RopodPyre):
             if winner_id == self.id:
                 self.allocate_to_robot(task_id)
 
+        elif message_type == "TERMINATE":
+            self.logger.debug("Terminating robot...")
+            self.terminated = True
+            # self.shutdown()
+
     def compute_bids(self, tasks, n_round):
         bids = dict()
         empty_bids = list()
@@ -314,10 +319,10 @@ if __name__ == '__main__':
     robot.start()
 
     try:
-        while True:
+        while not robot.terminated:
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        # logging.info("Terminating %s proxy ...", ropod_id)
-        robot.shutdown()
-        # logging.info("Exiting...")
-        print("Exiting")
+        print("Robot terminated; exiting")
+
+    print("Exiting robot")
+    robot.shutdown()

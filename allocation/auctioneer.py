@@ -115,15 +115,16 @@ class Auctioneer(RopodPyre):
             self.shout(task_announcement, 'TASK-ALLOCATION')
 
         elif not self.tasks_to_allocate and self.allocate_next_task:
-            end_total_time = time.time()
-            self.total_time = end_total_time - self.start_total_time
-
             # print("Reset variables and send DONE msg")
             self.terminate_allocation()
 
     def terminate_allocation(self):
         self.logger.info("Task allocation finished")
+        end_total_time = time.time()
+        self.total_time = end_total_time - self.start_total_time
+        self.allocate_next_task = False
         self.n_round = 0
+        self.send_done_msg()
 
     def check_n_received_bids(self):
         if (len(self.received_bids) + len(self.received_empty_bids)) == len(self.robots):
@@ -168,6 +169,11 @@ class Auctioneer(RopodPyre):
             self.schedule[robot_id] = schedule
             self.received_updated_schedule = True
             self.logger.debug("Received schedule %s of robot %s", schedule, robot_id)
+
+        elif message_type == "TERMINATE":
+            self.logger.debug("Terminating auctioneer...")
+            self.terminated = True
+            # self.shutdown()
 
     def elect_winner(self):
         if self.received_bids:
@@ -245,6 +251,18 @@ class Auctioneer(RopodPyre):
         # time.sleep(SLEEP_TIME)
         self.allocate_next_task = True
 
+    def send_done_msg(self):
+        done_msg = dict()
+        done_msg['header'] = dict()
+        done_msg['payload'] = dict()
+        done_msg['header']['type'] = 'DONE'
+        done_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        done_msg['header']['msgId'] = str(uuid.uuid4())
+        done_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        done_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
+        self.shout(done_msg, 'TASK-ALLOCATION')
+        self.logger.debug("Done allocating tasks")
+
 
 if __name__ == '__main__':
     code_dir = os.path.abspath(os.path.dirname(__file__))
@@ -267,7 +285,7 @@ if __name__ == '__main__':
             auctioneer.announce_task()
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        # logging.info("Terminating %s proxy ...", ropod_id)
-        auctioneer.shutdown()
-        # logging.info("Exiting...")
-        print("Exiting")
+        print("Auctioneer terminated; exiting")
+
+    print("Exiting auctioneer")
+    auctioneer.shutdown()
