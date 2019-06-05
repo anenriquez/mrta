@@ -24,6 +24,7 @@ from temporal.networks.pstn import SchedulerPSTN
     - Rule 4: Lowest combination of makespan and travel distance_robot
     - Rule 5: Lowest idle time of the robot with more tasks
 '''
+MAX_SEED = 2 ** 31 - 1
 
 
 class Robot(RopodPyre):
@@ -33,7 +34,6 @@ class Robot(RopodPyre):
     MAKESPAN = 3
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
-    MAX_SEED = 2 ** 31 - 1
 
     def __init__(self, robot_id, config_params):
         self.id = robot_id
@@ -56,6 +56,8 @@ class Robot(RopodPyre):
             seed_gen = np.random.RandomState(random_seed)
             seed = seed_gen.randint(MAX_SEED)
             self.scheduler = SchedulerPSTN(seed)
+
+        self.execution_strategy = config_params.execution_strategy
 
         self.dataset_start_time = 0
         self.scheduled_tasks = list()
@@ -143,7 +145,7 @@ class Robot(RopodPyre):
             minimal_network = self.temporal_network.floyd_warshall()
             if self.temporal_network.is_consistent(minimal_network):
                 self.temporal_network.update_edges(minimal_network)
-                alpha, schedule = self.scheduler.get_schedule(self.temporal_network, "earliest")
+                alpha, schedule = self.scheduler.get_schedule(self.temporal_network, self.execution_strategy)
 
                 bid = self.compute_bid(schedule)
                 if bid < best_bid:

@@ -48,6 +48,12 @@ class ConfigFileReader(object):
             logger.error('Config error: "type_temporal_network" not specified')
             return ConfigParams()
 
+        if 'execution_strategy' in config_data.keys():
+            config_params.execution_strategy = config_data['execution_strategy']
+        else:
+            logger.error('Config error: "execution_strategy" not specified')
+            return ConfigParams()
+
         if 'zyre_group_name' in config_data.keys():
             config_params.zyre_group_name = config_data['zyre_group_name']
         else:
