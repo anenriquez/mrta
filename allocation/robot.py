@@ -9,11 +9,12 @@ import logging.config
 import yaml
 from ropod.pyre_communicator.base_class import RopodPyre
 from allocation.config.config_file_reader import ConfigFileReader
-from temporal.structs.task import Task
-from temporal.networks.stn import STN
-from temporal.networks.stn import Scheduler
-from temporal.networks.pstn import PSTN
-from temporal.networks.pstn import SchedulerPSTN
+from scheduler.structs.task import Task
+from scheduler.scheduler import Scheduler
+# from scheduler.temporal_networks.stn import STN
+# from scheduler.temporal_networks.stn import Scheduler
+# from scheduler.temporal_networks.pstn import PSTN
+# from scheduler.temporal_networks.pstn import SchedulerPSTN
 
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -43,21 +44,22 @@ class Robot(RopodPyre):
         super().__init__(self.id, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
         self.logger = logging.getLogger('robot: %s' % robot_id)
-        self.logger.debug("This is a debug message")
 
-        type_temporal_network = config_params.type_temporal_network
-
-        if type_temporal_network == 'stn':
-            self.temporal_network = STN()
-            self.scheduler = Scheduler()
-        else:
-            self.temporal_network = PSTN()
-            random_seed = np.random.randint(MAX_SEED)
-            seed_gen = np.random.RandomState(random_seed)
-            seed = seed_gen.randint(MAX_SEED)
-            self.scheduler = SchedulerPSTN(seed)
-
-        self.execution_strategy = config_params.execution_strategy
+        scheduling_method = config_params.scheduling_method
+        self.scheduler = Scheduler(scheduling_method)
+        # type_temporal_network = config_params.type_temporal_network
+        #
+        # if type_temporal_network == 'stn':
+        #     self.temporal_network = STN()
+        #     self.scheduler = Scheduler()
+        # else:
+        #     self.temporal_network = PSTN()
+        #     random_seed = np.random.randint(MAX_SEED)
+        #     seed_gen = np.random.RandomState(random_seed)
+        #     seed = seed_gen.randint(MAX_SEED)
+        #     self.scheduler = SchedulerPSTN(seed)
+        #
+        # self.execution_strategy = config_params.execution_strategy
 
         self.dataset_start_time = 0
         self.scheduled_tasks = list()
@@ -136,18 +138,23 @@ class Robot(RopodPyre):
         for i in range(0, n_scheduled_tasks + 1):
             self.scheduled_tasks.insert(i, task)
             # TODO check if the robot can make it to the first task in the schedule, if not, return
-            self.temporal_network.build_temporal_network(self.scheduled_tasks)
+            self.scheduler.build_temporal_network(self.scheduled_tasks)
 
-            print(self.temporal_network)
-            print(self.temporal_network.nodes.data())
-            print(self.temporal_network.edges.data())
+            print(self.scheduler.temporal_network)
 
-            minimal_network = self.temporal_network.floyd_warshall()
-            if self.temporal_network.is_consistent(minimal_network):
-                self.temporal_network.update_edges(minimal_network)
-                alpha, schedule = self.scheduler.get_schedule(self.temporal_network, self.execution_strategy)
+            result = self.scheduler.get_dispatch_graph()
+            if result is not None:
+                metric, dispatch_graph = result
 
-                bid = self.compute_bid(schedule)
+
+
+
+            # minimal_network = self.temporal_network.floyd_warshall()
+            # if self.temporal_network.is_consistent(minimal_network):
+            #     self.temporal_network.update_edges(minimal_network)
+            #     alpha, schedule = self.scheduler.get_schedule(self.temporal_network, self.execution_strategy)
+
+                bid = self.compute_bid(dispatch_graph, metric)
                 if bid < best_bid:
                     best_bid = bid
                     best_schedule = copy.deepcopy(self.scheduled_tasks)
@@ -161,10 +168,23 @@ class Robot(RopodPyre):
     #     self.temporal_network.update_edges(minimal_network)
     #     self.temporal_network.update_time_schedule(minimal_network)
 
-    def compute_bid(self, schedule):
+    def rule_completion_time(self, dispatch_graph, metric):
+        if self.scheduler.scheduling_method == 'fpc':
+            bid = dispatch_graph.get_completion_time()
+
+        elif self.scheduler.scheduling_method == 'srea':
+            # metric is the level of risk. A smaller value is preferable
+            print("Completion time: ", dispatch_graph.get_completion_time())
+            print("Alpha: ", metric)
+            bid = dispatch_graph.get_completion_time()/metric
+
+        return bid
+
+    def compute_bid(self, dispatch_graph, metric):
+
         if self.bidding_rule == self.COMPLETION_TIME:
-            bid = self.scheduler.get_completion_time(schedule)
-            print("Completion time: ", bid)
+            bid = self.rule_completion_time(dispatch_graph, metric)
+            print("---->Bid: ", bid)
 
         # elif self.bidding_rule == self.COMPLETION_TIME_DISTANCE:
         #     completion_time = self.temporal_network.get_completion_time()

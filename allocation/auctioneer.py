@@ -1,5 +1,5 @@
-from temporal.structs.area import Area
-from temporal.structs.task import Task
+from scheduler.structs.area import Area
+from scheduler.structs.task import Task
 import uuid
 import time
 import datetime
