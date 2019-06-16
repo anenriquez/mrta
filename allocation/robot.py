@@ -138,7 +138,8 @@ class Robot(RopodPyre):
         for i in range(0, n_scheduled_tasks + 1):
             self.scheduled_tasks.insert(i, task)
             # TODO check if the robot can make it to the first task in the schedule, if not, return
-            self.scheduler.build_temporal_network(self.scheduled_tasks)
+            # self.scheduler.build_temporal_network(self.scheduled_tasks)
+            self.scheduler.temporal_network.add_task(task, i+1)
 
             print(self.scheduler.temporal_network)
 
@@ -161,6 +162,7 @@ class Robot(RopodPyre):
 
             # Restore new_schedule for the next iteration
             self.scheduled_tasks.pop(i)
+            self.scheduler.temporal_network.remove_task(i+1)
 
         return best_bid, best_schedule
 
