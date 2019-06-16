@@ -24,15 +24,11 @@ sudo pip3 install -e .
 
 ## Config file
 
-Change the temporal model and execution strategy in `config/config.yaml`.
+Change the scheduling method in `config/config.yaml`.
 
-Possible execution strategies with `type_temporal_network: pstn`
-- early
+Possible scheduling methods:
 - srea
-
-Possible execution strategies with `type_temporal_network: stn` 
-- earliest
-- latest
+- fpc
 
 ## Usage
 
