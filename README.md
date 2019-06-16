@@ -4,7 +4,11 @@
 
 ## Installation
 
-Install the repository [mrta_temporal_models](https://github.com/anenriquez/mrta_temporal_models)
+Install the repositories:
+
+-  [mrta_temporal_models](https://github.com/anenriquez/mrta_temporal_models)
+
+- [ropod_common](https://github.com/ropod-project/ropod_common)
 
 
 Get the requirements:
@@ -18,20 +22,29 @@ Add the task_allocation to your `PYTHONPATH` by running:
 sudo pip3 install -e .
 ```
 
+## Config file
+
+Change the scheduling method in `config/config.yaml`.
+
+Possible scheduling methods:
+- srea
+- fpc
+
 ## Usage
 
-Start a robot in a terminal
+Go to `/allocation` and run in a terminal
+
 ```
 python3 robot.py ropod_001
 ```
 
-Start the auctioneer in another terminal
+Go to `/allocation` and run in a terminal
 ```
 python3 auctioneer.py
 ```
-Run the task_allocator in another terminal
+Go to `/tests` and run test in another terminal
 ```
-python3 task_allocator.py
+python3 two_tasks_test.py
 ```
 
 ## References

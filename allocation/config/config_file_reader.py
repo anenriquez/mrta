@@ -42,10 +42,10 @@ class ConfigFileReader(object):
             logger.error('Config error: "auction_time" not specified')
             return ConfigParams()
 
-        if 'type_temporal_network' in config_data.keys():
-            config_params.type_temporal_network = config_data['type_temporal_network']
+        if 'scheduling_method' in config_data.keys():
+            config_params.scheduling_method = config_data['scheduling_method']
         else:
-            logger.error('Config error: "type_temporal_network" not specified')
+            logger.error('Config error: "scheduling_method" not specified')
             return ConfigParams()
 
         if 'zyre_group_name' in config_data.keys():
