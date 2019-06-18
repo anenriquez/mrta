@@ -29,6 +29,7 @@ Change the scheduling method in `config/config.yaml`.
 Possible scheduling methods:
 - srea
 - fpc
+- dsc_lp
 
 ## Usage
 
