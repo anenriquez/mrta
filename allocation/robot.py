@@ -11,10 +11,6 @@ from ropod.pyre_communicator.base_class import RopodPyre
 from allocation.config.config_file_reader import ConfigFileReader
 from scheduler.structs.task import Task
 from scheduler.scheduler import Scheduler
-# from scheduler.temporal_networks.stn import STN
-# from scheduler.temporal_networks.stn import Scheduler
-# from scheduler.temporal_networks.pstn import PSTN
-# from scheduler.temporal_networks.pstn import SchedulerPSTN
 
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -47,34 +43,24 @@ class Robot(RopodPyre):
 
         scheduling_method = config_params.scheduling_method
         self.scheduler = Scheduler(scheduling_method)
-        # type_temporal_network = config_params.type_temporal_network
-        #
-        # if type_temporal_network == 'stn':
-        #     self.temporal_network = STN()
-        #     self.scheduler = Scheduler()
-        # else:
-        #     self.temporal_network = PSTN()
-        #     random_seed = np.random.randint(MAX_SEED)
-        #     seed_gen = np.random.RandomState(random_seed)
-        #     seed = seed_gen.randint(MAX_SEED)
-        #     self.scheduler = SchedulerPSTN(seed)
-        #
-        # self.execution_strategy = config_params.execution_strategy
+
+        self.dispatch_graph_round = self.scheduler.get_temporal_network()
+
+        self.scheduled_tasks = self.scheduler.get_scheduled_tasks()
 
         self.dataset_start_time = 0
-        self.scheduled_tasks = list()
         self.idle_time = 0.
         self.distance = 0.
 
         self.bid_round = 0.
-        self.scheduled_tasks_round = list()
+        self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
         # Weighting factor used for the dual bidding rule
         self.alpha = 0.1
 
     def reinitialize_auction_variables(self):
         self.bid_round = None
-        self.scheduled_tasks_round = list()
+        self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
     def receive_msg_cb(self, msg_content):
         dict_msg = self.convert_zyre_msg_to_dict(msg_content)
@@ -111,13 +97,16 @@ class Robot(RopodPyre):
             task = Task.from_dict(task_info)
             self.logger.debug("Computing bid of task %s", task.id)
             # Insert task in each possible position of the stnu
-            best_bid, best_schedule = self.insert_task(task)
+            best_bid, best_dispatch_graph = self.insert_task(task)
             # self.insert_task(task)
+
+            # scheduled_tasks = best_dispatch_graph.get_scheduled_tasks()
 
             if best_bid != np.inf:
                 bids[task_id] = dict()
                 bids[task_id]['bid'] = best_bid
-                bids[task_id]['scheduled_tasks'] = best_schedule
+                bids[task_id]['dispatch_graph'] = best_dispatch_graph
+                # bids[task_id]['scheduled_tasks'] = scheduled_tasks
             else:
                 empty_bids.append(task_id)
 
@@ -133,52 +122,55 @@ class Robot(RopodPyre):
         best_bid = float('Inf')
         best_schedule = list()
 
+        # scheduled_tasks = self.scheduler.get_scheduled_tasks()
         n_scheduled_tasks = len(self.scheduled_tasks)
 
-        for i in range(0, n_scheduled_tasks + 1):
-            self.scheduled_tasks.insert(i, task)
-            # TODO check if the robot can make it to the first task in the schedule, if not, return
-            # self.scheduler.build_temporal_network(self.scheduled_tasks)
-            self.scheduler.temporal_network.add_task(task, i+1)
+        tasks = [task for task in self.scheduled_tasks]
+        self.logger.debug("--->Tasks scheduled to robot %s:%s", self.id, tasks)
 
-            print(self.scheduler.temporal_network)
+        for i in range(0, n_scheduled_tasks + 1):
+            # self.scheduled_tasks.insert(i, task)
+            # TODO check if the robot can make it to the first task in the schedule, if not, return
+
+            self.scheduler.add_task(task, i+1)
+
+            print(self.scheduler.get_temporal_network())
 
             result = self.scheduler.get_dispatch_graph()
             if result is not None:
                 metric, dispatch_graph = result
 
-
-
-
-            # minimal_network = self.temporal_network.floyd_warshall()
-            # if self.temporal_network.is_consistent(minimal_network):
-            #     self.temporal_network.update_edges(minimal_network)
-            #     alpha, schedule = self.scheduler.get_schedule(self.temporal_network, self.execution_strategy)
-
                 bid = self.compute_bid(dispatch_graph, metric)
                 if bid < best_bid:
                     best_bid = bid
-                    best_schedule = copy.deepcopy(self.scheduled_tasks)
+                    best_dispatch_graph = copy.deepcopy(dispatch_graph)
+                    # best_schedule = copy.deepcopy(self.scheduled_tasks)
 
-            # Restore new_schedule for the next iteration
-            self.scheduled_tasks.pop(i)
-            self.scheduler.temporal_network.remove_task(i+1)
+            # Restore schedule for the next iteration
+            # self.scheduled_tasks.pop(i)
+            self.scheduler.remove_task(i+1)
 
-        return best_bid, best_schedule
+        return best_bid, best_dispatch_graph
 
     # def update_temporal_network(self, minimal_network):
     #     self.temporal_network.update_edges(minimal_network)
     #     self.temporal_network.update_time_schedule(minimal_network)
 
     def rule_completion_time(self, dispatch_graph, metric):
-        if self.scheduler.scheduling_method == 'fpc':
+        if self.scheduler.get_scheduling_method() == 'fpc':
             bid = dispatch_graph.get_completion_time()
 
-        elif self.scheduler.scheduling_method == 'srea':
+        elif self.scheduler.get_scheduling_method() == 'srea':
             # metric is the level of risk. A smaller value is preferable
             print("Completion time: ", dispatch_graph.get_completion_time())
             print("Alpha: ", metric)
             bid = dispatch_graph.get_completion_time()/metric
+
+        elif self.scheduler.get_scheduling_method() == 'dsc_lp':
+            # metric is the degree of strong controllability. A larger value is preferable
+            print("Completion time: ", dispatch_graph.get_completion_time())
+            print("DSC: ", metric)
+            bid = dispatch_graph.get_completion_time()*metric
 
         return bid
 
@@ -256,9 +248,11 @@ class Robot(RopodPyre):
         bid_msg['payload']['bid'] = bid['bid']
 
         self.bid_round = bid['bid']
-        self.scheduled_tasks_round = bid['scheduled_tasks']
+        # self.scheduled_tasks_round = bid['scheduled_tasks']
+        self.dispatch_graph_round = bid['dispatch_graph']
 
-        tasks = [task.id for task in self.scheduled_tasks_round]
+        self.scheduled_tasks = self.dispatch_graph_round.get_scheduled_tasks()
+        tasks = [task for task in self.scheduled_tasks]
 
         self.logger.debug("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
         self.whisper(bid_msg, peer='auctioneer')
@@ -288,19 +282,27 @@ class Robot(RopodPyre):
 
     def allocate_to_robot(self, task_id):
         # Update the scheduled tasks
-        self.scheduled_tasks = copy.deepcopy(self.scheduled_tasks_round)
+        # self.scheduled_tasks = copy.deepcopy(self.scheduled_tasks_round)
+        self.scheduler.temporal_network = copy.deepcopy(self.dispatch_graph_round)
+        # self.dispatch_graph = copy.deepcopy(self.dispatch_graph_round)
 
         self.logger.debug("Robot %s allocated task %s", self.id, task_id)
-        tasks = [task.id for task in self.scheduled_tasks]
+
+        # self.scheduled_tasks = self.scheduler.get_scheduled_tasks()
+        tasks = [task for task in self.scheduled_tasks]
+
+        #tasks = [task for task in self.scheduled_tasks]
+
         self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
         # Update travel distance and idle time
-        self.distance = self.compute_distance(self.scheduled_tasks)
-        if self.bidding_rule == self.IDLE_TIME:
-            self.idle_time += self.bid_round
+        # self.distance = self.compute_distance(self.scheduled_tasks)
+        # if self.bidding_rule == self.IDLE_TIME:
+        #     self.idle_time += self.bid_round
 
         self.send_schedule()
 
     def send_schedule(self):
+        # TODO: Send dispatch_graph instead of scheduled_tasks
         ''' Sends the updated schedule of the robot to the auctioneer.
         '''
         schedule_msg = dict()
@@ -314,7 +316,8 @@ class Robot(RopodPyre):
         schedule_msg['payload']['robot_id'] = self.id
         schedule_msg['payload']['schedule'] = list()
         for i, task in enumerate(self.scheduled_tasks):
-            schedule_msg['payload']['schedule'].append(task.to_dict())
+            schedule_msg['payload']['schedule'].append(task)
+            # schedule_msg['payload']['schedule'].append(task.to_dict())
 
         self.logger.debug("Robot sends its updated schedule to the auctioneer.")
 
