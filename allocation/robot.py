@@ -39,7 +39,7 @@ class Robot(RopodPyre):
 
         super().__init__(self.id, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
-        self.logger = logging.getLogger('robot: %s' % robot_id)
+        self.logger = logging.getLogger('robot.%s' % robot_id)
 
         scheduling_method = config_params.scheduling_method
         self.scheduler = Scheduler(scheduling_method)
@@ -165,7 +165,7 @@ class Robot(RopodPyre):
 
         if self.bidding_rule == self.COMPLETION_TIME:
             bid = self.rule_completion_time(dispatch_graph, metric)
-            print("Bid: ", bid)
+            self.logger.debug("Bid: ", bid)
 
         # TODO: Maybe add other bidding rules
         return bid
@@ -226,7 +226,7 @@ class Robot(RopodPyre):
         self.scheduled_tasks = self.dispatch_graph_round.get_scheduled_tasks()
         tasks = [task for task in self.scheduled_tasks]
 
-        self.logger.debug("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
+        self.logger.info("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
         self.whisper(bid_msg, peer='auctioneer')
 
     def send_empty_bid(self, n_round, empty_bids):
@@ -249,18 +249,18 @@ class Robot(RopodPyre):
         for task_id in empty_bids:
             empty_bid_msg['payload']['task_ids'].append(task_id)
 
-        self.logger.debug("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, empty_bids)
+        self.logger.info("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, empty_bids)
         self.whisper(empty_bid_msg, peer='auctioneer')
 
     def allocate_to_robot(self, task_id):
         # Update the dispatch_graph
         self.scheduler.temporal_network = copy.deepcopy(self.dispatch_graph_round)
 
-        self.logger.debug("Robot %s allocated task %s", self.id, task_id)
+        self.logger.info("Robot %s allocated task %s", self.id, task_id)
 
         tasks = [task for task in self.scheduled_tasks]
 
-        self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
+        self.logger.info("Tasks scheduled to robot %s:%s", self.id, tasks)
 
         self.send_schedule()
 
@@ -285,6 +285,7 @@ class Robot(RopodPyre):
 
         self.logger.debug("Robot sent its updated schedule to the auctioneer.")
 
+
 if __name__ == '__main__':
     code_dir = os.path.abspath(os.path.dirname(__file__))
     main_dir = os.path.dirname(code_dir)
@@ -300,7 +301,6 @@ if __name__ == '__main__':
         config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
 
-
     # time.sleep(5)
 
     robot = Robot(ropod_id, config_params)
@@ -310,7 +310,7 @@ if __name__ == '__main__':
         while not robot.terminated:
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        print("Robot terminated; exiting")
+        logging.info("Robot terminated; exiting")
 
-    print("Exiting robot")
+    logging.info("Exiting robot")
     robot.shutdown()

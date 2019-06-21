@@ -5,6 +5,8 @@ import yaml
 import uuid
 import time
 import os
+import logging
+import logging.config
 
 
 class TaskAllocator(RopodPyre):
@@ -12,13 +14,19 @@ class TaskAllocator(RopodPyre):
         self.zyre_params = config_params.task_allocator_zyre_params
         super().__init__('task_allocator', self.zyre_params.groups, self.zyre_params.message_types)
 
+        with open('../config/logging.yaml', 'r') as f:
+            config = yaml.safe_load(f.read())
+            logging.config.dictConfig(config)
+
+        self.logger = logging.getLogger('task_allocator')
+
     def read_dataset(self, dataset_id):
         my_dir = os.path.dirname(__file__)
         dataset_path = os.path.join(my_dir, 'datasets/' + dataset_id)
 
         with open(dataset_path, 'r') as file:
             dataset = yaml.safe_load(file)
-        print("dataset: ", dataset)
+        self.logger.info("Dataset: %s ", dataset)
         return dataset
 
     def allocate_dataset(self, dataset_id):

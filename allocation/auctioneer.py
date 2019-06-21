@@ -38,7 +38,6 @@ class Auctioneer(RopodPyre):
         super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
         self.logger = logging.getLogger('auctioneer')
-        self.logger.debug("This is a debug message")
 
         # {task_id: list of robots assigned to task_id}
         self.allocations = dict()
@@ -67,7 +66,7 @@ class Auctioneer(RopodPyre):
     def read_dataset(self, dataset_id):
         with open('datasets/' + dataset_id + ".yaml", 'r') as file:
             dataset = yaml.safe_load(file)
-        print("dataset: ", dataset)
+        logging.info("Dataset: %s ", dataset)
         return dataset
 
     def order_tasks(self, dataset):
@@ -92,8 +91,8 @@ class Auctioneer(RopodPyre):
             self.received_updated_schedule = False
             self.reinitialize_auction_variables()
 
-            self.logger.debug("Starting round: %s", self.n_round)
-            self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
+            self.logger.info("Starting round: %s", self.n_round)
+            self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
             # Create task announcement message that contains all unallocated tasks
             task_announcement = dict()
@@ -115,7 +114,6 @@ class Auctioneer(RopodPyre):
             self.shout(task_announcement, 'TASK-ALLOCATION')
 
         elif not self.tasks_to_allocate and self.allocate_next_task:
-            # print("Reset variables and send DONE msg")
             self.terminate_allocation()
 
     def terminate_allocation(self):
@@ -213,7 +211,7 @@ class Auctioneer(RopodPyre):
 
             winning_robot = robots_tied[0]
 
-            self.logger.debug("Robot %s wins task %s", winning_robot, allocated_task)
+            self.logger.info("Robot %s wins task %s", winning_robot, allocated_task)
 
             self.allocations[allocated_task] = [winning_robot]
 
@@ -225,7 +223,7 @@ class Auctioneer(RopodPyre):
             self.announce_winner(allocated_task, winning_robot)
 
         else:
-            print("[INFO] Tasks in unallocated tasks could not be allocated")
+            logging.info("Tasks in unallocated tasks could not be allocated")
             for unallocated_task in self.unallocated_tasks:
                 self.unsuccessful_allocations.append(unallocated_task.id)
             self.allocate_next_task = True
@@ -274,7 +272,6 @@ if __name__ == '__main__':
         config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
 
-
     # time.sleep(5)
 
     auctioneer = Auctioneer(config_params)
@@ -285,7 +282,7 @@ if __name__ == '__main__':
             auctioneer.announce_task()
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        print("Auctioneer terminated; exiting")
+        logging.info("Auctioneer terminated; exiting")
 
-    print("Exiting auctioneer")
+    logging.info("Exiting auctioneer")
     auctioneer.shutdown()
