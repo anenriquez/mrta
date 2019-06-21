@@ -165,7 +165,7 @@ class Robot(RopodPyre):
 
         if self.bidding_rule == self.COMPLETION_TIME:
             bid = self.rule_completion_time(dispatch_graph, metric)
-            self.logger.debug("Bid: ", bid)
+            self.logger.debug("Bid: %s", bid)
 
         # TODO: Maybe add other bidding rules
         return bid
