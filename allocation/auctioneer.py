@@ -9,7 +9,8 @@ import logging.config
 import os
 import yaml
 from ropod.pyre_communicator.base_class import RopodPyre
-from allocation.config.config_file_reader import ConfigFileReader
+# from allocation.config.config_file_reader import ConfigFileReader
+from allocation.config.loader import Config
 SLEEP_TIME = 0.350
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -22,7 +23,7 @@ SLEEP_TIME = 0.350
 '''
 
 
-class Auctioneer(RopodPyre):
+class Auctioneer(object):
     #  Bidding rules
     COMPLETION_TIME = 1
     COMPLETION_TIME_DISTANCE = 2
@@ -30,12 +31,22 @@ class Auctioneer(RopodPyre):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, config_params):
-        self.bidding_rule = config_params.bidding_rule
-        self.zyre_params = config_params.task_allocator_zyre_params
-        self.robots = config_params.ropods
-        node_name = 'auctioneer'
-        super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
+    def __init__(self, config_params, zyre_api):
+        self.bidding_rule = config_params.get('bidding_rule')
+        # self.zyre_params = config_params.task_allocator_zyre_params
+        self.robots = config_params.get('fleet')
+
+        self.api = zyre_api
+
+        self.api.add_callback(self, 'START', 'start_cb')
+        self.api.add_callback(self, 'BID', 'bid_cb')
+        self.api.add_callback(self, 'NO-BID', 'no_bid_cb')
+        self.api.add_callback(self, 'SCHEDULE', 'schedule_cb')
+        self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
+
+
+        # node_name = 'auctioneer'
+        # super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
         self.logger = logging.getLogger('auctioneer')
 
@@ -60,7 +71,7 @@ class Auctioneer(RopodPyre):
 
         # Bids received in one allocation iteration
         self.received_bids = list()
-        self.received_empty_bids = list()
+        self.received_no_bids = list()
         self.n_round = 0
 
     def read_dataset(self, dataset_id):
@@ -111,7 +122,7 @@ class Auctioneer(RopodPyre):
 
             self.logger.debug("Auctioneer announces tasks %s", [task.id for task in self.tasks_to_allocate])
 
-            self.shout(task_announcement, 'TASK-ALLOCATION')
+            self.api.shout(task_announcement, 'TASK-ALLOCATION')
 
         elif not self.tasks_to_allocate and self.allocate_next_task:
             self.terminate_allocation()
@@ -125,53 +136,94 @@ class Auctioneer(RopodPyre):
         self.send_done_msg()
 
     def check_n_received_bids(self):
-        if (len(self.received_bids) + len(self.received_empty_bids)) == len(self.robots):
+        print("Check n recevied Bids")
+        print("bids", len(self.received_bids))
+        print("robots", len(self.robots))
+        if (len(self.received_bids) + len(self.received_no_bids)) == len(self.robots):
             self.logger.debug("The auctioneer has received a message from all robots")
             self.elect_winner()
 
-    def receive_msg_cb(self, msg_content):
-        dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-        if dict_msg is None:
-            return
-        message_type = dict_msg['header']['type']
+    def start_cb(self, msg):
+        dataset_id = msg['payload']['dataset_id']
+        self.logger.debug("Received dataset %s", dataset_id)
+        dataset = self.read_dataset(dataset_id)
+        ordered_tasks = self.order_tasks(dataset)
+        self.update_unallocated_tasks(ordered_tasks)
+        self.allocate_next_task = True
+        self.start_total_time = time.time()
 
-        if message_type == 'START':
-            dataset_id = dict_msg['payload']['dataset_id']
-            self.logger.debug("Received dataset %s", dataset_id)
-            dataset = self.read_dataset(dataset_id)
-            ordered_tasks = self.order_tasks(dataset)
-            self.update_unallocated_tasks(ordered_tasks)
-            self.allocate_next_task = True
-            self.start_total_time = time.time()
+    def bid_cb(self, msg):
+        bid = dict()
+        bid['task_id'] = msg['payload']['task_id']
+        bid['robot_id'] = msg['payload']['robot_id']
+        bid['bid'] = msg['payload']['bid']
+        self.received_bids.append(bid)
+        self.logger.debug("Received bid %s from %s", bid['bid'], bid['robot_id'])
+        self.check_n_received_bids()
 
-        elif message_type == 'BID':
-            bid = dict()
-            bid['task_id'] = dict_msg['payload']['task_id']
-            bid['robot_id'] = dict_msg['payload']['robot_id']
-            bid['bid'] = dict_msg['payload']['bid']
-            self.received_bids.append(bid)
-            self.logger.debug("Received bid %s from %s", bid['bid'], bid['robot_id'])
-            self.check_n_received_bids()
+    def no_bid_cb(self, msg):
+        no_bid = dict()
+        no_bid['task_ids'] = dict_msg['payload']['task_ids']
+        no_bid['robot_id'] = dict_msg['payload']['robot_id']
+        self.received_no_bids.append(no_bid)
+        self.logger.debug("Received no-bid from %s", no_bid['robot_id'])
+        self.check_n_received_bids()
 
-        elif message_type == 'EMPTY-BID':
-            empty_bid = dict()
-            empty_bid['task_ids'] = dict_msg['payload']['task_ids']
-            empty_bid['robot_id'] = dict_msg['payload']['robot_id']
-            self.received_empty_bids.append(empty_bid)
-            self.logger.debug("Received empty bid from %s", empty_bid['robot_id'])
-            self.check_n_received_bids()
+    def schedule_cb(self, msg):
+        robot_id = msg['payload']['robot_id']
+        schedule = msg['payload']['schedule']
+        self.schedule[robot_id] = schedule
+        self.received_updated_schedule = True
+        self.logger.debug("Received schedule %s of robot %s", schedule, robot_id)
 
-        elif message_type == 'SCHEDULE':
-            robot_id = dict_msg['payload']['robot_id']
-            schedule = dict_msg['payload']['schedule']
-            self.schedule[robot_id] = schedule
-            self.received_updated_schedule = True
-            self.logger.debug("Received schedule %s of robot %s", schedule, robot_id)
+    def terminate_cb(self, msg):
+        self.logger.debug("Terminating auctioneer...")
+        self.api.terminated = True
 
-        elif message_type == "TERMINATE":
-            self.logger.debug("Terminating auctioneer...")
-            self.terminated = True
-            # self.shutdown()
+
+    # def receive_msg_cb(self, msg_content):
+    #     msg = self.convert_zyre_msg_to_dict(msg_content)
+    #     if dict_msg is None:
+    #         return
+    #     message_type = dict_msg['header']['type']
+    #
+    #     if message_type == 'START':
+    #         dataset_id = dict_msg['payload']['dataset_id']
+    #         self.logger.debug("Received dataset %s", dataset_id)
+    #         dataset = self.read_dataset(dataset_id)
+    #         ordered_tasks = self.order_tasks(dataset)
+    #         self.update_unallocated_tasks(ordered_tasks)
+    #         self.allocate_next_task = True
+    #         self.start_total_time = time.time()
+    #
+    #     elif message_type == 'BID':
+    #         bid = dict()
+    #         bid['task_id'] = dict_msg['payload']['task_id']
+    #         bid['robot_id'] = dict_msg['payload']['robot_id']
+    #         bid['bid'] = dict_msg['payload']['bid']
+    #         self.received_bids.append(bid)
+    #         self.logger.debug("Received bid %s from %s", bid['bid'], bid['robot_id'])
+    #         self.check_n_received_bids()
+    #
+    #     elif message_type == 'EMPTY-BID':
+    #         empty_bid = dict()
+    #         empty_bid['task_ids'] = dict_msg['payload']['task_ids']
+    #         empty_bid['robot_id'] = dict_msg['payload']['robot_id']
+    #         self.received_empty_bids.append(empty_bid)
+    #         self.logger.debug("Received empty bid from %s", empty_bid['robot_id'])
+    #         self.check_n_received_bids()
+    #
+    #     elif message_type == 'SCHEDULE':
+    #         robot_id = dict_msg['payload']['robot_id']
+    #         schedule = dict_msg['payload']['schedule']
+    #         self.schedule[robot_id] = schedule
+    #         self.received_updated_schedule = True
+    #         self.logger.debug("Received schedule %s of robot %s", schedule, robot_id)
+    #
+    #     elif message_type == "TERMINATE":
+    #         self.logger.debug("Terminating auctioneer...")
+    #         self.terminated = True
+    #         # self.shutdown()
 
     def elect_winner(self):
         if self.received_bids:
@@ -243,7 +295,7 @@ class Auctioneer(RopodPyre):
         allocation['payload']['winner_id'] = winning_robot
 
         self.logger.debug("Accouncing winner...")
-        self.shout(allocation, 'TASK-ALLOCATION')
+        self.api.shout(allocation, 'TASK-ALLOCATION')
 
         # Sleep so that the winner robot has time to process the allocation
         # time.sleep(SLEEP_TIME)
@@ -258,15 +310,15 @@ class Auctioneer(RopodPyre):
         done_msg['header']['msgId'] = str(uuid.uuid4())
         done_msg['header']['timestamp'] = int(round(time.time()) * 1000)
         done_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
-        self.shout(done_msg, 'TASK-ALLOCATION')
+        self.api.whisper(done_msg, peer='task_allocator')
         self.logger.debug("Done allocating tasks")
 
 
 if __name__ == '__main__':
-    code_dir = os.path.abspath(os.path.dirname(__file__))
-    main_dir = os.path.dirname(code_dir)
-
-    config_params = ConfigFileReader.load("../config/config.yaml")
+    # code_dir = os.path.abspath(os.path.dirname(__file__))
+    # main_dir = os.path.dirname(code_dir)
+    #
+    # config_params = ConfigFileReader.load("../config/config.yaml")
 
     with open('../config/logging.yaml', 'r') as f:
         config = yaml.safe_load(f.read())
@@ -274,15 +326,21 @@ if __name__ == '__main__':
 
     # time.sleep(5)
 
-    auctioneer = Auctioneer(config_params)
-    auctioneer.start()
+    config = Config("../config/config-v2.yaml")
+    config_params = config.get_config_params()
+    print("Config params: ", config_params)
+
+    zyre_api = config.configure_api('auctioneer')
+
+    auctioneer = Auctioneer(config_params, zyre_api)
+    auctioneer.api.start()
 
     try:
-        while not auctioneer.terminated:
+        while not auctioneer.api.terminated:
             auctioneer.announce_task()
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
         logging.info("Auctioneer terminated; exiting")
 
     logging.info("Exiting auctioneer")
-    auctioneer.shutdown()
+    auctioneer.api.shutdown()

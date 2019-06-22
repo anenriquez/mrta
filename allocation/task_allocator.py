@@ -9,10 +9,16 @@ import logging
 import logging.config
 
 
-class TaskAllocator(RopodPyre):
-    def __init__(self, config_params):
-        self.zyre_params = config_params.task_allocator_zyre_params
-        super().__init__('task_allocator', self.zyre_params.groups, self.zyre_params.message_types)
+class TaskAllocator(object):
+
+    def __init__(self, zyre_api):
+        # self.zyre_params = config_params.task_allocator_zyre_params
+        # super().__init__('task_allocator', self.zyre_params.groups, self.zyre_params.message_types)
+
+        self.api = zyre_api
+        self.api.add_callback(self, 'DONE', 'done_cb')
+
+        print("API: ", self.api)
 
         with open('../config/logging.yaml', 'r') as f:
             config = yaml.safe_load(f.read())
@@ -46,7 +52,7 @@ class TaskAllocator(RopodPyre):
         start_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
         start_msg['payload']['start_time'] = start_time
         start_msg['payload']['dataset_id'] = dataset_id
-        self.shout(start_msg, 'TASK-ALLOCATION')
+        self.api.shout(start_msg, 'TASK-ALLOCATION')
 
     def send_terminate_msg(self):
         terminate_msg = dict()
@@ -56,14 +62,18 @@ class TaskAllocator(RopodPyre):
         terminate_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         terminate_msg['header']['msgId'] = str(uuid.uuid4())
         terminate_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        self.shout(terminate_msg, 'TASK-ALLOCATION')
-        self.terminated = True
+        self.api.shout(terminate_msg, 'TASK-ALLOCATION')
+        self.api.terminated = True
 
-    def receive_msg_cb(self, msg_content):
-        dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-        if dict_msg is None:
-            return
-        message_type = dict_msg['header']['type']
+    def done_cb(self, msg):
+        self.logger.debug("Received done msg")
+        self.send_terminate_msg()
 
-        if message_type == 'DONE':
-            self.send_terminate_msg()
+    # def receive_msg_cb(self, msg_content):
+    #     dict_msg = self.convert_zyre_msg_to_dict(msg_content)
+    #     if dict_msg is None:
+    #         return
+    #     message_type = dict_msg['header']['type']
+    #
+    #     if message_type == 'DONE':
+    #         self.send_terminate_msg()
