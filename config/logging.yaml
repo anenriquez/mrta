@@ -13,13 +13,10 @@ handlers:
 loggers:
   robot:
     level: DEBUG
-    handlers: [console]
   auctioneer:
       level: DEBUG
-      handlers: [console]
-  task_allocator:
+  task_requester:
       level: DEBUG
-      handlers: [console]
 root:
   level: DEBUG
   handlers: [console]

@@ -2,18 +2,14 @@ import copy
 import uuid
 import time
 import numpy as np
-import os
 import argparse
 import logging
 import logging.config
-import yaml
-from ropod.pyre_communicator.base_class import RopodPyre
-# from allocation.config.config_file_reader import ConfigFileReader
 from scheduler.structs.task import Task
 from scheduler.scheduler import Scheduler
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
-from utils.config_logger import config_logger
+from allocation.utils.config_logger import config_logger
 
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -292,13 +288,13 @@ class Robot(object):
 
 if __name__ == '__main__':
 
-    config_logger('../config/logging.yaml')
-    config = Config("../config/config.yaml")
-
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
     robot_id = args.robot_id
+
+    config = Config("../config/config.yaml")
+    config_logger('../config/logging.yaml')
 
     robot_config = config.configure_robot_proxy(robot_id)
     robot = Robot(**robot_config)

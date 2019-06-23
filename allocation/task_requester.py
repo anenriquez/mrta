@@ -18,7 +18,7 @@ class TaskRequester(object):
             config = yaml.safe_load(f.read())
             logging.config.dictConfig(config)
 
-        self.logger = logging.getLogger('task_allocator')
+        self.logger = logging.getLogger('task_requester')
 
     def allocate_dataset(self, dataset_id):
         dataset = self.dataset_loader.read_dataset(dataset_id)

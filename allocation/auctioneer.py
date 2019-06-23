@@ -1,17 +1,13 @@
-from scheduler.structs.area import Area
 from scheduler.structs.task import Task
 import uuid
 import time
-import datetime
 import collections
 import logging
 import logging.config
-import os
 import yaml
 from datetime import timedelta
-from ropod.pyre_communicator.base_class import RopodPyre
 from allocation.config.loader import Config
-from utils.config_logger import config_logger
+from allocation.utils.config_logger import config_logger
 
 SLEEP_TIME = 0.350
 
