@@ -4,6 +4,7 @@ import time
 import logging
 import logging.config
 from allocation.config.dataset_loader import DatasetLoader
+from allocation.utils.config_logger import config_logger
 
 
 class TaskRequester(object):
@@ -14,10 +15,7 @@ class TaskRequester(object):
         self.api.add_callback(self, 'DONE', 'done_cb')
         self.dataset_loader = DatasetLoader()
 
-        with open('../config/logging.yaml', 'r') as f:
-            config = yaml.safe_load(f.read())
-            logging.config.dictConfig(config)
-
+        config_logger('../config/logging.yaml')
         self.logger = logging.getLogger('task_requester')
 
     def allocate_dataset(self, dataset_id):
