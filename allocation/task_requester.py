@@ -1,30 +1,28 @@
-from allocation.auctioneer import Auctioneer
-from ropod.pyre_communicator.base_class import RopodPyre
-from allocation.config.config_file_reader import ConfigFileReader
 import yaml
 import uuid
 import time
-import os
+import logging
+import logging.config
+from allocation.config.dataset_loader import DatasetLoader
+from allocation.utils.config_logger import config_logger
 
 
-class TaskAllocator(RopodPyre):
-    def __init__(self, config_params):
-        self.zyre_params = config_params.task_allocator_zyre_params
-        super().__init__('task_allocator', self.zyre_params.groups, self.zyre_params.message_types)
+class TaskRequester(object):
 
-    def read_dataset(self, dataset_id):
-        my_dir = os.path.dirname(__file__)
-        dataset_path = os.path.join(my_dir, 'datasets/' + dataset_id)
+    def __init__(self, api):
 
-        with open(dataset_path, 'r') as file:
-            dataset = yaml.safe_load(file)
-        print("dataset: ", dataset)
-        return dataset
+        self.api = api
+        self.api.add_callback(self, 'DONE', 'done_cb')
+        self.dataset_loader = DatasetLoader()
+
+        config_logger('../config/logging.yaml')
+        self.logger = logging.getLogger('task_requester')
 
     def allocate_dataset(self, dataset_id):
-        dataset = self.read_dataset(dataset_id)
+        dataset = self.dataset_loader.read_dataset(dataset_id)
         start_time = dataset['start_time']
         dataset_id = dataset['dataset_id']
+        self.logger.info("Dataset: %s", dataset_id)
         self.send_start_msg(start_time, dataset_id)
 
     def send_start_msg(self, start_time, dataset_id):
@@ -38,7 +36,7 @@ class TaskAllocator(RopodPyre):
         start_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
         start_msg['payload']['start_time'] = start_time
         start_msg['payload']['dataset_id'] = dataset_id
-        self.shout(start_msg, 'TASK-ALLOCATION')
+        self.api.shout(start_msg, 'TASK-ALLOCATION')
 
     def send_terminate_msg(self):
         terminate_msg = dict()
@@ -48,14 +46,9 @@ class TaskAllocator(RopodPyre):
         terminate_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         terminate_msg['header']['msgId'] = str(uuid.uuid4())
         terminate_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        self.shout(terminate_msg, 'TASK-ALLOCATION')
-        self.terminated = True
+        self.api.shout(terminate_msg, 'TASK-ALLOCATION')
+        self.api.terminated = True
 
-    def receive_msg_cb(self, msg_content):
-        dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-        if dict_msg is None:
-            return
-        message_type = dict_msg['header']['type']
-
-        if message_type == 'DONE':
-            self.send_terminate_msg()
+    def done_cb(self, msg):
+        self.logger.debug("Received done msg")
+        self.send_terminate_msg()

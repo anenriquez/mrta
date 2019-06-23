@@ -2,15 +2,14 @@ import copy
 import uuid
 import time
 import numpy as np
-import os
 import argparse
 import logging
 import logging.config
-import yaml
-from ropod.pyre_communicator.base_class import RopodPyre
-from allocation.config.config_file_reader import ConfigFileReader
 from scheduler.structs.task import Task
 from scheduler.scheduler import Scheduler
+from allocation.api.zyre import ZyreAPI
+from allocation.config.loader import Config
+from allocation.utils.config_logger import config_logger
 
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -24,7 +23,7 @@ from scheduler.scheduler import Scheduler
 MAX_SEED = 2 ** 31 - 1
 
 
-class Robot(RopodPyre):
+class Robot(object):
     #  Bidding rules
     COMPLETION_TIME = 1
     COMPLETION_TIME_DISTANCE = 2
@@ -32,17 +31,23 @@ class Robot(RopodPyre):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, robot_id, config_params):
+    def __init__(self, robot_id, bidding_rule, scheduling_method, api_config, auctioneer):
         self.id = robot_id
-        self.bidding_rule = config_params.bidding_rule
-        self.zyre_params = config_params.task_allocator_zyre_params
-
-        super().__init__(self.id, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
-
-        self.logger = logging.getLogger('robot: %s' % robot_id)
-
-        scheduling_method = config_params.scheduling_method
+        self.bidding_rule = bidding_rule
         self.scheduler = Scheduler(scheduling_method)
+        self.auctioneer = auctioneer
+
+        zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
+        zyre_config['node_name'] = robot_id + '_proxy'
+
+        self.api = ZyreAPI(zyre_config)
+
+        self.api.add_callback(self, 'START', 'start_cb')
+        self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
+        self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
+        self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
+
+        self.logger = logging.getLogger('robot.%s' % robot_id)
 
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
@@ -62,36 +67,29 @@ class Robot(RopodPyre):
         self.bid_round = None
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
-    def receive_msg_cb(self, msg_content):
-        dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-        if dict_msg is None:
-            return
-        message_type = dict_msg['header']['type']
+    def start_cb(self, msg):
+        self.dataset_start_time = msg['payload']['start_time']
+        self.logger.debug("Received dataset start time %s", self.dataset_start_time)
 
-        if message_type == 'START':
-            self.dataset_start_time = dict_msg['payload']['start_time']
-            self.logger.debug("Received dataset start time %s", self.dataset_start_time)
+    def task_announcement_cb(self, msg):
+        self.reinitialize_auction_variables()
+        n_round = msg['payload']['round']
+        tasks = msg['payload']['tasks']
+        self.compute_bids(tasks, n_round)
 
-        elif message_type == 'TASK-ANNOUNCEMENT':
-            self.reinitialize_auction_variables()
-            n_round = dict_msg['payload']['round']
-            tasks = dict_msg['payload']['tasks']
-            self.compute_bids(tasks, n_round)
+    def allocation_cb(self, msg):
+        task_id = msg['payload']['task_id']
+        winner_id = msg['payload']['winner_id']
+        if winner_id == self.id:
+            self.allocate_to_robot(task_id)
 
-        elif message_type == "ALLOCATION":
-            task_id = dict_msg['payload']['task_id']
-            winner_id = dict_msg['payload']['winner_id']
-            if winner_id == self.id:
-                self.allocate_to_robot(task_id)
-
-        elif message_type == "TERMINATE":
-            self.logger.debug("Terminating robot...")
-            self.terminated = True
-            # self.shutdown()
+    def terminate_cb(self, msg):
+        self.logger.debug("Terminating robot...")
+        self.api.terminated = True
 
     def compute_bids(self, tasks, n_round):
         bids = dict()
-        empty_bids = list()
+        no_bids = list()
 
         for task_id, task_info in tasks.items():
             task = Task.from_dict(task_info)
@@ -105,7 +103,7 @@ class Robot(RopodPyre):
                 bids[task_id]['dispatch_graph'] = best_dispatch_graph
 
             else:
-                empty_bids.append(task_id)
+                no_bids.append(task_id)
 
         if bids:
             # Send the smallest bid
@@ -113,7 +111,7 @@ class Robot(RopodPyre):
             self.send_bid(n_round, task_id_bid, smallest_bid)
         else:
             # Send an empty bid with task ids of tasks that could not be allocated
-            self.send_empty_bid(n_round, empty_bids)
+            self.send_no_bid(n_round, no_bids)
 
     def insert_task(self, task):
         best_bid = float('Inf')
@@ -165,7 +163,7 @@ class Robot(RopodPyre):
 
         if self.bidding_rule == self.COMPLETION_TIME:
             bid = self.rule_completion_time(dispatch_graph, metric)
-            print("Bid: ", bid)
+            self.logger.debug("Bid: %s", bid)
 
         # TODO: Maybe add other bidding rules
         return bid
@@ -226,41 +224,43 @@ class Robot(RopodPyre):
         self.scheduled_tasks = self.dispatch_graph_round.get_scheduled_tasks()
         tasks = [task for task in self.scheduled_tasks]
 
-        self.logger.debug("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
-        self.whisper(bid_msg, peer='auctioneer')
+        self.logger.info("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
+        self.api.whisper(bid_msg, peer=self.auctioneer)
+        # self.api.shout(bid_msg)
+        # self.whisper(bid_msg, peer='zyre_api')
 
-    def send_empty_bid(self, n_round, empty_bids):
+    def send_no_bid(self, n_round, no_bids):
         '''
-        Create empty_bid_msg for each task in empty_bids and send it to the auctioneer
+        Create no_bid_msg for each task in no_bids and send it to the auctioneer
         '''
-        empty_bid_msg = dict()
-        empty_bid_msg['header'] = dict()
-        empty_bid_msg['payload'] = dict()
-        empty_bid_msg['header']['type'] = 'EMPTY-BID'
-        empty_bid_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        empty_bid_msg['header']['msgId'] = str(uuid.uuid4())
-        empty_bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        no_bid_msg = dict()
+        no_bid_msg['header'] = dict()
+        no_bid_msg['payload'] = dict()
+        no_bid_msg['header']['type'] = 'NO-BID'
+        no_bid_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        no_bid_msg['header']['msgId'] = str(uuid.uuid4())
+        no_bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        empty_bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
-        empty_bid_msg['payload']['robot_id'] = self.id
-        empty_bid_msg['payload']['n_round'] = n_round
-        empty_bid_msg['payload']['task_ids'] = list()
+        no_bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
+        no_bid_msg['payload']['robot_id'] = self.id
+        no_bid_msg['payload']['n_round'] = n_round
+        no_bid_msg['payload']['task_ids'] = list()
 
-        for task_id in empty_bids:
-            empty_bid_msg['payload']['task_ids'].append(task_id)
+        for task_id in no_bids:
+            no_bid_msg['payload']['task_ids'].append(task_id)
 
-        self.logger.debug("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, empty_bids)
-        self.whisper(empty_bid_msg, peer='auctioneer')
+        self.logger.info("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, no_bids)
+        self.api.whisper(no_bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
         # Update the dispatch_graph
         self.scheduler.temporal_network = copy.deepcopy(self.dispatch_graph_round)
 
-        self.logger.debug("Robot %s allocated task %s", self.id, task_id)
+        self.logger.info("Robot %s allocated task %s", self.id, task_id)
 
         tasks = [task for task in self.scheduled_tasks]
 
-        self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
+        self.logger.info("Tasks scheduled to robot %s:%s", self.id, tasks)
 
         self.send_schedule()
 
@@ -281,36 +281,29 @@ class Robot(RopodPyre):
         for i, task_id in enumerate(self.scheduled_tasks):
             schedule_msg['payload']['schedule'].append(task_id)
 
-        self.whisper(schedule_msg, peer='auctioneer')
+        self.api.whisper(schedule_msg, peer=self.auctioneer)
 
         self.logger.debug("Robot sent its updated schedule to the auctioneer.")
 
-if __name__ == '__main__':
-    code_dir = os.path.abspath(os.path.dirname(__file__))
-    main_dir = os.path.dirname(code_dir)
 
-    config_params = ConfigFileReader.load("../config/config.yaml")
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('ropod_id', type=str, help='example: ropod_001')
+    parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
-    ropod_id = args.ropod_id
+    robot_id = args.robot_id
 
-    with open('../config/logging.yaml', 'r') as f:
-        config = yaml.safe_load(f.read())
-        logging.config.dictConfig(config)
+    config = Config("../config/config.yaml")
+    config_logger('../config/logging.yaml')
 
-
-    # time.sleep(5)
-
-    robot = Robot(ropod_id, config_params)
-    robot.start()
+    robot_config = config.configure_robot_proxy(robot_id)
+    robot = Robot(**robot_config)
 
     try:
-        while not robot.terminated:
+        while not robot.api.terminated:
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        print("Robot terminated; exiting")
+        logging.info("Robot terminated; exiting")
 
-    print("Exiting robot")
-    robot.shutdown()
+    logging.info("Exiting robot")
+    robot.api.shutdown()
