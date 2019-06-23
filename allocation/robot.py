@@ -44,10 +44,6 @@ class Robot(object):
         zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
         zyre_config['node_name'] = robot_id + '_proxy'
 
-        print("Zyre config: ", zyre_config)
-
-        # super().__init__(zyre_config)
-
         self.api = ZyreAPI(zyre_config)
 
         self.api.add_callback(self, 'START', 'start_cb')
@@ -55,18 +51,7 @@ class Robot(object):
         self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
         self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
 
-
-        # zyre_params = config_params.task_allocator_zyre_params
-        # self.api(robot_id, zyre_params.groups, zyre_params.message_types, acknowledge=False)
-
-        # self.zyre_params = config_params.task_allocator_zyre_params
-        #
-        # super().__init__(self.id, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
-
-        config_logger('../config/logging.yaml')
         self.logger = logging.getLogger('robot.%s' % robot_id)
-
-
 
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
@@ -105,35 +90,6 @@ class Robot(object):
     def terminate_cb(self, msg):
         self.logger.debug("Terminating robot...")
         self.api.terminated = True
-
-    # def receive_msg_cb(self, msg_content):
-    #     # self.receive_msg_cb(msg_content)
-    #
-    #     dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-    #     if dict_msg is None:
-    #         return
-    #     message_type = dict_msg['header']['type']
-    #
-    #     if message_type == 'START':
-    #         self.dataset_start_time = dict_msg['payload']['start_time']
-    #         self.logger.debug("Received dataset start time %s", self.dataset_start_time)
-    #
-    #     elif message_type == 'TASK-ANNOUNCEMENT':
-    #         self.reinitialize_auction_variables()
-    #         n_round = dict_msg['payload']['round']
-    #         tasks = dict_msg['payload']['tasks']
-    #         self.compute_bids(tasks, n_round)
-    #
-    #     elif message_type == "ALLOCATION":
-    #         task_id = dict_msg['payload']['task_id']
-    #         winner_id = dict_msg['payload']['winner_id']
-    #         if winner_id == self.id:
-    #             self.allocate_to_robot(task_id)
-    #
-    #     elif message_type == "TERMINATE":
-    #         self.logger.debug("Terminating robot...")
-    #         self.api.terminated = True
-    #         # self.shutdown()
 
     def compute_bids(self, tasks, n_round):
         bids = dict()
@@ -335,17 +291,9 @@ class Robot(object):
 
 
 if __name__ == '__main__':
-    # code_dir = os.path.abspath(os.path.dirname(__file__))
-    # main_dir = os.path.dirname(code_dir)
 
-    # with open('../config/logging.yaml', 'r') as f:
-    #     log_config = yaml.safe_load(f.read())
-    #     logging.config.dictConfig(log_config)
-
-    config = Config("../config/config-v2.yaml", False)
-
-    # config_params = config.get_config_params()
-    # print("Config params: ", config_params)
+    config_logger('../config/logging.yaml')
+    config = Config("../config/config.yaml")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
@@ -355,20 +303,6 @@ if __name__ == '__main__':
     robot_config = config.configure_robot_proxy(robot_id)
     robot = Robot(**robot_config)
 
-
-    # zyre_api = config.configure_api(robot_id)
-    # api_config = config_params.get('api')
-    # zyre_config = api_config.get('zyre')
-    # zyre_api = ZyreAPI(zyre_config)
-
-
-    # zyre_api = ZyreAPI(robot_id, zyre_params.groups, zyre_params.message_types, acknowledge=False)
-
-    # robot = Robot(robot_id, config_params, zyre_api)
-
-    # robot.api.start()
-    # robot.api.start()
-
     try:
         while not robot.api.terminated:
             time.sleep(0.5)
@@ -376,5 +310,4 @@ if __name__ == '__main__':
         logging.info("Robot terminated; exiting")
 
     logging.info("Exiting robot")
-    # robot.api.shutdown()
     robot.api.shutdown()
