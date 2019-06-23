@@ -7,12 +7,13 @@ import argparse
 import logging
 import logging.config
 import yaml
-# from ropod.pyre_communicator.base_class import RopodPyre
+from ropod.pyre_communicator.base_class import RopodPyre
 # from allocation.config.config_file_reader import ConfigFileReader
 from scheduler.structs.task import Task
 from scheduler.scheduler import Scheduler
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
+from utils.config_logger import config_logger
 
 
 '''  Implements the TeSSI algorithm with different bidding rules:
@@ -34,13 +35,20 @@ class Robot(object):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, robot_id, config_params, zyre_api):
+    def __init__(self, robot_id, bidding_rule, scheduling_method, api_config, auctioneer):
         self.id = robot_id
-        self.bidding_rule = config_params.get('bidding_rule')
+        self.bidding_rule = bidding_rule
+        self.scheduler = Scheduler(scheduling_method)
+        self.auctioneer = auctioneer
 
-        self.api = zyre_api
+        zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
+        zyre_config['node_name'] = robot_id + '_proxy'
 
-        print("API: ", self.api)
+        print("Zyre config: ", zyre_config)
+
+        # super().__init__(zyre_config)
+
+        self.api = ZyreAPI(zyre_config)
 
         self.api.add_callback(self, 'START', 'start_cb')
         self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
@@ -55,10 +63,10 @@ class Robot(object):
         #
         # super().__init__(self.id, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
+        config_logger('../config/logging.yaml')
         self.logger = logging.getLogger('robot.%s' % robot_id)
 
-        scheduling_method = config_params.get('scheduling_method')
-        self.scheduler = Scheduler(scheduling_method)
+
 
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
@@ -99,7 +107,7 @@ class Robot(object):
         self.api.terminated = True
 
     # def receive_msg_cb(self, msg_content):
-    #     self.api.receive_msg_cb(msg_content)
+    #     # self.receive_msg_cb(msg_content)
     #
     #     dict_msg = self.convert_zyre_msg_to_dict(msg_content)
     #     if dict_msg is None:
@@ -265,7 +273,9 @@ class Robot(object):
         tasks = [task for task in self.scheduled_tasks]
 
         self.logger.info("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
-        self.api.whisper(bid_msg, peer='auctioneer')
+        self.api.whisper(bid_msg, peer=self.auctioneer)
+        # self.api.shout(bid_msg)
+        # self.whisper(bid_msg, peer='zyre_api')
 
     def send_no_bid(self, n_round, no_bids):
         '''
@@ -288,7 +298,7 @@ class Robot(object):
             no_bid_msg['payload']['task_ids'].append(task_id)
 
         self.logger.info("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, no_bids)
-        self.api.whisper(no_bid_msg, peer='auctioneer')
+        self.api.whisper(no_bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
         # Update the dispatch_graph
@@ -319,7 +329,7 @@ class Robot(object):
         for i, task_id in enumerate(self.scheduled_tasks):
             schedule_msg['payload']['schedule'].append(task_id)
 
-        self.api.whisper(schedule_msg, peer='auctioneer')
+        self.api.whisper(schedule_msg, peer=self.auctioneer)
 
         self.logger.debug("Robot sent its updated schedule to the auctioneer.")
 
@@ -328,25 +338,25 @@ if __name__ == '__main__':
     # code_dir = os.path.abspath(os.path.dirname(__file__))
     # main_dir = os.path.dirname(code_dir)
 
-    with open('../config/logging.yaml', 'r') as f:
-        log_config = yaml.safe_load(f.read())
-        logging.config.dictConfig(log_config)
+    # with open('../config/logging.yaml', 'r') as f:
+    #     log_config = yaml.safe_load(f.read())
+    #     logging.config.dictConfig(log_config)
 
-    config = Config("../config/config-v2.yaml")
-    config_params = config.get_config_params()
+    config = Config("../config/config-v2.yaml", False)
 
-    print("Config params: ", config_params)
-
-    # config_params = ConfigFileReader.load("../config/config.yaml")
+    # config_params = config.get_config_params()
+    # print("Config params: ", config_params)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
     robot_id = args.robot_id
 
+    robot_config = config.configure_robot_proxy(robot_id)
+    robot = Robot(**robot_config)
 
 
-    zyre_api = config.configure_api(robot_id)
+    # zyre_api = config.configure_api(robot_id)
     # api_config = config_params.get('api')
     # zyre_config = api_config.get('zyre')
     # zyre_api = ZyreAPI(zyre_config)
@@ -354,9 +364,10 @@ if __name__ == '__main__':
 
     # zyre_api = ZyreAPI(robot_id, zyre_params.groups, zyre_params.message_types, acknowledge=False)
 
-    robot = Robot(robot_id, config_params, zyre_api)
+    # robot = Robot(robot_id, config_params, zyre_api)
 
-    robot.api.start()
+    # robot.api.start()
+    # robot.api.start()
 
     try:
         while not robot.api.terminated:
@@ -365,4 +376,5 @@ if __name__ == '__main__':
         logging.info("Robot terminated; exiting")
 
     logging.info("Exiting robot")
+    # robot.api.shutdown()
     robot.api.shutdown()

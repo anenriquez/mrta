@@ -1,6 +1,3 @@
-from allocation.auctioneer import Auctioneer
-from ropod.pyre_communicator.base_class import RopodPyre
-from allocation.config.config_file_reader import ConfigFileReader
 import yaml
 import uuid
 import time
@@ -9,16 +6,12 @@ import logging
 import logging.config
 
 
-class TaskAllocator(object):
+class TaskSender(object):
 
-    def __init__(self, zyre_api):
-        # self.zyre_params = config_params.task_allocator_zyre_params
-        # super().__init__('task_allocator', self.zyre_params.groups, self.zyre_params.message_types)
+    def __init__(self, api):
 
-        self.api = zyre_api
+        self.api = api
         self.api.add_callback(self, 'DONE', 'done_cb')
-
-        print("API: ", self.api)
 
         with open('../config/logging.yaml', 'r') as f:
             config = yaml.safe_load(f.read())
@@ -68,12 +61,3 @@ class TaskAllocator(object):
     def done_cb(self, msg):
         self.logger.debug("Received done msg")
         self.send_terminate_msg()
-
-    # def receive_msg_cb(self, msg_content):
-    #     dict_msg = self.convert_zyre_msg_to_dict(msg_content)
-    #     if dict_msg is None:
-    #         return
-    #     message_type = dict_msg['header']['type']
-    #
-    #     if message_type == 'DONE':
-    #         self.send_terminate_msg()

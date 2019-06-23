@@ -3,14 +3,16 @@ fleet:
     # - ropod_002
     # - ropod_003
 
-bidding_rule: 1
-auction_time: 10
-scheduling_method: srea
+task_allocation:
+    bidding_rule: 1
+    auction_time: 10 # seconds
+    scheduling_method: srea
+    auctioneer: zyre_api # This is completely Zyre dependent
 
 api:
   version: 0.1.0
   zyre:
-    # node_name: zyre_api
+    node_name: zyre_api
     interface: null
     groups:
       - TASK-ALLOCATION

@@ -8,6 +8,7 @@ import logging
 import logging.config
 import os
 import yaml
+from datetime import timedelta
 from ropod.pyre_communicator.base_class import RopodPyre
 # from allocation.config.config_file_reader import ConfigFileReader
 from allocation.config.loader import Config
@@ -31,22 +32,18 @@ class Auctioneer(object):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, config_params, zyre_api):
-        self.bidding_rule = config_params.get('bidding_rule')
-        # self.zyre_params = config_params.task_allocator_zyre_params
-        self.robots = config_params.get('fleet')
+    def __init__(self, bidding_rule, robot_ids, api, auction_time=5, **kwargs):
 
-        self.api = zyre_api
+        self.bidding_rule = bidding_rule
+        self.robots = robot_ids
+        self.api = api
+        self.auction_time = timedelta(seconds=auction_time)
 
         self.api.add_callback(self, 'START', 'start_cb')
         self.api.add_callback(self, 'BID', 'bid_cb')
         self.api.add_callback(self, 'NO-BID', 'no_bid_cb')
         self.api.add_callback(self, 'SCHEDULE', 'schedule_cb')
         self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
-
-
-        # node_name = 'auctioneer'
-        # super().__init__(node_name, self.zyre_params.groups, self.zyre_params.message_types, acknowledge=False)
 
         self.logger = logging.getLogger('auctioneer')
 
@@ -153,6 +150,7 @@ class Auctioneer(object):
         self.start_total_time = time.time()
 
     def bid_cb(self, msg):
+        self.logger.debug("Receiving bid...")
         bid = dict()
         bid['task_id'] = msg['payload']['task_id']
         bid['robot_id'] = msg['payload']['robot_id']
@@ -163,8 +161,8 @@ class Auctioneer(object):
 
     def no_bid_cb(self, msg):
         no_bid = dict()
-        no_bid['task_ids'] = dict_msg['payload']['task_ids']
-        no_bid['robot_id'] = dict_msg['payload']['robot_id']
+        no_bid['task_ids'] = msg['payload']['task_ids']
+        no_bid['robot_id'] = msg['payload']['robot_id']
         self.received_no_bids.append(no_bid)
         self.logger.debug("Received no-bid from %s", no_bid['robot_id'])
         self.check_n_received_bids()
@@ -310,30 +308,21 @@ class Auctioneer(object):
         done_msg['header']['msgId'] = str(uuid.uuid4())
         done_msg['header']['timestamp'] = int(round(time.time()) * 1000)
         done_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
-        self.api.whisper(done_msg, peer='task_allocator')
+        self.api.shout(done_msg)
         self.logger.debug("Done allocating tasks")
 
 
 if __name__ == '__main__':
-    # code_dir = os.path.abspath(os.path.dirname(__file__))
-    # main_dir = os.path.dirname(code_dir)
-    #
-    # config_params = ConfigFileReader.load("../config/config.yaml")
 
     with open('../config/logging.yaml', 'r') as f:
         config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
 
-    # time.sleep(5)
-
     config = Config("../config/config-v2.yaml")
-    config_params = config.get_config_params()
-    print("Config params: ", config_params)
 
-    zyre_api = config.configure_api('auctioneer')
-
-    auctioneer = Auctioneer(config_params, zyre_api)
-    auctioneer.api.start()
+    auctioneer_config = config.configure_auctioneer()
+    auctioneer = Auctioneer(**auctioneer_config)
+    # auctioneer.api.start()
 
     try:
         while not auctioneer.api.terminated:
