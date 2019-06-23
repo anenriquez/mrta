@@ -1,5 +1,5 @@
 from allocation.config.loader import Config
-from allocation.task_sender import TaskSender
+from allocation.task_requester import TaskRequester
 import logging
 
 import time
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     config = Config("../config/config.yaml")
 
     task_sender_config = config.configure_task_sender()
-    task_sender = TaskSender(**task_sender_config)
+    task_sender = TaskRequester(**task_sender_config)
 
     task_sender.allocate_dataset(dataset_id)
 

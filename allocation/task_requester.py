@@ -1,17 +1,18 @@
 import yaml
 import uuid
 import time
-import os
 import logging
 import logging.config
+from allocation.config.dataset_loader import DatasetLoader
 
 
-class TaskSender(object):
+class TaskRequester(object):
 
     def __init__(self, api):
 
         self.api = api
         self.api.add_callback(self, 'DONE', 'done_cb')
+        self.dataset_loader = DatasetLoader()
 
         with open('../config/logging.yaml', 'r') as f:
             config = yaml.safe_load(f.read())
@@ -19,19 +20,11 @@ class TaskSender(object):
 
         self.logger = logging.getLogger('task_allocator')
 
-    def read_dataset(self, dataset_id):
-        my_dir = os.path.dirname(__file__)
-        dataset_path = os.path.join(my_dir, 'datasets/' + dataset_id)
-
-        with open(dataset_path, 'r') as file:
-            dataset = yaml.safe_load(file)
-        self.logger.info("Dataset: %s ", dataset)
-        return dataset
-
     def allocate_dataset(self, dataset_id):
-        dataset = self.read_dataset(dataset_id)
+        dataset = self.dataset_loader.read_dataset(dataset_id)
         start_time = dataset['start_time']
         dataset_id = dataset['dataset_id']
+        self.logger.info("Dataset: %s", dataset_id)
         self.send_start_msg(start_time, dataset_id)
 
     def send_start_msg(self, start_time, dataset_id):
