@@ -10,6 +10,8 @@ Install the repositories:
 
 - [ropod_common](https://github.com/ropod-project/ropod_common)
 
+- [mrta_datasets](https://github.com/anenriquez/mrta_datasets.git )
+
 
 Get the requirements:
 ```

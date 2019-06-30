@@ -1,4 +1,4 @@
-from scheduler.structs.task import Task
+from allocation.task import Task
 import uuid
 import time
 import collections
@@ -39,6 +39,7 @@ class Auctioneer(object):
         self.auction_time = timedelta(seconds=auction_time)
 
         self.api.add_callback(self, 'START', 'start_cb')
+        self.api.add_callback(self, 'ALLOCATION-REQUEST', 'allocation_request_cb')
         self.api.add_callback(self, 'BID', 'bid_cb')
         self.api.add_callback(self, 'NO-BID', 'no_bid_cb')
         self.api.add_callback(self, 'SCHEDULE', 'schedule_cb')
@@ -79,7 +80,7 @@ class Auctioneer(object):
         ordered_tasks = collections.OrderedDict(sorted(dataset['tasks'].items()))
         return ordered_tasks
 
-    def update_unallocated_tasks(self, tasks):
+    def add_tasks_to_allocate(self, tasks):
         """ Adds tasks to the list of unallocated tasks"""
         for task_id, task in tasks.items():
             self.tasks_to_allocate.append(Task.from_dict(task))
@@ -137,12 +138,19 @@ class Auctioneer(object):
             self.logger.debug("The auctioneer has received a message from all robots")
             self.elect_winner()
 
+    def allocation_request_cb(self, msg):
+        tasks = msg['payload']['tasks']
+        self.logger.debug("Auctioneer received allocation_request")
+        self.add_tasks_to_allocate(tasks)
+        self.allocate_next_task = True
+        self.start_total_time = time.time()
+
     def start_cb(self, msg):
         dataset_id = msg['payload']['dataset_id']
         self.logger.debug("Received dataset %s", dataset_id)
         dataset = self.read_dataset(dataset_id)
         ordered_tasks = self.order_tasks(dataset)
-        self.update_unallocated_tasks(ordered_tasks)
+        self.add_tasks_to_allocate(ordered_tasks)
         self.allocate_next_task = True
         self.start_total_time = time.time()
 

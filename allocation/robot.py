@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 import logging
 import logging.config
-from scheduler.structs.task import Task
+from allocation.task import Task
 from scheduler.scheduler import Scheduler
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
@@ -61,7 +61,7 @@ class Robot(object):
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
         # Weighting factor used for the dual bidding rule
-        self.alpha = 0.1
+        self.alpha = 0.5
 
     def reinitialize_auction_variables(self):
         self.bid_round = None
@@ -72,6 +72,7 @@ class Robot(object):
         self.logger.debug("Received dataset start time %s", self.dataset_start_time)
 
     def task_announcement_cb(self, msg):
+        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         self.reinitialize_auction_variables()
         n_round = msg['payload']['round']
         tasks = msg['payload']['tasks']
@@ -130,6 +131,9 @@ class Robot(object):
             if result is not None:
                 metric, dispatch_graph = result
 
+                self.logger.debug("Dispatch graph %s: ", dispatch_graph)
+                self.logger.debug("Metric %s: ", metric)
+
                 bid = self.compute_bid(dispatch_graph, metric)
                 if bid < best_bid:
                     best_bid = bid
@@ -150,11 +154,14 @@ class Robot(object):
         elif self.scheduler.get_scheduling_method() == 'srea':
             # metric is the level of risk. A smaller value is preferable
             self.logger.debug("Alpha: %s ", metric)
-            bid = completion_time/metric
+            # bid = completion_time/metric
+            bid = (self.alpha * completion_time) + (1 - self.alpha) * (metric)
+
 
         elif self.scheduler.get_scheduling_method() == 'dsc_lp':
             # metric is the degree of strong controllability. A larger value is preferable
             self.logger.debug("DSC: %s ", metric)
+            # TODO: Use schedule only if the DSC is over a threshold
             bid = completion_time * metric
 
         return bid
