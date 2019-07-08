@@ -47,7 +47,7 @@ class Robot(object):
         self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
         self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
 
-        self.logger = logging.getLogger('robot.%s' % robot_id)
+        self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
 
         self.dispatch_graph_round = self.scheduler.get_temporal_network()
 
@@ -269,16 +269,16 @@ class Robot(object):
 
         self.logger.info("Tasks scheduled to robot %s:%s", self.id, tasks)
 
-        self.send_schedule()
+        self.send_allocation_info()
 
-    def send_schedule(self):
+    def send_allocation_info(self):
         # TODO: Send dispatch_graph instead of scheduled_tasks
         ''' Sends the updated schedule of the robot to the auctioneer.
         '''
         schedule_msg = dict()
         schedule_msg['header'] = dict()
         schedule_msg['payload'] = dict()
-        schedule_msg['header']['type'] = 'SCHEDULE'
+        schedule_msg['header']['type'] = 'ALLOCATION-INFO'
         schedule_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         schedule_msg['header']['msgId'] = str(uuid.uuid4())
         schedule_msg['header']['timestamp'] = int(round(time.time()) * 1000)
