@@ -29,9 +29,9 @@ class Config(object):
                 'api': api
                }
 
-    def configure_task_sender(self):
-        logging.info("Configuring task sender...")
-        api = self.configure_api('task_sender')
+    def configure_allocation_requester(self):
+        logging.info("Configuring allocation requester...")
+        api = self.configure_api('allocation_requester')
         return {'api': api}
 
     def configure_robot_proxy(self, robot_id):
