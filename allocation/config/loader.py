@@ -22,11 +22,16 @@ class Config(object):
         logging.info("Configuring auctioneer...")
         allocation_config = self.config_params.get("task_allocation")
         fleet = self.config_params.get('fleet')
+        bidding_rule = allocation_config.get('bidding_rule')
         api = self.configure_api('auctioneer')
+        request_alternative_timeslots = allocation_config.get('request_alternative_timeslots')
+        auction_time = allocation_config.get('auction_time')
 
-        return {'bidding_rule': allocation_config.get('bidding_rule'),
+        return {'bidding_rule': bidding_rule,
                 'robot_ids': fleet,
-                'api': api
+                'api': api,
+                'request_alternative_timeslots': request_alternative_timeslots,
+                'auction_time': auction_time
                }
 
     def configure_allocation_requester(self):
@@ -42,7 +47,7 @@ class Config(object):
 
         return {'robot_id': robot_id,
                 'bidding_rule': allocation_config.get('bidding_rule'),
-                'scheduling_method': allocation_config.get('scheduling_method'),
+                'stp_method': allocation_config.get('stp_method'),
                 'api_config': api_config,
                 'auctioneer': 'auctioneer'
                 }

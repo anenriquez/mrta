@@ -28,25 +28,27 @@ class Auctioneer(object):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, bidding_rule, robot_ids, api, auction_time=5, **kwargs):
+    def __init__(self, bidding_rule, robot_ids, api, request_alternative_timeslots=False, auction_time=5, **kwargs):
 
         logging.debug("Starting Auctioneer")
 
         self.bidding_rule = bidding_rule
         self.robots = robot_ids
         self.api = api
+        self.request_alternative_timeslots = request_alternative_timeslots
         self.auction_time = timedelta(seconds=auction_time)
 
         self.api.add_callback(self, 'BID', 'bid_cb')
         self.api.add_callback(self, 'NO-BID', 'no_bid_cb')
         self.api.add_callback(self, 'ALLOCATION-INFO', 'allocation_info_cb')
 
-        self.schedule = dict()
         # {robot_id: stn with tasks allocated to robot_id}
         self.stns = dict()
         # {robot_id: dispatchable graph with tasks allocated to robot_id}
         self.dispatchable_graphs = dict()
 
+        # Tasks that could not be allocated in their desired time window
+        self.unsuccessful_allocations = list()
         self.tasks_to_allocate = list()
         self.auction_opened = False
         self.auction_closure_time = -1
@@ -55,7 +57,7 @@ class Auctioneer(object):
         self.allocation_completed = False
 
         self.received_bids = list()
-        self.received_no_bids = list()
+        self.received_no_bids = dict()
         self.n_round = 0
         self.allocations = dict()
         self.allocated_task = ''
@@ -75,6 +77,10 @@ class Auctioneer(object):
         else:
             self.tasks_to_allocate.append(tasks)
             logging.debug('Auctioneer received one task')
+
+    def allocate_next(self):
+        self.allocate_next_task = True
+        self.allocation_completed = False
 
     def announce_task(self):
         logging.info("Starting round: %s", self.n_round)
@@ -114,14 +120,13 @@ class Auctioneer(object):
         self.received_no_bids = dict()
         self.n_round += 1
 
-    def finish_auction_round(self):
-        self.allocation_completed = True
-
     def check_auction_closure_time(self):
         current_time = ts.get_time_stamp()
         if current_time >= self.auction_closure_time:
             logging.debug("Closing auction round at %s", current_time)
             self.auction_opened = False
+            if self.request_alternative_timeslots:
+                self.check_unsucessful_allocations()
             self.elect_winner()
 
     def bid_cb(self, msg):
@@ -133,18 +138,36 @@ class Auctioneer(object):
         logging.debug("Received bid %s from %s", bid['bid'], bid['robot_id'])
 
     def no_bid_cb(self, msg):
-        no_bid = dict()
-        no_bid['task_ids'] = msg['payload']['task_ids']
-        no_bid['robot_id'] = msg['payload']['robot_id']
-        self.received_no_bids.append(no_bid)
-        logging.debug("Received no-bid from %s", no_bid['robot_id'])
+        task_ids = msg['payload']['task_ids']
+        robot_id = msg['payload']['robot_id']
+        logging.debug("Received no-bid_round from %s for tasks %s", robot_id, [task_id for task_id in task_ids])
+
+        for task_id in task_ids:
+            if task_id in self.received_no_bids:
+                self.received_no_bids[task_id] += 1
+            else:
+                self.received_no_bids[task_id] = 1
+
+    """ If the number of no-bids for a task is equal to the number of robots, add the task
+    to the list of unallocated tasks"""
+    def check_unsucessful_allocations(self):
+        for task_id, n_no_bids in self.received_no_bids.items():
+            if n_no_bids == len(self.robots):
+                for i, task in enumerate(self.tasks_to_allocate):
+                    if task.id == task_id:
+                        self.tasks_to_allocate[i].hard_constraints = False
+                        logging.debug("Setting soft constraints for task %s", task_id)
+                        logging.debug("Adding task %s to unsuccessful_allocations", task_id)
+                        self.unsuccessful_allocations.append(task)
 
     def allocation_info_cb(self, msg):
         robot_id = msg['payload']['robot_id']
-        schedule = msg['payload']['schedule']
-        self.schedule[robot_id] = schedule
+        stn = msg['payload']['stn']
+        dispatchable_graph = msg['payload']['dispatchable_graph']
+        self.stns[robot_id] = stn
+        self.dispatchable_graphs[robot_id] = dispatchable_graph
         logging.debug("Received allocation info of robot %s", robot_id)
-        self.finish_auction_round()
+        self.allocation_completed = True
 
     def elect_winner(self):
         if self.received_bids:
@@ -165,9 +188,9 @@ class Auctioneer(object):
             # Order dictionary by task_id
             ordered_bids = collections.OrderedDict(sorted(ordered_bids.items()))
 
-            # Resolve ties. If more than one task has the same bid,
+            # Resolve ties. If more than one task has the same bid_round,
             # select the task with the lowest_id.
-            # If for that task, more than a robot has a bid, select the robot with the lowest id
+            # If for that task, more than a robot has a bid_round, select the robot with the lowest id
 
             for task_id, values in ordered_bids.items():
                 if min(values['bids']) < lowest_bid:
@@ -198,6 +221,7 @@ class Auctioneer(object):
 
         else:
             logging.info("No bids received")
+            self.allocation_completed = True
 
     def announce_winner(self, allocated_task, winning_robot):
         allocation = dict()

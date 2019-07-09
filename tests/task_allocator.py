@@ -27,8 +27,7 @@ class TaskAllocator(object):
 
             self.logger.debug("Allocation %s: ", allocation)
 
-            self.auctioneer.allocate_next_task = True
-            self.auctioneer.allocation_completed = False
+            self.auctioneer.allocate_next()
 
     def run(self):
         try:
@@ -49,6 +48,7 @@ if __name__ == '__main__':
     logging.info("Starting Task Allocator")
     test = TaskAllocator(auctioneer_config)
 
-    tasks = load_dataset('three_tasks.csv')
+    # tasks = load_dataset('three_tasks.csv')
+    tasks = load_dataset('overlapping_tasks.csv')
     test.get_robots_for_task(tasks)
     test.run()

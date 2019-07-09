@@ -6,7 +6,7 @@ import argparse
 import logging
 import logging.config
 from allocation.task import Task
-from scheduler.scheduler import Scheduler
+from stp.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
@@ -31,10 +31,10 @@ class Robot(object):
     MAKESPAN_DISTANCE = 4
     IDLE_TIME = 5
 
-    def __init__(self, robot_id, bidding_rule, scheduling_method, api_config, auctioneer):
+    def __init__(self, robot_id, bidding_rule, stp_method, api_config, auctioneer):
         self.id = robot_id
         self.bidding_rule = bidding_rule
-        self.scheduler = Scheduler(scheduling_method)
+        self.stp = STP(stp_method)
         self.auctioneer = auctioneer
 
         zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
@@ -42,43 +42,39 @@ class Robot(object):
 
         self.api = ZyreAPI(zyre_config)
 
-        self.api.add_callback(self, 'START', 'start_cb')
         self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
         self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
         self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
 
         self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
 
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
+        # TODO: Read stn and dispatchable graph from db
+        self.stn = self.stp.init_graph()
+        self.tasks = self.stn.get_tasks()
+        self.dispatchable_graph = self.stp.init_graph()
 
-        self.scheduled_tasks = self.scheduler.get_scheduled_tasks()
-
-        self.dataset_start_time = 0
-        self.idle_time = 0.
-        self.distance = 0.
-
-        self.bid_round = 0.
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
+        # Round auction variables
+        self.bid_round = None
+        self.dispatchable_graph_round = self.stp.init_graph()
+        self.stn_round = self.stp.init_graph()
 
         # Weighting factor used for the dual bidding rule
         self.alpha = 0.5
 
     def reinitialize_auction_variables(self):
         self.bid_round = None
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
-
-    def start_cb(self, msg):
-        self.dataset_start_time = msg['payload']['start_time']
-        self.logger.debug("Received dataset start time %s", self.dataset_start_time)
+        self.dispatchable_graph_round = self.stp.init_graph()
+        self.stn_round = self.stp.init_graph()
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         self.reinitialize_auction_variables()
         n_round = msg['payload']['round']
-        tasks = msg['payload']['tasks']
-        self.compute_bids(tasks, n_round)
+        received_tasks = msg['payload']['tasks']
+        self.compute_bids(received_tasks, n_round)
 
     def allocation_cb(self, msg):
+        self.logger.debug("Robot %s received ALLOCATION", self.id)
         task_id = msg['payload']['task_id']
         winner_id = msg['payload']['winner_id']
         if winner_id == self.id:
@@ -88,77 +84,81 @@ class Robot(object):
         self.logger.debug("Terminating robot...")
         self.api.terminated = True
 
-    def compute_bids(self, tasks, n_round):
+    def compute_bids(self, received_tasks, n_round):
         bids = dict()
         no_bids = list()
 
-        for task_id, task_info in tasks.items():
+        for task_id, task_info in received_tasks.items():
             task = Task.from_dict(task_info)
-            self.logger.debug("Computing bid of task %s", task.id)
+            self.logger.debug("Computing bid_round of task %s", task.id)
             # Insert task in each possible position of the stnu
-            best_bid, best_dispatch_graph = self.insert_task(task)
+            best_bid, best_stn, best_dispatchable_graph = self.insert_task(task)
 
             if best_bid != np.inf:
                 bids[task_id] = dict()
                 bids[task_id]['bid'] = best_bid
-                bids[task_id]['dispatch_graph'] = best_dispatch_graph
+                bids[task_id]['stn'] = best_stn
+                bids[task_id]['dispatchable_graph'] = best_dispatchable_graph
 
             else:
                 no_bids.append(task_id)
 
         if bids:
-            # Send the smallest bid
-            task_id_bid, smallest_bid = self.get_smallest_bid(bids, n_round)
-            self.send_bid(n_round, task_id_bid, smallest_bid)
+            # Send the smallest bid_round
+            task_id, smallest_bid = self.get_smallest_bid(bids, n_round)
+            self.send_bid(n_round, task_id, smallest_bid)
         else:
-            # Send an empty bid with task ids of tasks that could not be allocated
+            # Send an empty bid_round with task ids of tasks that could not be allocated
             self.send_no_bid(n_round, no_bids)
 
     def insert_task(self, task):
         best_bid = float('Inf')
-        best_schedule = list()
+        best_stn = self.stp.init_graph()
+        best_dispatchable_graph = self.stp.init_graph()
 
-        n_scheduled_tasks = len(self.scheduled_tasks)
+        n_tasks = len(self.tasks)
 
-        for i in range(0, n_scheduled_tasks + 1):
-            # TODO check if the robot can make it to the first task in the schedule, if not, return
+        for i in range(0, n_tasks + 1):
+            # TODO check if the robot can make it to the task, if not, return
 
-            self.scheduler.add_task(task, i+1)
+            self.stn.add_task(task, i + 1)
 
-            self.logger.debug("STN: %s", self.scheduler.get_temporal_network())
-
-            result = self.scheduler.get_dispatch_graph()
+            result = self.stp.get_dispatchable_graph(self.stn)
             if result is not None:
-                metric, dispatch_graph = result
+                metric, dispatchable_graph = result
 
-                self.logger.debug("Dispatch graph %s: ", dispatch_graph)
+                self.logger.debug("STN %s: ", self.stn)
+                self.logger.debug("Dispatchable graph %s: ", dispatchable_graph)
                 self.logger.debug("Metric %s: ", metric)
 
-                bid = self.compute_bid(dispatch_graph, metric)
+                if task.hard_constraints:
+                    bid = self.compute_bid(dispatchable_graph, metric)
+                else:
+                    bid = self.compute_soft_bid(task, dispatchable_graph)
+
                 if bid < best_bid:
                     best_bid = bid
-                    best_dispatch_graph = copy.deepcopy(dispatch_graph)
+                    best_stn = copy.deepcopy(self.stn)
+                    best_dispatchable_graph = copy.deepcopy(dispatchable_graph)
 
             # Restore schedule for the next iteration
-            self.scheduler.remove_task(i+1)
+            self.stn.remove_task(i + 1)
 
-        return best_bid, best_dispatch_graph
+        return best_bid, best_stn, best_dispatchable_graph
 
     def rule_completion_time(self, dispatch_graph, metric):
         completion_time = dispatch_graph.get_completion_time()
         self.logger.debug("Completion time: %s", completion_time)
 
-        if self.scheduler.get_scheduling_method() == 'fpc':
+        if self.stp.get_method() == 'fpc':
             bid = completion_time
 
-        elif self.scheduler.get_scheduling_method() == 'srea':
+        elif self.stp.get_method() == 'srea':
             # metric is the level of risk. A smaller value is preferable
             self.logger.debug("Alpha: %s ", metric)
-            # bid = completion_time/metric
             bid = (self.alpha * completion_time) + (1 - self.alpha) * (metric)
 
-
-        elif self.scheduler.get_scheduling_method() == 'dsc_lp':
+        elif self.stp.get_method() == 'dsc_lp':
             # metric is the degree of strong controllability. A larger value is preferable
             self.logger.debug("DSC: %s ", metric)
             # TODO: Use schedule only if the DSC is over a threshold
@@ -175,6 +175,15 @@ class Robot(object):
         # TODO: Maybe add other bidding rules
         return bid
 
+    def compute_soft_bid(self, task, dispatch_graph):
+        navigation_start_time = self.stp.get_task_navigation_start_time(dispatch_graph, task.id)
+        self.logger.debug("Navigation start time: %s", navigation_start_time)
+        bid = abs(navigation_start_time - task.earliest_start_time)
+
+        self.logger.debug("Bid: %s", bid)
+
+        return bid
+
     def compute_distance(self, schedule):
         ''' Computes the travel cost (distance traveled) for performing all
         tasks in the schedule (list of tasks)
@@ -186,8 +195,8 @@ class Robot(object):
     def get_smallest_bid(self, bids, n_round):
         '''
         Get the smallest bid among all bids.
-        Each robot submits only its smallest bid in each round
-        If two or more tasks have the same bid, the robot bids for the task with the lowest task_id
+        Each robot submits only its smallest bid_round in each round
+        If two or more tasks have the same bid_round, the robot bids for the task with the lowest task_id
         '''
         smallest_bid = dict()
         smallest_bid['bid'] = np.inf
@@ -218,23 +227,20 @@ class Robot(object):
         bid_msg['header']['msgId'] = str(uuid.uuid4())
         bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
+        bid_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         bid_msg['payload']['robot_id'] = self.id
         bid_msg['payload']['n_round'] = n_round
         bid_msg['payload']['task_id'] = task_id
         bid_msg['payload']['bid'] = bid['bid']
 
         self.bid_round = bid['bid']
-        # self.scheduled_tasks_round = bid['scheduled_tasks']
-        self.dispatch_graph_round = bid['dispatch_graph']
+        self.dispatchable_graph_round = bid['dispatchable_graph']
+        self.stn_round = bid['stn']
 
-        self.scheduled_tasks = self.dispatch_graph_round.get_scheduled_tasks()
-        tasks = [task for task in self.scheduled_tasks]
+        tasks = [task for task in self.stn_round.get_tasks()]
 
-        self.logger.info("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
+        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
         self.api.whisper(bid_msg, peer=self.auctioneer)
-        # self.api.shout(bid_msg)
-        # self.whisper(bid_msg, peer='zyre_api')
 
     def send_no_bid(self, n_round, no_bids):
         '''
@@ -248,7 +254,7 @@ class Robot(object):
         no_bid_msg['header']['msgId'] = str(uuid.uuid4())
         no_bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        no_bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
+        no_bid_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         no_bid_msg['payload']['robot_id'] = self.id
         no_bid_msg['payload']['n_round'] = n_round
         no_bid_msg['payload']['task_ids'] = list()
@@ -256,41 +262,41 @@ class Robot(object):
         for task_id in no_bids:
             no_bid_msg['payload']['task_ids'].append(task_id)
 
-        self.logger.info("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, no_bids)
+        self.logger.info("Round %s: Robot id %s sends no-bid for tasks %s", n_round, self.id, no_bids)
         self.api.whisper(no_bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
-        # Update the dispatch_graph
-        self.scheduler.temporal_network = copy.deepcopy(self.dispatch_graph_round)
+        # Update the stn and dispatchable_graph
+        self.stn = copy.deepcopy(self.stn_round)
+        self.dispatchable_graph = copy.deepcopy(self.dispatchable_graph_round)
+        self.tasks = self.stn.get_tasks()
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
 
-        tasks = [task for task in self.scheduled_tasks]
+        tasks = [task for task in self.tasks]
 
-        self.logger.info("Tasks scheduled to robot %s:%s", self.id, tasks)
+        self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
 
         self.send_allocation_info()
 
     def send_allocation_info(self):
-        # TODO: Send dispatch_graph instead of scheduled_tasks
-        ''' Sends the updated schedule of the robot to the auctioneer.
+        ''' Sends the updated stn and dispatchable_graph of the robot to the auctioneer.
         '''
-        schedule_msg = dict()
-        schedule_msg['header'] = dict()
-        schedule_msg['payload'] = dict()
-        schedule_msg['header']['type'] = 'ALLOCATION-INFO'
-        schedule_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['header']['msgId'] = str(uuid.uuid4())
-        schedule_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        schedule_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['payload']['robot_id'] = self.id
-        schedule_msg['payload']['schedule'] = list()
-        for i, task_id in enumerate(self.scheduled_tasks):
-            schedule_msg['payload']['schedule'].append(task_id)
+        allocation_info_msg = dict()
+        allocation_info_msg['header'] = dict()
+        allocation_info_msg['payload'] = dict()
+        allocation_info_msg['header']['type'] = 'ALLOCATION-INFO'
+        allocation_info_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        allocation_info_msg['header']['msgId'] = str(uuid.uuid4())
+        allocation_info_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        allocation_info_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
+        allocation_info_msg['payload']['robot_id'] = self.id
+        allocation_info_msg['payload']['stn'] = self.stn.to_json()
+        allocation_info_msg['payload']['dispatchable_graph'] = self.dispatchable_graph.to_json()
 
-        self.api.whisper(schedule_msg, peer=self.auctioneer)
+        self.api.whisper(allocation_info_msg, peer=self.auctioneer)
 
-        self.logger.debug("Robot sent its updated schedule to the auctioneer.")
+        self.logger.debug("Robot sent allocation info to the auctioneer.")
 
 
 if __name__ == '__main__':
