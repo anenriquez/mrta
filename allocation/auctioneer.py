@@ -78,6 +78,10 @@ class Auctioneer(object):
             self.tasks_to_allocate.append(tasks)
             logging.debug('Auctioneer received one task')
 
+    def allocate_next(self):
+        self.allocate_next_task = True
+        self.allocation_completed = False
+
     def announce_task(self):
         logging.info("Starting round: %s", self.n_round)
         logging.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))

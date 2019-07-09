@@ -27,8 +27,7 @@ class TaskAllocator(object):
 
             self.logger.debug("Allocation %s: ", allocation)
 
-            self.auctioneer.allocate_next_task = True
-            self.auctioneer.allocation_completed = False
+            self.auctioneer.allocate_next()
 
     def run(self):
         try:
