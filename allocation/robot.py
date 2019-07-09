@@ -280,25 +280,23 @@ class Robot(object):
         self.send_allocation_info()
 
     def send_allocation_info(self):
-        # TODO: Send dispatch_graph and stn instead of tasks
-        ''' Sends the updated schedule of the robot to the auctioneer.
+        ''' Sends the updated stn and dispatchable_graph of the robot to the auctioneer.
         '''
-        schedule_msg = dict()
-        schedule_msg['header'] = dict()
-        schedule_msg['payload'] = dict()
-        schedule_msg['header']['type'] = 'ALLOCATION-INFO'
-        schedule_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['header']['msgId'] = str(uuid.uuid4())
-        schedule_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        schedule_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['payload']['robot_id'] = self.id
-        schedule_msg['payload']['schedule'] = list()
-        for i, task_id in enumerate(self.tasks):
-            schedule_msg['payload']['schedule'].append(task_id)
+        allocation_info_msg = dict()
+        allocation_info_msg['header'] = dict()
+        allocation_info_msg['payload'] = dict()
+        allocation_info_msg['header']['type'] = 'ALLOCATION-INFO'
+        allocation_info_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        allocation_info_msg['header']['msgId'] = str(uuid.uuid4())
+        allocation_info_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        allocation_info_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
+        allocation_info_msg['payload']['robot_id'] = self.id
+        allocation_info_msg['payload']['stn'] = self.stn.to_json()
+        allocation_info_msg['payload']['dispatchable_graph'] = self.dispatchable_graph.to_json()
 
-        self.api.whisper(schedule_msg, peer=self.auctioneer)
+        self.api.whisper(allocation_info_msg, peer=self.auctioneer)
 
-        self.logger.debug("Robot sent its updated schedule to the auctioneer.")
+        self.logger.debug("Robot sent allocation info to the auctioneer.")
 
 
 if __name__ == '__main__':

@@ -42,7 +42,6 @@ class Auctioneer(object):
         self.api.add_callback(self, 'NO-BID', 'no_bid_cb')
         self.api.add_callback(self, 'ALLOCATION-INFO', 'allocation_info_cb')
 
-        self.schedule = dict()
         # {robot_id: stn with tasks allocated to robot_id}
         self.stns = dict()
         # {robot_id: dispatchable graph with tasks allocated to robot_id}
@@ -159,8 +158,10 @@ class Auctioneer(object):
 
     def allocation_info_cb(self, msg):
         robot_id = msg['payload']['robot_id']
-        schedule = msg['payload']['schedule']
-        self.schedule[robot_id] = schedule
+        stn = msg['payload']['stn']
+        dispatchable_graph = msg['payload']['dispatchable_graph']
+        self.stns[robot_id] = stn
+        self.dispatchable_graphs[robot_id] = dispatchable_graph
         logging.debug("Received allocation info of robot %s", robot_id)
         self.allocation_completed = True
 
