@@ -49,6 +49,7 @@ if __name__ == '__main__':
     logging.info("Starting Task Allocator")
     test = TaskAllocator(auctioneer_config)
 
-    tasks = load_dataset('three_tasks.csv')
+    # tasks = load_dataset('three_tasks.csv')
+    tasks = load_dataset('overlapping_tasks.csv')
     test.get_robots_for_task(tasks)
     test.run()

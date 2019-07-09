@@ -6,8 +6,9 @@ fleet:
 task_allocation:
     bidding_rule: 1
     auction_time: 10 # seconds
-    scheduling_method: srea
+    stp_method: srea
     auctioneer: zyre_api # This is completely Zyre dependent
+    request_alternative_timeslots: True
 
 api:
   version: 0.1.0
@@ -17,6 +18,7 @@ api:
     groups:
       - TASK-ALLOCATION
     message_types:
+      - TASK-ANNOUNCEMENT
       - BID
       - NO-BID
       - ALLOCATION
