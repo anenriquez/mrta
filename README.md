@@ -6,7 +6,7 @@
 
 Install the repositories:
 
--  [mrta_temporal_models](https://github.com/anenriquez/mrta_temporal_models)
+-  [mrta_stn](https://github.com/anenriquez/mrta_stn)
 
 - [ropod_common](https://github.com/ropod-project/ropod_common)
 
@@ -26,7 +26,7 @@ sudo pip3 install -e .
 
 ## Config file
 
-Change the scheduling method in `config/config.yaml`.
+Change the stp method in `config/config.yaml`.
 
 Possible scheduling methods:
 - srea
@@ -41,13 +41,9 @@ Go to `/allocation` and run in a terminal
 python3 robot.py ropod_001
 ```
 
-Go to `/allocation` and run in a terminal
-```
-python3 auctioneer.py
-```
 Go to `/tests` and run test in another terminal
 ```
-python3 two_tasks_test.py
+python3 task_allocator.py three_tasks.csv
 ```
 
 ## References
