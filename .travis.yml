@@ -3,3 +3,6 @@ python:
   - "3.5"
 install:
   - pip install -r requirements.txt
+script:
+  - python allocation/robot.py ropod_001
+  - python tests/task_allocator.py three_tasks.csv
