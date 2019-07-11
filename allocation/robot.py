@@ -6,7 +6,7 @@ import argparse
 import logging
 import logging.config
 from allocation.task import Task
-from stp.stp import STP
+from stn.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
