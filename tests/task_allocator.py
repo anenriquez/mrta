@@ -32,7 +32,7 @@ class TaskAllocator(object):
             self.auctioneer.allocate_next()
 
     def check_test_termination(self):
-        if not self.auctioneer.tasks_to_allocate:
+        if not self.auctioneer.tasks_to_allocate and self.auctioneer.allocate_next_task:
             self.test_terminated = True
 
     def run(self):
