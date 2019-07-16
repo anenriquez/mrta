@@ -1,8 +1,5 @@
 language: python
 
-python:
-  - "3.5"
-
 services:
   - docker
 
@@ -13,16 +10,11 @@ env:
 before_install:
   - docker build --pull -t $CONTAINER_TEST_IMAGE .
   - docker image ls
-  - docker run -d $CONTAINER_TEST_IMAGE
-  - docker ps -a
-
-install:
-  - pip install -r requirements.txt
-  - pip install -e .
 
 script:
-  - python allocation/robot.py ropod_001
-  - python tests/task_allocator.py three_tasks.csv
+  - docker run --name allocator $CONTAINER_TEST_IMAGE
+  - docker exec -it allocator /mrta_allocation/allocation/robot.py ropod_001
+  - docker exec -it allocator /mrta_allocation/tests/task_allocator.py three_tasks.csv
 
 
 
