@@ -2,8 +2,8 @@ language: python
 python:
   - "3.5"
 install:
-  - pip install -e .
   - pip install -r requirements.txt
+  - pip install -e .
 script:
   - python allocation/robot.py ropod_001
   - python tests/task_allocator.py three_tasks.csv
