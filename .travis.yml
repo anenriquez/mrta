@@ -1,9 +1,28 @@
 language: python
+
 python:
   - "3.5"
+
+services:
+  - docker
+
+env:
+  global:
+    - CONTAINER_TEST_IMAGE: ropod/allocation
+
+before_install:
+  - docker build --pull -t $CONTAINER_TEST_IMAGE .
+  - docker image ls
+  - docker run -d $CONTAINER_TEST_IMAGE
+  - docker ps -a
+
 install:
   - pip install -r requirements.txt
   - pip install -e .
+
 script:
   - python allocation/robot.py ropod_001
   - python tests/task_allocator.py three_tasks.csv
+
+
+
