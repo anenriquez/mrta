@@ -49,22 +49,22 @@ class Robot(object):
         self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
 
         # TODO: Read stn and dispatchable graph from db
-        self.stn = self.stp.init_graph()
+        self.stn = self.stp.get_stn()
         self.tasks = self.stn.get_tasks()
-        self.dispatchable_graph = self.stp.init_graph()
+        self.dispatchable_graph = self.stp.get_stn()
 
         # Round auction variables
         self.bid_round = None
-        self.dispatchable_graph_round = self.stp.init_graph()
-        self.stn_round = self.stp.init_graph()
+        self.dispatchable_graph_round = self.stp.get_stn()
+        self.stn_round = self.stp.get_stn()
 
         # Weighting factor used for the dual bidding rule
         self.alpha = 0.5
 
     def reinitialize_auction_variables(self):
         self.bid_round = None
-        self.dispatchable_graph_round = self.stp.init_graph()
-        self.stn_round = self.stp.init_graph()
+        self.dispatchable_graph_round = self.stp.get_stn()
+        self.stn_round = self.stp.get_stn()
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
@@ -113,8 +113,8 @@ class Robot(object):
 
     def insert_task(self, task):
         best_bid = float('Inf')
-        best_stn = self.stp.init_graph()
-        best_dispatchable_graph = self.stp.init_graph()
+        best_stn = self.stp.get_stn()
+        best_dispatchable_graph = self.stp.get_stn()
 
         n_tasks = len(self.tasks)
 
@@ -123,7 +123,7 @@ class Robot(object):
 
             self.stn.add_task(task, i + 1)
 
-            result = self.stp.get_dispatchable_graph(self.stn)
+            result = self.stp.compute_dispatchable_graph(self.stn)
             if result is not None:
                 metric, dispatchable_graph = result
 
@@ -150,15 +150,15 @@ class Robot(object):
         completion_time = dispatch_graph.get_completion_time()
         self.logger.debug("Completion time: %s", completion_time)
 
-        if self.stp.get_method() == 'fpc':
+        if self.stp.get_method_name() == 'fpc':
             bid = completion_time
 
-        elif self.stp.get_method() == 'srea':
+        elif self.stp.get_method_name() == 'srea':
             # metric is the level of risk. A smaller value is preferable
             self.logger.debug("Alpha: %s ", metric)
             bid = (self.alpha * completion_time) + (1 - self.alpha) * (metric)
 
-        elif self.stp.get_method() == 'dsc_lp':
+        elif self.stp.get_method_name() == 'dsc_lp':
             # metric is the degree of strong controllability. A larger value is preferable
             self.logger.debug("DSC: %s ", metric)
             # TODO: Use schedule only if the DSC is over a threshold
@@ -175,8 +175,8 @@ class Robot(object):
         # TODO: Maybe add other bidding rules
         return bid
 
-    def compute_soft_bid(self, task, dispatch_graph):
-        navigation_start_time = self.stp.get_task_navigation_start_time(dispatch_graph, task.id)
+    def compute_soft_bid(self, task, dispatchable_graph):
+        navigation_start_time = dispatchable_graph.get_task_navigation_start_time(task.id)
         self.logger.debug("Navigation start time: %s", navigation_start_time)
         bid = abs(navigation_start_time - task.earliest_start_time)
 
