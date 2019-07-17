@@ -1,9 +1,23 @@
 language: python
-python:
-  - "3.5"
-install:
-  - pip install -e .
-  - pip install -r requirements.txt
+
+services:
+  - docker
+
+
+before_install:
+  - docker-compose build task_allocation_test
+  - docker image ls
+  - docker ps -a
+
 script:
-  - python allocation/robot.py ropod_001
-  - python tests/task_allocator.py three_tasks.csv
+  - docker-compose up -d robot
+  - docker-compose up --exit-code-from task_allocation_test
+after_script:
+  - docker stop $(docker ps -aq)
+
+
+
+
+
+
+
