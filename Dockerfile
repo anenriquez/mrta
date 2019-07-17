@@ -17,4 +17,4 @@ WORKDIR /mrta_allocation/allocation
 
 CMD ["python3", "robot.py", "ropod_001"]
 
-# WORKDIR /mrta_allocation
+

@@ -3,18 +3,19 @@ language: python
 services:
   - docker
 
-env:
-  global:
-    - CONTAINER_TEST_IMAGE: ropod/allocation
 
 before_install:
-  - docker build -t $CONTAINER_TEST_IMAGE .
+  - docker-compose build task_allocation_test
   - docker image ls
+  - docker ps -a
 
 script:
-  - docker run -d --name allocator $CONTAINER_TEST_IMAGE
-  - docker exec -it allocator /bin/bash
-  - python3 ../tests/task_allocator.py three_tasks.csv
+  - docker-compose up -d robot
+  - docker-compose up --exit-code-from task_allocation_test
+after_script:
+  - docker stop $(docker ps -aq)
+
+
 
 
 

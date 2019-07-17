@@ -1,0 +1,25 @@
+version: "2"
+
+services:
+  robot:
+    container_name: robot
+    image: ropod-allocation
+    working_dir: /mrta_allocation/allocation/
+    command: ["python3", "robot.py", "ropod_001"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+
+  task_allocation_test:
+    build: .
+    container_name: task-allocation-test
+    image: ropod-allocation
+    working_dir: /mrta_allocation/tests/
+    command: ["python3", "task_allocator.py", "three_tasks.csv"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - robot
+
+
