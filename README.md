@@ -2,9 +2,31 @@
 
 # Multi-Robot Task Allocation (MRTA)
 
-## Installation
+## Config file
 
-Install the repositories:
+Change the stp method in `config/config.yaml`.
+
+Possible scheduling methods:
+- srea
+- fpc
+- dsc_lp
+
+## Using Docker
+
+[Install docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+
+[Install docker-compose](https://docs.docker.com/compose/install/)
+
+docker-compose build task_allocation_test
+
+docker-compose up -d robot
+
+docker-compose up task_allocation_test
+
+
+## Without Docker
+
+Install the repositories
 
 -  [mrta_stn](https://github.com/anenriquez/mrta_stn)
 
@@ -23,17 +45,6 @@ Add the task_allocation to your `PYTHONPATH` by running:
 ```
 sudo pip3 install -e .
 ```
-
-## Config file
-
-Change the stp method in `config/config.yaml`.
-
-Possible scheduling methods:
-- srea
-- fpc
-- dsc_lp
-
-## Usage
 
 Go to `/allocation` and run in a terminal
 
