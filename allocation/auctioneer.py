@@ -5,8 +5,6 @@ import logging
 import logging.config
 from datetime import timedelta
 from ropod.utils.timestamp import TimeStamp as ts
-from allocation.config.loader import Config
-# from allocation.utils.config_logging import config_logging
 
 SLEEP_TIME = 0.350
 

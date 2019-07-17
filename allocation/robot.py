@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 import logging
 import logging.config
-from allocation.task import Task
+from datasets.task import Task
 from stn.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config

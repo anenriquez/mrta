@@ -8,13 +8,15 @@ env:
     - CONTAINER_TEST_IMAGE: ropod/allocation
 
 before_install:
-  - docker build --pull -t $CONTAINER_TEST_IMAGE .
+  - docker build -t $CONTAINER_TEST_IMAGE .
   - docker image ls
 
 script:
-  - docker run --name allocator $CONTAINER_TEST_IMAGE
-  - docker exec -it allocator /mrta_allocation/allocation/robot.py ropod_001
-  - docker exec -it allocator /mrta_allocation/tests/task_allocator.py three_tasks.csv
+  - docker run -d --name allocator $CONTAINER_TEST_IMAGE
+  - docker exec -it allocator /bin/bash
+  - python3 ../tests/task_allocator.py three_tasks.csv
+
+
 
 
 
