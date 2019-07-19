@@ -4,8 +4,9 @@ import logging
 import logging.config
 from datetime import timedelta
 from allocation.round import Round
+from allocation.timetable import Timetable
+from stn.stp import STP
 
-SLEEP_TIME = 0.350
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule and stp_method
 specified in the config file
@@ -18,61 +19,72 @@ class Auctioneer(object):
 
         logging.debug("Starting Auctioneer")
 
-        self.robots = kwargs.get('robot_ids', list())
-        self.api = kwargs.get('api', None)
-        self.request_alternative_timeslots = kwargs.get('request_alternative_timeslots', False)
+        self.robot_ids = kwargs.get('robot_ids', list())
 
+        stp_method = kwargs.get('stp_method', None)
+        stp = STP(stp_method)
+
+        # TODO: Read timetable from db
+        self.timetable = Timetable(self.robot_ids, stp)
+
+        self.request_alternative_timeslots = kwargs.get('request_alternative_timeslots', False)
         round_time = kwargs.get('round_time', 0)
         self.round_time = timedelta(seconds=round_time)
 
-        self.api.add_callback(self, 'BID', 'bid_cb')
-
-        # {robot_id: stn with tasks allocated to robot_id}
-        self.stns = dict()
-        # {robot_id: dispatchable graph with tasks allocated to robot_id}
-        self.dispatchable_graphs = dict()
-
-        self.tasks_to_allocate = list()
+        self.tasks_to_allocate = dict()
         self.allocations = list()
         self.round = Round()
 
+        # TODO: Add callbacks in loader file
+        self.api = kwargs.get('api', None)
+        self.api.add_callback(self, 'BID', 'bid_cb')
+        self.api.add_callback(self, 'FINISH-ROUND', 'finish_round_cb')
+
     def run(self):
-        if self.tasks_to_allocate and not self.round.opened:
+        if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
 
         if self.round.opened:
             round_result = self.round.check_closure_time()
             if round_result is not None:
-                allocation, tasks_to_allocate = round_result
-                self.process_allocation(allocation, tasks_to_allocate)
-                self.round.close()
+                allocation = self.process_allocation(round_result)
+                allocated_task, winner_robot_ids = allocation
+                for robot_id in winner_robot_ids:
+                    self.announce_winner(allocated_task, robot_id)
 
-    def process_allocation(self, allocation, tasks_to_allocate):
-        # TODO: Update stn and dispatchable graph of winning robot
+    def process_allocation(self, round_result):
 
-        self.tasks_to_allocate = tasks_to_allocate
+        task, robot_id, position, tasks_to_allocate = round_result
+
+        allocation = (task.id, [robot_id])
         self.allocations.append(allocation)
+        self.tasks_to_allocate = tasks_to_allocate
 
         logging.debug("Allocation: %s", allocation)
-        logging.debug("Tasks left to allocate: %s ", [task.id for task in tasks_to_allocate])
+        logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
-        self.announce_winner(allocation)
-        self.round.close()
+        stn = self.timetable.update_stn(robot_id, task, position)
+        dispatchable_graph = self.timetable.update_dispatchable_graph(robot_id, stn)
+
+        logging.debug("STN robot %s: %s", robot_id, stn)
+        logging.debug("Dispatchable graph robot %s: %s", robot_id, dispatchable_graph)
+
+        return allocation
 
     def allocate(self, tasks):
         if isinstance(tasks, list):
             for task in tasks:
-                self.tasks_to_allocate.append(task)
+                self.tasks_to_allocate[task.id] = task
             logging.debug('Auctioneer received a list of tasks')
         else:
-            self.tasks_to_allocate.append(tasks)
+            self.tasks_to_allocate[tasks.id] = tasks
             logging.debug('Auctioneer received one task')
 
     def announce_task(self):
 
         _round = {'tasks_to_allocate': self.tasks_to_allocate,
                   'round_time': self.round_time,
-                  'n_robots': len(self.robots),
+                  'n_robots': len(self.robot_ids),
                   'request_alternative_time_slots': self.request_alternative_timeslots}
 
         self.round = Round(**_round)
@@ -92,10 +104,10 @@ class Auctioneer(object):
         task_announcement['payload']['round_id'] = self.round.id
         task_announcement['payload']['tasks'] = dict()
 
-        for task in self.tasks_to_allocate:
+        for task_id, task in self.tasks_to_allocate.items():
             task_announcement['payload']['tasks'][task.id] = task.to_dict()
 
-        logging.debug("Auctioneer announces tasks %s", [task.id for task in self.tasks_to_allocate])
+        logging.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.round.start()
         self.api.shout(task_announcement, 'TASK-ALLOCATION')
@@ -104,9 +116,10 @@ class Auctioneer(object):
         bid = msg['payload']['bid']
         self.round.process_bid(bid)
 
-    def announce_winner(self, allocation):
+    def finish_round_cb(self, msg):
+        self.round.finish()
 
-        allocated_task, winning_robot = allocation
+    def announce_winner(self, task_id, robot_id):
 
         allocation = dict()
         allocation['header'] = dict()
@@ -117,8 +130,8 @@ class Auctioneer(object):
         allocation['header']['timestamp'] = int(round(time.time()) * 1000)
 
         allocation['payload']['metamodel'] = 'ropod-allocation-schema.json'
-        allocation['payload']['task_id'] = allocated_task
-        allocation['payload']['winner_id'] = winning_robot
+        allocation['payload']['task_id'] = task_id
+        allocation['payload']['winner_id'] = robot_id
 
         logging.debug("Accouncing winner...")
         self.api.shout(allocation, 'TASK-ALLOCATION')

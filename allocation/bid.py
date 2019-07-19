@@ -128,9 +128,6 @@ class Bid(object):
         bid_dict['task_id'] = self.task_id
         return bid_dict
 
-    def get_allocation_info(self):
-        return self.stn, self.dispatchable_graph
-
     @classmethod
     def from_dict(cls, bid_dict):
         bid = cls()

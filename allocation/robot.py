@@ -31,16 +31,13 @@ class Robot(object):
         self.bidding_rule_method = kwargs.get('bidding_rule_method', None)
         self.compute_cost_method = kwargs.get('compute_cost_method', None)
 
+        # TODO: Add callbacks in loader file
         api_config = kwargs.get('api_config', None)
         zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
         zyre_config['node_name'] = self.id + '_proxy'
-
         self.api = ZyreAPI(zyre_config)
-
         self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
         self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
-        self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
-
 
         # TODO: Read stn and dispatchable graph from db
         self.stn = self.stp.get_stn()
@@ -61,12 +58,7 @@ class Robot(object):
 
         if winner_id == self.id:
             self.allocate_to_robot(task_id)
-
-        # TODO send message to start next round
-
-    def terminate_cb(self, msg):
-        self.logger.debug("Terminating robot...")
-        self.api.terminated = True
+            self.send_finish_round()
 
     def compute_bids(self, received_tasks, round_id):
         bids = list()
@@ -97,8 +89,8 @@ class Robot(object):
         if bids:
             smallest_bid = self.get_smallest_bid(bids)
             self.bid_placed = copy.deepcopy(smallest_bid)
-            logging.debug("Robot %s placed bid %s", self.id, self.bid_placed)
-            self.send_bid(smallest_bid)
+            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
+            self.send_bid(self.bid_placed)
 
         if no_bids:
             for no_bid in no_bids:
@@ -145,12 +137,12 @@ class Robot(object):
                 if bid < best_bid or (bid == best_bid and bid.task_id < best_bid.task_id):
                     best_bid = copy.deepcopy(bid)
 
-                logging.debug("New best bid for task %s: %s", task.id, best_bid)
-
             # Restore schedule for the next iteration
             self.stn.remove_task(i + 1)
 
-        logging.debug("Best bid for task %s: %s", task.id, best_bid)
+        self.logger.debug("Best bid for task %s: %s", task.id, best_bid)
+        self.logger.debug("STN: %s", best_bid.stn)
+        self.logger.debug("Dispatchable_graph %s", best_bid.dispatchable_graph)
 
         return best_bid
 
@@ -201,16 +193,29 @@ class Robot(object):
     def allocate_to_robot(self, task_id):
 
         # Update the stn and dispatchable_graph
-        stn, dispatchable_graph = self.bid_placed.get_allocation_info()
-
-        self.stn = copy.deepcopy(stn)
-        self.dispatchable_graph = copy.deepcopy(dispatchable_graph)
+        self.stn = copy.deepcopy(self.bid_placed.stn)
+        self.dispatchable_graph = copy.deepcopy(self.bid_placed.dispatchable_graph)
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
+        self.logger.debug("STN %s", self.stn)
+        self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
 
         tasks = [task for task in self.stn.get_tasks()]
 
         self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
+
+    def send_finish_round(self):
+        close_msg = dict()
+        close_msg['header'] = dict()
+        close_msg['payload'] = dict()
+        close_msg['header']['type'] = 'FINISH-ROUND'
+        close_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        close_msg['header']['msgId'] = str(uuid.uuid4())
+        close_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
+
+        self.logger.info("Robot %s sends close round msg ", self.id)
+        self.api.whisper(close_msg, peer=self.auctioneer)
 
 
 if __name__ == '__main__':

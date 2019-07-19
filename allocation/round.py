@@ -9,13 +9,14 @@ class Round(object):
 
     def __init__(self, **kwargs):
 
-        self.tasks_to_allocate = kwargs.get('tasks_to_allocate', list())
+        self.tasks_to_allocate = kwargs.get('tasks_to_allocate', dict())
         self.round_time = kwargs.get('round_time', 0)
         self.n_robots = kwargs.get('n_robots', 0)
         self.request_alternative_timeslots = kwargs.get('request_alternative_timeslots', False)
 
         self.closure_time = 0
         self.id = generate_uuid()
+        self.finished = True
         self.opened = False
         self.received_bids = dict()
         self.received_no_bids = dict()
@@ -25,6 +26,10 @@ class Round(object):
         self.closure_time = ts.get_time_stamp(self.round_time)
         logging.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
+        self.start_round()
+
+    def start_round(self):
+        self.finished = False
         self.opened = True
 
     def process_bid(self, bid_dict):
@@ -67,18 +72,14 @@ class Round(object):
             return None
 
         logging.debug("Closing round at %s", current_time)
+        self.opened = False
 
         round_result = self.get_round_results()
 
         if round_result is None:
             return None
 
-        allocation, tasks_to_allocate = round_result
-
-        logging.debug("Allocation: %s", allocation)
-        logging.debug("Tasks left to allocate: %s", [task.id for task in tasks_to_allocate])
-
-        return allocation, tasks_to_allocate
+        return round_result
 
     def get_round_results(self):
         """ Closes the round and returns the allocation of the round and
@@ -88,30 +89,29 @@ class Round(object):
         allocation(dict): key - task_id,
                           value - list of robots assigned to the task
 
-        tasks_to_allocate(list): tasks left to allocate
+        tasks_to_allocate(dict): tasks left to allocate
 
         """
         # Check for which tasks the constraints need to be set to soft
         if self.request_alternative_timeslots and self.received_no_bids:
             self.set_soft_constraints()
 
-        # Get the allocation of this round
-        allocation = self.elect_winner()
-        if allocation is None:
+        winning_bid = self.elect_winner()
+
+        if winning_bid is None:
             return None
 
-        allocated_task, winning_robot = allocation
+        allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
+        robot_id = winning_bid.robot_id
+        position = winning_bid.stn_position
 
-        # Remove allocated task from tasks_to_allocate
-        for i, task in enumerate(self.tasks_to_allocate):
-            if task.id == allocated_task:
-                del self.tasks_to_allocate[i]
+        round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
 
-        return allocation, self.tasks_to_allocate
+        return round_result
 
-    def close(self):
-        self.opened = False
-        logging.debug("Round closed")
+    def finish(self):
+        self.finished = True
+        logging.debug("Round finished")
 
     def set_soft_constraints(self):
         """ If the number of no-bids for a task is equal to the number of robots,
@@ -120,10 +120,10 @@ class Round(object):
 
         for task_id, n_no_bids in self.received_no_bids.items():
             if n_no_bids == self.n_robots:
-                for i, task in enumerate(self.tasks_to_allocate):
-                    if task.id == task_id:
-                        self.tasks_to_allocate[i].hard_constraints = False
-                        logging.debug("Setting soft constraints for task %s", task_id)
+                task = self.tasks_to_allocate.get(task_id)
+                task.hard_constraints = False
+                self.tasks_to_allocate.update({task_id: task})
+                logging.debug("Setting soft constraints for task %s", task_id)
 
     def elect_winner(self):
         """ Elects the winner of the round
@@ -143,6 +143,5 @@ class Round(object):
             # TODO: ADD exception: No allocation
             return None
 
-        allocation = (lowest_bid.task_id, lowest_bid.robot_id)
+        return lowest_bid
 
-        return allocation

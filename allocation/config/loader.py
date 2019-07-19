@@ -23,11 +23,13 @@ class Config(object):
         logging.info("Configuring auctioneer...")
         allocation_config = self.config_params.get("task_allocation")
         fleet = self.config_params.get('fleet')
+        stp_method = allocation_config.get('stp_method')
         api = self.configure_api('auctioneer')
         request_alternative_timeslots = allocation_config.get('request_alternative_timeslots')
         round_time = allocation_config.get('round_time')
 
         return {'robot_ids': fleet,
+                'stp_method': stp_method,
                 'api': api,
                 'request_alternative_timeslots': request_alternative_timeslots,
                 'round_time': round_time
