@@ -9,7 +9,7 @@ from stn.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
-from allocation.bid import *
+from allocation.bid import Bid
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule and stp_method
 specified in the config file
@@ -20,16 +20,14 @@ class Robot(object):
 
     def __init__(self, **kwargs):
 
-        self.id = kwargs.get('robot_id', None)
+        self.id = kwargs.get('robot_id', '')
+        self.bidding_rule = kwargs.get('bidding_rule', None)
+        stp_solver = kwargs.get('stp_solver', None)
+        self.stp = STP(stp_solver)
         self.auctioneer = kwargs.get('auctioneer', None)
+
         self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
         self.logger.debug("Starting robot %s", self.id)
-
-        stp_method = kwargs.get('stp_method', None)
-        self.stp = STP(stp_method)
-
-        self.bidding_rule_method = kwargs.get('bidding_rule_method', None)
-        self.compute_cost_method = kwargs.get('compute_cost_method', None)
 
         # TODO: Add callbacks in loader file
         api_config = kwargs.get('api_config', None)
@@ -72,9 +70,10 @@ class Robot(object):
             # get the best_bid for each task
             best_bid = self.insert_task(task, round_id)
 
-            if best_bid.cost != np.inf:
+            if best_bid.cost != float('inf'):
                 bids.append(best_bid)
             else:
+                self.logger.debug("No bid for task %s", task.id)
                 no_bids.append(Bid(task_id=task_id))
 
         self.send_bids(bids, no_bids)
@@ -94,6 +93,7 @@ class Robot(object):
 
         if no_bids:
             for no_bid in no_bids:
+                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
                 self.send_bid(no_bid)
 
     def insert_task(self, task, round_id):
@@ -118,12 +118,12 @@ class Robot(object):
                 self.logger.debug("Dispatchable graph %s: ", dispatchable_graph)
                 self.logger.debug("STP Metric %s: ", stp_metric)
 
-                bid_attr = {'stn_position': position,
+                bid_attr = {'stp': self.stp,
+                            'stn_position': position,
                             'robot_id': self.id,
                             'round_id': round_id,
                             'task_id': task.id,
-                            'bidding_rule': self.bidding_rule_method,
-                            'compute_cost': self.compute_cost_method,
+                            'bidding_rule': self.bidding_rule,
                             'stn': self.stn,
                             'dispatchable_graph': dispatchable_graph}
 
@@ -227,15 +227,6 @@ if __name__ == '__main__':
 
     config = Config("../config/config.yaml")
     config_logger('../config/logging.yaml')
-
-    bidding_rule_factory = BiddingRuleFactory()
-    bidding_rule_factory.register_bidding_rule('completion_time', rule_completion_time)
-    bidding_rule_factory.register_bidding_rule('makespan', rule_makespan)
-
-    compute_cost_factory = ComputeCostFactory()
-    compute_cost_factory.register_compute_cost_method('fpc', compute_cost_fpc)
-    compute_cost_factory.register_compute_cost_method('srea', compute_cost_srea)
-    compute_cost_factory.register_compute_cost_method('dsc_lp', compute_cost_dsc_lp)
 
     robot_config = config.configure_robot_proxy(robot_id)
     robot = Robot(**robot_config)

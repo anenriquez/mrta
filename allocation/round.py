@@ -3,6 +3,7 @@ import logging
 from ropod.utils.timestamp import TimeStamp as ts
 from allocation.bid import Bid
 import copy
+from allocation.exceptions.no_allocation import NoAllocation
 
 
 class Round(object):
@@ -12,7 +13,7 @@ class Round(object):
         self.tasks_to_allocate = kwargs.get('tasks_to_allocate', dict())
         self.round_time = kwargs.get('round_time', 0)
         self.n_robots = kwargs.get('n_robots', 0)
-        self.request_alternative_timeslots = kwargs.get('request_alternative_timeslots', False)
+        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         self.closure_time = 0
         self.id = generate_uuid()
@@ -47,6 +48,8 @@ class Round(object):
 
         else:
             # Process a no-bid
+            logging.debug("Processing a no bid")
+            logging.debug("Alternative timeslots: %s ", self.alternative_timeslots)
             self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
 
     @staticmethod
@@ -63,23 +66,14 @@ class Round(object):
 
         return False
 
-    def check_closure_time(self):
-        """ Calls self.close() when it is time to close the round
-        """
+    def close_round(self):
         current_time = ts.get_time_stamp()
 
         if current_time < self.closure_time:
-            return None
+            return False
 
         logging.debug("Closing round at %s", current_time)
-        self.opened = False
-
-        round_result = self.get_round_results()
-
-        if round_result is None:
-            return None
-
-        return round_result
+        return True
 
     def get_round_results(self):
         """ Closes the round and returns the allocation of the round and
@@ -93,21 +87,22 @@ class Round(object):
 
         """
         # Check for which tasks the constraints need to be set to soft
-        if self.request_alternative_timeslots and self.received_no_bids:
+        if self.alternative_timeslots and self.received_no_bids:
             self.set_soft_constraints()
 
-        winning_bid = self.elect_winner()
+        try:
 
-        if winning_bid is None:
-            return None
+            winning_bid = self.elect_winner()
+            allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
+            robot_id = winning_bid.robot_id
+            position = winning_bid.stn_position
 
-        allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
-        robot_id = winning_bid.robot_id
-        position = winning_bid.stn_position
+            round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
+            return round_result
 
-        round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
-
-        return round_result
+        except NoAllocation:
+            logging.exception("No allocation made in round %s ", self.id)
+            raise NoAllocation(self.id)
 
     def finish(self):
         self.finished = True
@@ -140,8 +135,7 @@ class Round(object):
                 lowest_bid = copy.deepcopy(bid)
 
         if lowest_bid.cost == float('inf'):
-            # TODO: ADD exception: No allocation
-            return None
+            raise NoAllocation(self.id)
 
         return lowest_bid
 

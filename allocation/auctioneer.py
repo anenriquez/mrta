@@ -6,6 +6,7 @@ from datetime import timedelta
 from allocation.round import Round
 from allocation.timetable import Timetable
 from stn.stp import STP
+from allocation.exceptions.no_allocation import NoAllocation
 
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule and stp_method
@@ -21,13 +22,15 @@ class Auctioneer(object):
 
         self.robot_ids = kwargs.get('robot_ids', list())
 
-        stp_method = kwargs.get('stp_method', None)
-        stp = STP(stp_method)
+        stp_solver = kwargs.get('stp_solver', None)
+        stp = STP(stp_solver)
 
         # TODO: Read timetable from db
         self.timetable = Timetable(self.robot_ids, stp)
 
-        self.request_alternative_timeslots = kwargs.get('request_alternative_timeslots', False)
+        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
+        logging.debug("Alternative timeslots: %s ", self.alternative_timeslots)
+
         round_time = kwargs.get('round_time', 0)
         self.round_time = timedelta(seconds=round_time)
 
@@ -44,13 +47,18 @@ class Auctioneer(object):
         if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
 
-        if self.round.opened:
-            round_result = self.round.check_closure_time()
-            if round_result is not None:
+        if self.round.opened and self.round.close_round():
+
+            try:
+                round_result = self.round.get_round_results()
                 allocation = self.process_allocation(round_result)
                 allocated_task, winner_robot_ids = allocation
                 for robot_id in winner_robot_ids:
                     self.announce_winner(allocated_task, robot_id)
+
+            except NoAllocation as e:
+                logging.exception("No allocation made in round %s ", e.round_id)
+                self.round.finish()
 
     def process_allocation(self, round_result):
 
@@ -85,7 +93,7 @@ class Auctioneer(object):
         _round = {'tasks_to_allocate': self.tasks_to_allocate,
                   'round_time': self.round_time,
                   'n_robots': len(self.robot_ids),
-                  'request_alternative_time_slots': self.request_alternative_timeslots}
+                  'alternative_timeslots': self.alternative_timeslots}
 
         self.round = Round(**_round)
 
