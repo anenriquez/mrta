@@ -12,6 +12,10 @@ class Bid(object):
         self.task_id = kwargs.get('task_id', '')
         self.bidding_rule = kwargs.get('bidding_rule', None)
 
+        # The bid is calculated using the constraints given by the user
+        self.hard_constraints = True
+        self.alternative_start_time = -1
+
         stp = kwargs.get('stp', STP('fpc'))  # TeSSI by default
         self.stn = kwargs.get('stn', stp.get_stn())
         self.dispatchable_graph = kwargs.get('dispatchable_graph', stp.get_stn())
@@ -38,6 +42,10 @@ class Bid(object):
         logging.debug("Navigation start time: %s", navigation_start_time)
         bid_cost = abs(navigation_start_time - task.earliest_start_time)
         logging.debug("Cost: %s", bid_cost)
+
+        # The bid was calculated using soft constraints
+        self.hard_constraints = False
+        self.alternative_start_time = navigation_start_time
         self.cost = bid_cost
 
     def to_dict(self):
@@ -47,6 +55,8 @@ class Bid(object):
         bid_dict['robot_id'] = self.robot_id
         bid_dict['round_id'] = self.round_id
         bid_dict['task_id'] = self.task_id
+        bid_dict['hard_constraints'] = self.hard_constraints
+        bid_dict['alternative_start_time'] = self.alternative_start_time
         return bid_dict
 
     @classmethod
@@ -57,4 +67,6 @@ class Bid(object):
         bid.robot_id = bid_dict['robot_id']
         bid.round_id = bid_dict['round_id']
         bid.task_id = bid_dict['task_id']
+        bid.hard_constraints = bid_dict['hard_constraints']
+        bid.alternative_start_time = bid_dict['alternative_start_time']
         return bid

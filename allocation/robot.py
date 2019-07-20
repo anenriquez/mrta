@@ -1,7 +1,6 @@
 import copy
 import uuid
 import time
-import numpy as np
 import argparse
 import logging.config
 from datasets.task import Task
@@ -11,7 +10,7 @@ from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
 
-""" Implements a variation of the the TeSSI algorithm using the bidding_rule and stp_method
+""" Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
 """
 
@@ -173,6 +172,7 @@ class Robot(object):
         """
 
         bid_dict = bid.to_dict()
+        self.logger.debug("Bid %s", bid_dict)
 
         bid_msg = dict()
         bid_msg['header'] = dict()

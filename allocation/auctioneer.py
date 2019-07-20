@@ -7,9 +7,10 @@ from allocation.round import Round
 from allocation.timetable import Timetable
 from stn.stp import STP
 from allocation.exceptions.no_allocation import NoAllocation
+from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
 
 
-""" Implements a variation of the the TeSSI algorithm using the bidding_rule and stp_method
+""" Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
 """
 
@@ -29,13 +30,13 @@ class Auctioneer(object):
         self.timetable = Timetable(self.robot_ids, stp)
 
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
-        logging.debug("Alternative timeslots: %s ", self.alternative_timeslots)
 
         round_time = kwargs.get('round_time', 0)
         self.round_time = timedelta(seconds=round_time)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
+        self.waiting_for_user_confirmation = list()
         self.round = Round()
 
         # TODO: Add callbacks in loader file
@@ -48,7 +49,6 @@ class Auctioneer(object):
             self.announce_task()
 
         if self.round.opened and self.round.close_round():
-
             try:
                 round_result = self.round.get_round_results()
                 allocation = self.process_allocation(round_result)
@@ -56,8 +56,12 @@ class Auctioneer(object):
                 for robot_id in winner_robot_ids:
                     self.announce_winner(allocated_task, robot_id)
 
-            except NoAllocation as e:
-                logging.exception("No allocation made in round %s ", e.round_id)
+            except NoAllocation as exception:
+                logging.exception("No allocation made in round %s ", exception.round_id)
+                self.round.finish()
+
+            except AlternativeTimeSlot as exception:
+                self.process_alternative_allocation(exception)
                 self.round.finish()
 
     def process_allocation(self, round_result):
@@ -78,6 +82,16 @@ class Auctioneer(object):
         logging.debug("Dispatchable graph robot %s: %s", robot_id, dispatchable_graph)
 
         return allocation
+
+    def process_alternative_allocation(self, exception):
+        task_id = exception.task_id
+        robot_id = exception.robot_id
+        alternative_start_time = exception.alternative_start_time
+        logging.exception("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
+                          alternative_start_time)
+
+        alternative_allocation = (task_id, [robot_id], alternative_start_time)
+        self.waiting_for_user_confirmation.append(alternative_allocation)
 
     def allocate(self, tasks):
         if isinstance(tasks, list):

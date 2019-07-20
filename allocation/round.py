@@ -4,6 +4,7 @@ from ropod.utils.timestamp import TimeStamp as ts
 from allocation.bid import Bid
 import copy
 from allocation.exceptions.no_allocation import NoAllocation
+from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
 
 
 class Round(object):
@@ -48,8 +49,6 @@ class Round(object):
 
         else:
             # Process a no-bid
-            logging.debug("Processing a no bid")
-            logging.debug("Alternative timeslots: %s ", self.alternative_timeslots)
             self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
 
     @staticmethod
@@ -91,13 +90,15 @@ class Round(object):
             self.set_soft_constraints()
 
         try:
-
             winning_bid = self.elect_winner()
             allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
             robot_id = winning_bid.robot_id
             position = winning_bid.stn_position
-
             round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
+
+            if winning_bid.hard_constraints is False:
+                raise AlternativeTimeSlot(winning_bid.task_id, winning_bid.robot_id, winning_bid.alternative_start_time)
+
             return round_result
 
         except NoAllocation:
