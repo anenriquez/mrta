@@ -4,11 +4,12 @@ fleet:
     # - ropod_003
 
 task_allocation:
-    bidding_rule: 1
-    auction_time: 10 # seconds
-    stp_method: srea
+    bidding_rule:
+      robustness: srea
+      temporal: completion_time
+    round_time: 10 # seconds
     auctioneer: zyre_api # This is completely Zyre dependent
-    request_alternative_timeslots: True
+    alternative_timeslots: True
 
 api:
   version: 0.1.0
@@ -20,6 +21,5 @@ api:
     message_types:
       - TASK-ANNOUNCEMENT
       - BID
-      - NO-BID
       - ALLOCATION
-      - SCHEDULE
+      - FINISH-ROUND

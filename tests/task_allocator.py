@@ -13,27 +13,30 @@ class TaskAllocator(object):
         self.auctioneer = Auctioneer(**auctioneer_config)
         self.allocated_tasks = dict()
         self.test_terminated = False
+        self.allocations = list()
 
-    ''' Adds a task or list of tasks to the list of tasks_to_allocate in the auctioneer
-    '''
     def get_robots_for_task(self, tasks):
+        """ Adds a task or list of tasks to the list of tasks_to_allocate
+        in the auctioneer
+
+        :param tasks: list of tasks to allocate
+        """
         self.auctioneer.allocate(tasks)
 
-    ''' Gets the allocation of a task when the auctioneer terminates an allocation round
-    '''
     def get_allocation(self):
+        """ Gets the allocation of a task when the auctioneer terminates an
+         allocation round
+        """
 
-        if self.auctioneer.allocation_completed:
-
-            allocation = self.auctioneer.get_allocation(self.auctioneer.allocated_task)
-
+        while self.auctioneer.allocations:
+            allocation = self.auctioneer.allocations.pop()
             self.logger.debug("Allocation %s: ", allocation)
-
-            self.auctioneer.allocate_next()
+            self.allocations.append(allocation)
 
     def check_test_termination(self):
-        if not self.auctioneer.tasks_to_allocate and self.auctioneer.allocate_next_task:
+        if not self.auctioneer.tasks_to_allocate:
             self.test_terminated = True
+            self.logger.debug("Allocations %s", self.allocations)
 
     def run(self):
         timeout_duration = 300  # 5 minutes
