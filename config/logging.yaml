@@ -11,12 +11,8 @@ handlers:
     formatter: default
     stream: ext://sys.stdout
 loggers:
-  robot:
+  allocation:
     level: DEBUG
-  auctioneer:
-      level: DEBUG
-  task_requester:
-      level: DEBUG
 root:
   level: DEBUG
   handlers: [console]

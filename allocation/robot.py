@@ -1,208 +1,179 @@
 import copy
 import uuid
 import time
-import numpy as np
 import argparse
-import logging
 import logging.config
-from scheduler.structs.task import Task
-from scheduler.scheduler import Scheduler
+from datasets.task import Task
+from stn.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
+from allocation.bid import Bid
 
-
-'''  Implements the TeSSI algorithm with different bidding rules:
-
-    - Rule 1: Lowest completion time (last task finish time - first task start time)
-    - Rule 2: Lowest combination of completion time and travel distance_robot
-    - Rule 3: Lowest makespan (finish time of the last task in the schedule)
-    - Rule 4: Lowest combination of makespan and travel distance_robot
-    - Rule 5: Lowest idle time of the robot with more tasks
-'''
-MAX_SEED = 2 ** 31 - 1
+""" Implements a variation of the the TeSSI algorithm using the bidding_rule 
+specified in the config file
+"""
 
 
 class Robot(object):
-    #  Bidding rules
-    COMPLETION_TIME = 1
-    COMPLETION_TIME_DISTANCE = 2
-    MAKESPAN = 3
-    MAKESPAN_DISTANCE = 4
-    IDLE_TIME = 5
 
-    def __init__(self, robot_id, bidding_rule, scheduling_method, api_config, auctioneer):
-        self.id = robot_id
-        self.bidding_rule = bidding_rule
-        self.scheduler = Scheduler(scheduling_method)
-        self.auctioneer = auctioneer
+    def __init__(self, **kwargs):
 
+        self.id = kwargs.get('robot_id', '')
+        self.bidding_rule = kwargs.get('bidding_rule', None)
+        stp_solver = kwargs.get('stp_solver', None)
+        self.stp = STP(stp_solver)
+        self.auctioneer = kwargs.get('auctioneer', None)
+
+        self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
+        self.logger.debug("Starting robot %s", self.id)
+
+        # TODO: Add callbacks in loader file
+        api_config = kwargs.get('api_config', None)
         zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
-        zyre_config['node_name'] = robot_id + '_proxy'
-
+        zyre_config['node_name'] = self.id + '_proxy'
         self.api = ZyreAPI(zyre_config)
-
-        self.api.add_callback(self, 'START', 'start_cb')
         self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
         self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
-        self.api.add_callback(self, 'TERMINATE', 'terminate_cb')
 
-        self.logger = logging.getLogger('robot.%s' % robot_id)
+        # TODO: Read stn and dispatchable graph from db
+        self.stn = self.stp.get_stn()
+        self.dispatchable_graph = self.stp.get_stn()
 
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
-
-        self.scheduled_tasks = self.scheduler.get_scheduled_tasks()
-
-        self.dataset_start_time = 0
-        self.idle_time = 0.
-        self.distance = 0.
-
-        self.bid_round = 0.
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
-
-        # Weighting factor used for the dual bidding rule
-        self.alpha = 0.1
-
-    def reinitialize_auction_variables(self):
-        self.bid_round = None
-        self.dispatch_graph_round = self.scheduler.get_temporal_network()
-
-    def start_cb(self, msg):
-        self.dataset_start_time = msg['payload']['start_time']
-        self.logger.debug("Received dataset start time %s", self.dataset_start_time)
+        self.bid_placed = Bid()
 
     def task_announcement_cb(self, msg):
-        self.reinitialize_auction_variables()
-        n_round = msg['payload']['round']
-        tasks = msg['payload']['tasks']
-        self.compute_bids(tasks, n_round)
+        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
+        round_id = msg['payload']['round_id']
+        received_tasks = msg['payload']['tasks']
+        self.compute_bids(received_tasks, round_id)
 
     def allocation_cb(self, msg):
+        self.logger.debug("Robot %s received ALLOCATION", self.id)
         task_id = msg['payload']['task_id']
         winner_id = msg['payload']['winner_id']
+
         if winner_id == self.id:
             self.allocate_to_robot(task_id)
+            self.send_finish_round()
 
-    def terminate_cb(self, msg):
-        self.logger.debug("Terminating robot...")
-        self.api.terminated = True
-
-    def compute_bids(self, tasks, n_round):
-        bids = dict()
+    def compute_bids(self, received_tasks, round_id):
+        bids = list()
         no_bids = list()
 
-        for task_id, task_info in tasks.items():
+        for task_id, task_info in received_tasks.items():
             task = Task.from_dict(task_info)
             self.logger.debug("Computing bid of task %s", task.id)
-            # Insert task in each possible position of the stnu
-            best_bid, best_dispatch_graph = self.insert_task(task)
 
-            if best_bid != np.inf:
-                bids[task_id] = dict()
-                bids[task_id]['bid'] = best_bid
-                bids[task_id]['dispatch_graph'] = best_dispatch_graph
+            # Insert task in each possible position of the stn and
+            # get the best_bid for each task
+            best_bid = self.insert_task(task, round_id)
 
+            if best_bid.cost != float('inf'):
+                bids.append(best_bid)
             else:
-                no_bids.append(task_id)
+                self.logger.debug("No bid for task %s", task.id)
+                no_bids.append(Bid(task_id=task_id))
 
+        self.send_bids(bids, no_bids)
+
+    def send_bids(self, bids, no_bids):
+        """ Sends the bid with the smallest cost
+        Sends a no-bid per task that could not be accommodated in the stn
+
+        :param bids: list of bids
+        :param no_bids: list of no bids
+        """
         if bids:
-            # Send the smallest bid
-            task_id_bid, smallest_bid = self.get_smallest_bid(bids, n_round)
-            self.send_bid(n_round, task_id_bid, smallest_bid)
-        else:
-            # Send an empty bid with task ids of tasks that could not be allocated
-            self.send_no_bid(n_round, no_bids)
+            smallest_bid = self.get_smallest_bid(bids)
+            self.bid_placed = copy.deepcopy(smallest_bid)
+            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
+            self.send_bid(self.bid_placed)
 
-    def insert_task(self, task):
-        best_bid = float('Inf')
-        best_schedule = list()
+        if no_bids:
+            for no_bid in no_bids:
+                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
+                self.send_bid(no_bid)
 
-        n_scheduled_tasks = len(self.scheduled_tasks)
+    def insert_task(self, task, round_id):
+        best_bid = Bid()
 
-        for i in range(0, n_scheduled_tasks + 1):
-            # TODO check if the robot can make it to the first task in the schedule, if not, return
+        tasks = self.stn.get_tasks()
+        n_tasks = len(tasks)
 
-            self.scheduler.add_task(task, i+1)
+        # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
+        for i in range(0, n_tasks + 1):
+            # TODO check if the robot can make it to the task, if not, return
+            position = i+1
+            self.stn.add_task(task, position)
 
-            self.logger.debug("STN: %s", self.scheduler.get_temporal_network())
+            result_stp = self.stp.compute_dispatchable_graph(self.stn)
 
-            result = self.scheduler.get_dispatch_graph()
-            if result is not None:
-                metric, dispatch_graph = result
+            if result_stp is not None:
 
-                bid = self.compute_bid(dispatch_graph, metric)
-                if bid < best_bid:
-                    best_bid = bid
-                    best_dispatch_graph = copy.deepcopy(dispatch_graph)
+                stp_metric, dispatchable_graph = result_stp
+
+                self.logger.debug("STN %s: ", self.stn)
+                self.logger.debug("Dispatchable graph %s: ", dispatchable_graph)
+                self.logger.debug("STP Metric %s: ", stp_metric)
+
+                bid_attr = {'stp': self.stp,
+                            'stn_position': position,
+                            'robot_id': self.id,
+                            'round_id': round_id,
+                            'task_id': task.id,
+                            'bidding_rule': self.bidding_rule,
+                            'stn': self.stn,
+                            'dispatchable_graph': dispatchable_graph}
+
+                bid = Bid(**bid_attr)
+
+                if task.hard_constraints:
+                    bid.get_cost(stp_metric)
+                else:
+                    bid.get_soft_cost(task)
+
+                if bid < best_bid or (bid == best_bid and bid.task_id < best_bid.task_id):
+                    best_bid = copy.deepcopy(bid)
 
             # Restore schedule for the next iteration
-            self.scheduler.remove_task(i+1)
+            self.stn.remove_task(i + 1)
 
-        return best_bid, best_dispatch_graph
+        self.logger.debug("Best bid for task %s: %s", task.id, best_bid)
+        self.logger.debug("STN: %s", best_bid.stn)
+        self.logger.debug("Dispatchable_graph %s", best_bid.dispatchable_graph)
 
-    def rule_completion_time(self, dispatch_graph, metric):
-        completion_time = dispatch_graph.get_completion_time()
-        self.logger.debug("Completion time: %s", completion_time)
+        return best_bid
 
-        if self.scheduler.get_scheduling_method() == 'fpc':
-            bid = completion_time
+    @staticmethod
+    def get_smallest_bid(bids):
+        """ Get the bid with the smallest cost among all bids.
 
-        elif self.scheduler.get_scheduling_method() == 'srea':
-            # metric is the level of risk. A smaller value is preferable
-            self.logger.debug("Alpha: %s ", metric)
-            bid = completion_time/metric
+        :param bids: list of bids
+        :return: the bid with the smallest cost
+        """
+        smallest_bid = Bid()
 
-        elif self.scheduler.get_scheduling_method() == 'dsc_lp':
-            # metric is the degree of strong controllability. A larger value is preferable
-            self.logger.debug("DSC: %s ", metric)
-            bid = completion_time * metric
+        for bid in bids:
+            if bid < smallest_bid or (bid == smallest_bid and bid.task_id < smallest_bid.task_id):
+                smallest_bid = copy.deepcopy(bid)
 
-        return bid
+        if smallest_bid.cost == float('inf'):
+            return None
 
-    def compute_bid(self, dispatch_graph, metric):
+        return smallest_bid
 
-        if self.bidding_rule == self.COMPLETION_TIME:
-            bid = self.rule_completion_time(dispatch_graph, metric)
-            self.logger.debug("Bid: %s", bid)
+    def send_bid(self, bid):
+        """ Creates bid_msg and sends it to the auctioneer
 
-        # TODO: Maybe add other bidding rules
-        return bid
+        :param bid:
+        :param round_id:
+        :return:
+        """
 
-    def compute_distance(self, schedule):
-        ''' Computes the travel cost (distance traveled) for performing all
-        tasks in the schedule (list of tasks)
-        '''
-        # TODO: Maybe we don't need this
-        distance = 0
-        return distance
+        bid_dict = bid.to_dict()
+        self.logger.debug("Bid %s", bid_dict)
 
-    def get_smallest_bid(self, bids, n_round):
-        '''
-        Get the smallest bid among all bids.
-        Each robot submits only its smallest bid in each round
-        If two or more tasks have the same bid, the robot bids for the task with the lowest task_id
-        '''
-        smallest_bid = dict()
-        smallest_bid['bid'] = np.inf
-        task_id_bid = None
-        lowest_task_id = ''
-
-        for task_id, bid_info in bids.items():
-            if bid_info['bid'] < smallest_bid['bid']:
-                smallest_bid = copy.deepcopy(bid_info)
-                task_id_bid = task_id
-                lowest_task_id = task_id_bid
-
-            elif bid_info['bid'] == smallest_bid['bid'] and task_id < lowest_task_id:
-                smallest_bid = copy.deepcopy(bid_info)
-                task_id_bid = task_id
-                lowest_task_id = task_id_bid
-
-        if smallest_bid != np.inf:
-            return task_id_bid, smallest_bid
-
-    def send_bid(self, n_round, task_id, bid):
-        ''' Create bid_msg and send it to the auctioneer '''
         bid_msg = dict()
         bid_msg['header'] = dict()
         bid_msg['payload'] = dict()
@@ -211,79 +182,40 @@ class Robot(object):
         bid_msg['header']['msgId'] = str(uuid.uuid4())
         bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
-        bid_msg['payload']['robot_id'] = self.id
-        bid_msg['payload']['n_round'] = n_round
-        bid_msg['payload']['task_id'] = task_id
-        bid_msg['payload']['bid'] = bid['bid']
+        bid_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
+        bid_msg['payload']['bid'] = bid_dict
 
-        self.bid_round = bid['bid']
-        # self.scheduled_tasks_round = bid['scheduled_tasks']
-        self.dispatch_graph_round = bid['dispatch_graph']
+        tasks = [task for task in bid.stn.get_tasks()]
 
-        self.scheduled_tasks = self.dispatch_graph_round.get_scheduled_tasks()
-        tasks = [task for task in self.scheduled_tasks]
-
-        self.logger.info("Round %s: Robod_id %s bids %s for task %s and scheduled_tasks %s", n_round, self.id, self.bid_round, task_id, tasks)
+        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
         self.api.whisper(bid_msg, peer=self.auctioneer)
-        # self.api.shout(bid_msg)
-        # self.whisper(bid_msg, peer='zyre_api')
-
-    def send_no_bid(self, n_round, no_bids):
-        '''
-        Create no_bid_msg for each task in no_bids and send it to the auctioneer
-        '''
-        no_bid_msg = dict()
-        no_bid_msg['header'] = dict()
-        no_bid_msg['payload'] = dict()
-        no_bid_msg['header']['type'] = 'NO-BID'
-        no_bid_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        no_bid_msg['header']['msgId'] = str(uuid.uuid4())
-        no_bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-
-        no_bid_msg['payload']['metamodel'] = 'ropod-bid-schema.json'
-        no_bid_msg['payload']['robot_id'] = self.id
-        no_bid_msg['payload']['n_round'] = n_round
-        no_bid_msg['payload']['task_ids'] = list()
-
-        for task_id in no_bids:
-            no_bid_msg['payload']['task_ids'].append(task_id)
-
-        self.logger.info("Round %s: Robot id %s sends empty bid for tasks %s", n_round, self.id, no_bids)
-        self.api.whisper(no_bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
-        # Update the dispatch_graph
-        self.scheduler.temporal_network = copy.deepcopy(self.dispatch_graph_round)
+
+        # Update the stn and dispatchable_graph
+        self.stn = copy.deepcopy(self.bid_placed.stn)
+        self.dispatchable_graph = copy.deepcopy(self.bid_placed.dispatchable_graph)
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
+        self.logger.debug("STN %s", self.stn)
+        self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
 
-        tasks = [task for task in self.scheduled_tasks]
+        tasks = [task for task in self.stn.get_tasks()]
 
-        self.logger.info("Tasks scheduled to robot %s:%s", self.id, tasks)
+        self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
 
-        self.send_schedule()
+    def send_finish_round(self):
+        close_msg = dict()
+        close_msg['header'] = dict()
+        close_msg['payload'] = dict()
+        close_msg['header']['type'] = 'FINISH-ROUND'
+        close_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        close_msg['header']['msgId'] = str(uuid.uuid4())
+        close_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+        close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
 
-    def send_schedule(self):
-        # TODO: Send dispatch_graph instead of scheduled_tasks
-        ''' Sends the updated schedule of the robot to the auctioneer.
-        '''
-        schedule_msg = dict()
-        schedule_msg['header'] = dict()
-        schedule_msg['payload'] = dict()
-        schedule_msg['header']['type'] = 'SCHEDULE'
-        schedule_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['header']['msgId'] = str(uuid.uuid4())
-        schedule_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        schedule_msg['payload']['metamodel'] = 'ropod-msg-schema.json'
-        schedule_msg['payload']['robot_id'] = self.id
-        schedule_msg['payload']['schedule'] = list()
-        for i, task_id in enumerate(self.scheduled_tasks):
-            schedule_msg['payload']['schedule'].append(task_id)
-
-        self.api.whisper(schedule_msg, peer=self.auctioneer)
-
-        self.logger.debug("Robot sent its updated schedule to the auctioneer.")
+        self.logger.info("Robot %s sends close round msg ", self.id)
+        self.api.whisper(close_msg, peer=self.auctioneer)
 
 
 if __name__ == '__main__':

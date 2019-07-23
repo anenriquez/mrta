@@ -1,0 +1,23 @@
+language: python
+
+services:
+  - docker
+
+
+before_install:
+  - docker-compose build task_allocation_test
+  - docker image ls
+  - docker ps -a
+
+script:
+  - docker-compose up -d robot
+  - docker-compose up --exit-code-from task_allocation_test
+after_script:
+  - docker stop $(docker ps -aq)
+
+
+
+
+
+
+
