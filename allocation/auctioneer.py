@@ -48,9 +48,9 @@ class Auctioneer(object):
         if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
 
-        if self.round.opened and self.round.close_round():
+        if self.round.opened and self.round.time_to_close():
             try:
-                round_result = self.round.get_round_results()
+                round_result = self.round.get_result()
                 allocation = self.process_allocation(round_result)
                 allocated_task, winner_robot_ids = allocation
                 for robot_id in winner_robot_ids:
@@ -104,12 +104,12 @@ class Auctioneer(object):
 
     def announce_task(self):
 
-        _round = {'tasks_to_allocate': self.tasks_to_allocate,
+        round_ = {'tasks_to_allocate': self.tasks_to_allocate,
                   'round_time': self.round_time,
                   'n_robots': len(self.robot_ids),
                   'alternative_timeslots': self.alternative_timeslots}
 
-        self.round = Round(**_round)
+        self.round = Round(**round_)
 
         logging.info("Starting round: %s", self.round.id)
         logging.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))

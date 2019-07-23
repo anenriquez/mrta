@@ -24,13 +24,26 @@ class Round(object):
         self.received_no_bids = dict()
 
     def start(self):
+        """ Starts and auction round:
+        - opens the round
+        - marks the round as not finished
+
+        opened: The auctioneer processes bid msgs
+        closed: The auctioneer no longer processes incoming bid msgs, i.e.,
+                bid msgs received after the round has closed are not
+                considered in the election process
+
+        After the round closes, the election process takes place
+
+        finished: The election process is over, i.e., an allocation has been made
+                    (or an exception has been raised)
+
+        """
         open_time = ts.get_time_stamp()
         self.closure_time = ts.get_time_stamp(self.round_time)
         logging.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
-        self.start_round()
 
-    def start_round(self):
         self.finished = False
         self.opened = True
 
@@ -65,24 +78,27 @@ class Round(object):
 
         return False
 
-    def close_round(self):
+    def time_to_close(self):
         current_time = ts.get_time_stamp()
 
         if current_time < self.closure_time:
             return False
 
         logging.debug("Closing round at %s", current_time)
+        self.opened = False
         return True
 
-    def get_round_results(self):
-        """ Closes the round and returns the allocation of the round and
-        the tasks that need to be announced in the next round
+    def get_result(self):
+        """ Returns the results of the allocation as a tuple
 
-        :return:
-        allocation(dict): key - task_id,
-                          value - list of robots assigned to the task
+        :return: round_result
 
-        tasks_to_allocate(dict): tasks left to allocate
+        task, robot_id, position, tasks_to_allocate = round_result
+
+        task (obj): task allocated in this round
+        robot_id (string): id of the winning robot
+        position (int): position in the STN where the task was added
+        tasks_to_allocate (dict): tasks left to allocate
 
         """
         # Check for which tasks the constraints need to be set to soft
@@ -111,7 +127,7 @@ class Round(object):
 
     def set_soft_constraints(self):
         """ If the number of no-bids for a task is equal to the number of robots,
-        set the temporal constraints be soft
+        set the temporal constraints to soft
         """
 
         for task_id, n_no_bids in self.received_no_bids.items():
