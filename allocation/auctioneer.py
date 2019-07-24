@@ -17,32 +17,32 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, api, ccu_store, **kwargs):
 
         logging.debug("Starting Auctioneer")
 
+        self.api = api
+        self.ccu_store = ccu_store
         self.robot_ids = kwargs.get('robot_ids', list())
-
         stp_solver = kwargs.get('stp_solver', None)
         stp = STP(stp_solver)
+        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
+        round_time = kwargs.get('round_time', 0)
+        self.round_time = timedelta(seconds=round_time)
 
         # TODO: Read timetable from db
         self.timetable = Timetable(self.robot_ids, stp)
-
-        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
-
-        round_time = kwargs.get('round_time', 0)
-        self.round_time = timedelta(seconds=round_time)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round()
 
-        # TODO: Add callbacks in loader file
-        self.api = kwargs.get('api', None)
-        self.api.add_callback(self, 'BID', 'bid_cb')
-        self.api.add_callback(self, 'FINISH-ROUND', 'finish_round_cb')
+    def __str__(self):
+        to_print = "Auctioneer"
+        to_print += '\n'
+        to_print += "Groups {}".format(self.api.interfaces[0].groups())
+        return to_print
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -132,7 +132,7 @@ class Auctioneer(object):
         logging.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.round.start()
-        self.api.shout(task_announcement, 'TASK-ALLOCATION')
+        self.api.publish(task_announcement, groups=['TASK-ALLOCATION'])
 
     def bid_cb(self, msg):
         bid = msg['payload']['bid']
@@ -156,7 +156,5 @@ class Auctioneer(object):
         allocation['payload']['winner_id'] = robot_id
 
         logging.debug("Accouncing winner...")
-        self.api.shout(allocation, 'TASK-ALLOCATION')
+        self.api.publish(allocation, groups=['TASK-ALLOCATION'])
 
-    def shutdown(self):
-        self.api.shutdown()
