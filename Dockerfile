@@ -8,12 +8,12 @@ RUN git clone --single-branch --branch develop https://github.com/anenriquez/mrt
 WORKDIR /mrta_datasets
 RUN pip3 install -e.
 
-RUN mkdir /mrta_allocation
-COPY . /mrta_allocation
-WORKDIR /mrta_allocation
+RUN mkdir /mrta
+COPY . /mrta
+WORKDIR /mrta
 RUN pip3 install -r requirements.txt && pip3 install -e .
 
-WORKDIR /mrta_allocation/allocation
+WORKDIR /mrta/allocation
 
 CMD ["python3", "robot.py", "ropod_001"]
 
