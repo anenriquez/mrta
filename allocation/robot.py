@@ -5,10 +5,10 @@ import argparse
 import logging.config
 from datasets.task import Task
 from stn.stp import STP
-from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
+
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -17,30 +17,37 @@ specified in the config file
 
 class Robot(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, api, **kwargs):
+
+        self.ccu_store = kwargs.get('ccu_store', None)
 
         self.id = kwargs.get('robot_id', '')
+        self.allocation_method = kwargs.get('allocation_method', 'tessi')
         self.bidding_rule = kwargs.get('bidding_rule', None)
+
         stp_solver = kwargs.get('stp_solver', None)
         self.stp = STP(stp_solver)
         self.auctioneer = kwargs.get('auctioneer', None)
 
-        self.logger = logging.getLogger('allocation.robot.%s' % robot_id)
+        self.logger = logging.getLogger('allocation.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
 
-        # TODO: Add callbacks in loader file
-        api_config = kwargs.get('api_config', None)
-        zyre_config = api_config.get('zyre')  # Arguments for the zyre_base class
-        zyre_config['node_name'] = self.id + '_proxy'
-        self.api = ZyreAPI(zyre_config)
-        self.api.add_callback(self, 'TASK-ANNOUNCEMENT', 'task_announcement_cb')
-        self.api.add_callback(self, 'ALLOCATION', 'allocation_cb')
+        self.api = api
+        self.api.register_callback(self.task_announcement_cb, 'TASK-ANNOUNCEMENT')
+        self.api.register_callback(self.allocation_cb, 'ALLOCATION')
 
         # TODO: Read stn and dispatchable graph from db
         self.stn = self.stp.get_stn()
         self.dispatchable_graph = self.stp.get_stn()
 
         self.bid_placed = Bid()
+
+    def __str__(self):
+        to_print = ""
+        to_print += "Robot {}".format(self.id)
+        to_print += '\n'
+        to_print += "Groups {}".format(self.api.groups())
+        return to_print
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
@@ -188,7 +195,7 @@ class Robot(object):
         tasks = [task for task in bid.stn.get_tasks()]
 
         self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
-        self.api.whisper(bid_msg, peer=self.auctioneer)
+        self.whisper(bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
 
@@ -215,7 +222,7 @@ class Robot(object):
         close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
 
         self.logger.info("Robot %s sends close round msg ", self.id)
-        self.api.whisper(close_msg, peer=self.auctioneer)
+        self.whisper(close_msg, peer=self.auctioneer)
 
 
 if __name__ == '__main__':
