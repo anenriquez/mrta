@@ -4,7 +4,7 @@ services:
   robot:
     container_name: robot
     image: ropod-allocation
-    working_dir: /mrta_allocation/allocation/
+    working_dir: /mrta/allocation/
     command: ["python3", "robot.py", "ropod_001"]
     network_mode: "host"
     tty: true
@@ -14,7 +14,7 @@ services:
     build: .
     container_name: task-allocation-test
     image: ropod-allocation
-    working_dir: /mrta_allocation/tests/
+    working_dir: /mrta/tests/
     command: ["python3", "task_allocator.py", "three_tasks.csv"]
     network_mode: "host"
     tty: true

@@ -1,15 +1,43 @@
+
 [![Build Status](https://travis-ci.com/anenriquez/mrta_allocation.svg?token=QudZDF4JraaUN8o4yWNo&branch=master)](https://travis-ci.com/anenriquez/mrta_allocation)
 
 # Multi-Robot Task Allocation (MRTA)
 
-## Config file
+Allocates tasks with temporal constraints and uncertain durations to a multi-robot system.
+ 
+Uses an auction-based approach based on [1]. 
 
-Change the stp method in `config/config.yaml`.
+Each robot maintains a temporal network with its tasks.
+The temporal network is either a:
+- Simple Temporal Network (STN)
+- Simple Temporal Network with Uncertainties (STNU)
+- Probabilistic Simple Temporal Network (PSTN)
 
-Possible scheduling methods:
-- srea
+The temporal network represents a Simple Temporal Problem (STP).
+
+The [mrta_stn](https://github.com/anenriquez/mrta_stn/) repository includes the temporal
+network models and solvers for the STP.
+
+
+The bidding rule is a combination of two metrics of the temporal network.
+- Robustness
+- Temporal
+
+Configure the robustness and temporal parameters in `config/config.yaml`
+
+The robustness metric is a result of the STP solver and can take the values:
+
 - fpc
-- dsc_lp
+- srea      [2]
+- dsc_lp    [3]
+
+The temporal metric measures a value of the dispatching graph (result of solving the STP).
+It can take the values:
+
+- completion_time
+- makespan
+
+
 
 ## Using Docker
 
@@ -59,4 +87,8 @@ python3 task_allocator.py three_tasks.csv
 
 ## References
 
-E. Nunes, M. Gini. Multi-Robot Auctions for Allocation of Tasks with Temporal Constraints. Proceedings of the Twenty-Ninth AAAI Conference on Artificial Intelligence. 2015
+[1] E. Nunes, M. Gini. Multi-Robot Auctions for Allocation of Tasks with Temporal Constraints. Proceedings of the Twenty-Ninth AAAI Conference on Artificial Intelligence. 2015
+
+[2] Lund et al. 2017. Robust Execution of Probabilistic Temporal Plans. In Proc. of the 31th Lund et al. 2017. Robust Execution of Probabilistic Temporal Plans. In Proc. of the 31th Conference on Artificial Intelligence (AAAI. 2017)
+
+[3] Akmal et al. 2019. Quantifying Degrees of Controllability for Temporal Networks with Uncertainty. In Proc of the 29th International Conference on Automated Planning and Scheduling (ICAPS-2019). 
