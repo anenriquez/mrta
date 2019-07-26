@@ -8,6 +8,7 @@ from stn.stp import STP
 from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
+from allocation.bidding_rule import BiddingRule
 
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -17,24 +18,27 @@ specified in the config file
 
 class Robot(object):
 
-    def __init__(self, api, **kwargs):
+    def __init__(self, robot_id, ccu_store, api, bidding_rule_config, allocation_method, auctioneer, **kwargs):
 
-        self.ccu_store = kwargs.get('ccu_store', None)
-
-        self.id = kwargs.get('robot_id', '')
-        self.allocation_method = kwargs.get('allocation_method', 'tessi')
-        self.bidding_rule = kwargs.get('bidding_rule', None)
-
-        stp_solver = kwargs.get('stp_solver', None)
-        self.stp = STP(stp_solver)
-        self.auctioneer = kwargs.get('auctioneer', None)
-
-        self.logger = logging.getLogger('allocation.robot.%s' % self.id)
-        self.logger.debug("Starting robot %s", self.id)
+        self.id = robot_id
+        self.ccu_store = ccu_store
 
         self.api = api
         self.api.register_callback(self.task_announcement_cb, 'TASK-ANNOUNCEMENT')
         self.api.register_callback(self.allocation_cb, 'ALLOCATION')
+
+        self.allocation_method = allocation_method
+
+        robustness = bidding_rule_config.get('robustness')
+        temporal = bidding_rule_config.get('temporal')
+
+        self.bidding_rule = BiddingRule(robustness, temporal)
+
+        self.stp = STP(robustness)
+        self.auctioneer = auctioneer
+
+        self.logger = logging.getLogger('allocation.robot.%s' % self.id)
+        self.logger.debug("Starting robot %s", self.id)
 
         # TODO: Read stn and dispatchable graph from db
         self.stn = self.stp.get_stn()
