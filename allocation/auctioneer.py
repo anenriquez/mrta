@@ -17,20 +17,20 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, api, ccu_store, **kwargs):
+    def __init__(self, robot_ids, ccu_store, api, stp_solver, allocation_method, round_time=5,
+                 **kwargs):
 
         logging.debug("Starting Auctioneer")
 
-        self.api = api
+        self.robot_ids = robot_ids
         self.ccu_store = ccu_store
-        self.robot_ids = kwargs.get('robot_ids', list())
-        stp_solver = kwargs.get('stp_solver', None)
-        stp = STP(stp_solver)
-        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
-        round_time = kwargs.get('round_time', 0)
+        self.api = api
+        self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
+        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         # TODO: Read timetable from db
+        stp = STP(stp_solver)
         self.timetable = Timetable(self.robot_ids, stp)
 
         self.tasks_to_allocate = dict()
