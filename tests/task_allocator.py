@@ -8,9 +8,9 @@ from allocation.utils.config_logger import config_logger
 
 
 class TaskAllocator(object):
-    def __init__(self, auctioneer_config):
+    def __init__(self, auctioneer):
         self.logger = logging.getLogger('allocation.task_allocator')
-        self.auctioneer = Auctioneer(**auctioneer_config)
+        self.auctioneer = auctioneer
         self.allocated_tasks = dict()
         self.test_terminated = False
         self.allocations = list()
@@ -61,13 +61,13 @@ if __name__ == '__main__':
     for task in tasks:
         print(task.id)
 
-
     config = Config("../config/config.yaml")
-    auctioneer_config = config.configure_auctioneer()
+    auctioneer = config.configure_auctioneer()
+
     config_logger('../config/logging.yaml')
 
     logging.info("Starting Task Allocator")
-    test = TaskAllocator(auctioneer_config)
+    test = TaskAllocator(auctioneer)
 
     test.get_robots_for_task(tasks)
     test.run()

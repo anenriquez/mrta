@@ -7,19 +7,25 @@ task_allocation:
     bidding_rule:
       robustness: srea
       temporal: completion_time
+    allocation_method: tessi
     round_time: 10 # seconds
+    robot_proxies: true
     auctioneer: zyre_api # This is completely Zyre dependent
     alternative_timeslots: True
+    task_type: ropod_task
 
 api:
   version: 0.1.0
+  middleware:
+    - zyre
   zyre:
-    node_name: zyre_api
-    interface: null
-    groups:
-      - TASK-ALLOCATION
-    message_types:
-      - TASK-ANNOUNCEMENT
-      - BID
-      - ALLOCATION
-      - FINISH-ROUND
+    zyre_node:
+      node_name: zyre_api
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types:
+        - TASK-ANNOUNCEMENT
+        - BID
+        - ALLOCATION
+        - FINISH-ROUND
