@@ -3,13 +3,11 @@ import uuid
 import time
 import argparse
 import logging.config
-from dataset_lib.task import Task
 from stn.stp import STP
-from allocation.config.loader import Config
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
 from allocation.bidding_rule import BiddingRule
-
+from dataset_lib.task_factory import initialize_task_factory
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -36,6 +34,12 @@ class Robot(object):
 
         self.stp = STP(robustness)
         self.auctioneer = auctioneer
+
+        task_type = kwargs.get('task_type', 'generic_task')
+
+        # TODO: initialize task factory in loader
+        task_factory = initialize_task_factory()
+        self.task_cls = task_factory.get_task_cls(task_type)
 
         self.logger = logging.getLogger('allocation.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
@@ -73,7 +77,7 @@ class Robot(object):
         no_bids = list()
 
         for task_id, task_info in received_tasks.items():
-            task = Task.from_dict(task_info)
+            task = self.task_cls.from_dict(task_info)
             self.logger.debug("Computing bid of task %s", task.id)
 
             # Insert task in each possible position of the stn and
@@ -199,7 +203,7 @@ class Robot(object):
         tasks = [task for task in bid.stn.get_tasks()]
 
         self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
-        self.whisper(bid_msg, peer=self.auctioneer)
+        self.api.whisper(bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
 
@@ -226,10 +230,12 @@ class Robot(object):
         close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
 
         self.logger.info("Robot %s sends close round msg ", self.id)
-        self.whisper(close_msg, peer=self.auctioneer)
+        self.api.whisper(close_msg, peer=self.auctioneer)
 
 
 if __name__ == '__main__':
+
+    from allocation.config.loader import Config
 
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
@@ -239,14 +245,20 @@ if __name__ == '__main__':
     config = Config("../config/config.yaml")
     config_logger('../config/logging.yaml')
 
-    robot_config = config.configure_robot_proxy(robot_id)
-    robot = Robot(**robot_config)
+    ccu_store = None
+
+    robot = config.configure_robot_proxy(robot_id, ccu_store)
+
+    time.sleep(5)
+
+    robot.api.start()
 
     try:
-        while not robot.api.terminated:
+        while True:
+            robot.api.run()
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        logging.info("Robot terminated; exiting")
+        logging.info("Terminating %s proxy ...", robot_id)
+        robot.api.shutdown()
+        logging.info("Exiting...")
 
-    logging.info("Exiting robot")
-    robot.api.shutdown()
