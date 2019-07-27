@@ -3,7 +3,7 @@ import uuid
 import time
 import argparse
 import logging.config
-from datasets.task import Task
+from dataset_lib.task import Task
 from stn.stp import STP
 from allocation.api.zyre import ZyreAPI
 from allocation.config.loader import Config

@@ -1,6 +1,6 @@
 from allocation.auctioneer import Auctioneer
 from allocation.config.loader import Config
-from datasets.dataset_loader import load_dataset
+from dataset_lib.dataset_loader import load_dataset
 import time
 import logging
 import argparse
@@ -56,12 +56,11 @@ class TaskAllocator(object):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('dataset_name', type=str,
-                        choices=['three_tasks.csv',
-                                 'overlapping_tasks.csv'])
-    args = parser.parse_args()
-    dataset_name = args.dataset_name
+    tasks = load_dataset('non_overlapping_1', 'non_overlapping_tw', 'generic_task', 'random', 'csv')
+
+    for task in tasks:
+        print(task.id)
+
 
     config = Config("../config/config.yaml")
     auctioneer_config = config.configure_auctioneer()
@@ -70,6 +69,5 @@ if __name__ == '__main__':
     logging.info("Starting Task Allocator")
     test = TaskAllocator(auctioneer_config)
 
-    tasks = load_dataset(dataset_name)
     test.get_robots_for_task(tasks)
     test.run()
