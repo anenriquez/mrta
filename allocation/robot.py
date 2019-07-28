@@ -24,6 +24,7 @@ class Robot(object):
         self.api = api
         self.api.register_callback(self.task_announcement_cb, 'TASK-ANNOUNCEMENT')
         self.api.register_callback(self.allocation_cb, 'ALLOCATION')
+        self.api.register_callback(self.task_cb, 'TASK')
 
         self.allocation_method = allocation_method
 
@@ -71,6 +72,9 @@ class Robot(object):
         if winner_id == self.id:
             self.allocate_to_robot(task_id)
             self.send_finish_round()
+
+    def task_cb(self, msg):
+        self.logger.debug("Received task message")
 
     def compute_bids(self, received_tasks, round_id):
         bids = list()
