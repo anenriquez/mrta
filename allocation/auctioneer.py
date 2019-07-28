@@ -158,3 +158,21 @@ class Auctioneer(object):
         logging.debug("Accouncing winner...")
         self.api.publish(allocation, groups=['TASK-ALLOCATION'])
 
+    def get_task_schedule(self, task_id, robot_id):
+        # For now, returning the start navigation time from the dispathchable graph
+
+        task_schedule = dict()
+
+        print("Robot id: ", robot_id)
+
+        print("Time table: ", self.timetable.dispatchable_graphs)
+
+        dispatchable_graph = self.timetable.dispatchable_graphs.get(robot_id)
+        start_time = dispatchable_graph.get_task_navigation_start_time(task_id)
+
+        logging.debug("Start time of task %s: %s", task_id, start_time)
+
+        task_schedule['start_time'] = start_time
+        task_schedule['finish_time'] = -1  # This info is not available here.
+
+        return task_schedule
