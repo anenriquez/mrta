@@ -1,10 +1,8 @@
-from allocation.auctioneer import Auctioneer
 from allocation.config.loader import Config
-from dataset_lib.dataset_loader import load_dataset
 import time
 import logging
-import argparse
 from allocation.utils.config_logger import config_logger
+from allocation.utils.datasets import load_yaml_dataset
 
 
 class TaskAllocator(object):
@@ -56,7 +54,7 @@ class TaskAllocator(object):
 
 if __name__ == '__main__':
 
-    tasks = load_dataset('non_overlapping_1', 'non_overlapping_tw', 'generic_task', 'random', 'csv')
+    tasks = load_yaml_dataset('data/non_overlapping_1.yaml')
 
     for task in tasks:
         print(task.id)
