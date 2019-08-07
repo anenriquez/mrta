@@ -3,6 +3,7 @@ import logging
 from allocation.api.zyre import ZyreAPI
 from allocation.auctioneer import Auctioneer
 from allocation.robot import Robot
+from allocation.config.task_factory import TaskFactory
 logging.getLogger(__name__)
 
 
@@ -50,9 +51,13 @@ class Config(object):
         api = ZyreAPI(zyre_config)
 
         bidding_rule_config = allocation_config.get('bidding_rule')
+        task_type = allocation_config.get('task_type')
+        task_factory = TaskFactory()
+        task_cls = task_factory.get_task_cls(task_type)
 
         robot = Robot(robot_id=robot_id, ccu_store=ccu_store, api=api,
-                      bidding_rule_config=bidding_rule_config, **allocation_config)
+                      bidding_rule_config=bidding_rule_config, task_cls=task_cls,
+                      **allocation_config)
 
         return robot
 
