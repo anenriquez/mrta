@@ -3,6 +3,7 @@ import uuid
 import time
 import argparse
 import logging.config
+
 from stn.stp import STP
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
@@ -234,17 +235,17 @@ class Robot(object):
 
 if __name__ == '__main__':
 
-    from allocation.config.loader import Config
+    from fleet_management.config.loader import Config
+
+    config_file_path = '../config/config.yaml'
+    config = Config(config_file_path, initialize=False)
+    config.configure_logger()
+    ccu_store = config.configure_ccu_store()
 
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
     robot_id = args.robot_id
-
-    config = Config("../config/config.yaml")
-    config_logger('../config/logging.yaml')
-
-    ccu_store = None
 
     robot = config.configure_robot_proxy(robot_id, ccu_store)
 
