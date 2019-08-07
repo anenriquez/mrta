@@ -7,7 +7,6 @@ from stn.stp import STP
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
 from allocation.bidding_rule import BiddingRule
-from dataset_lib.task_factory import initialize_task_factory
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -16,7 +15,7 @@ specified in the config file
 
 class Robot(object):
 
-    def __init__(self, robot_id, ccu_store, api, bidding_rule_config, allocation_method, auctioneer, **kwargs):
+    def __init__(self, robot_id, ccu_store, api, bidding_rule_config, task_cls, allocation_method, auctioneer, **kwargs):
 
         self.id = robot_id
         self.ccu_store = ccu_store
@@ -36,11 +35,7 @@ class Robot(object):
         self.stp = STP(robustness)
         self.auctioneer = auctioneer
 
-        task_type = kwargs.get('task_type', 'generic_task')
-
-        # TODO: initialize task factory in loader
-        task_factory = initialize_task_factory()
-        self.task_cls = task_factory.get_task_cls(task_type)
+        self.task_cls = task_cls
 
         self.logger = logging.getLogger('allocation.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
