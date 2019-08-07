@@ -176,3 +176,25 @@ class Auctioneer(object):
         task_schedule['finish_time'] = -1  # This info is not available here.
 
         return task_schedule
+
+
+if __name__ == '__main__':
+
+    from fleet_management.config.loader import Config
+    config_file_path = '../config/config.yaml'
+    config = Config(config_file_path, initialize=True)
+    auctioneer = config.configure_task_allocator()
+
+    time.sleep(5)
+
+    auctioneer.api.start()
+
+    try:
+        while True:
+            auctioneer.api.run()
+            auctioneer.run()
+            time.sleep(0.5)
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Terminating %s auctioneer ...")
+        auctioneer.api.shutdown()
+        logging.info("Exiting...")
