@@ -15,7 +15,7 @@ services:
     container_name: task-allocation-test
     image: ropod-allocation
     working_dir: /mrta/tests/
-    command: ["python3", "task_allocator.py"]
+    command: ["python3", "allocation_test.py"]
     network_mode: "host"
     tty: true
     stdin_open: true

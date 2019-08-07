@@ -1,18 +1,24 @@
-fleet:
+version: 2
+ccu_store:
+  db_name: ropod_ccu_store
+  port: 27017
+resources:
+  fleet:
     - ropod_001
-    # - ropod_002
-    # - ropod_003
+    - ropod_002
+    - ropod_003
 
-task_allocation:
+plugins:
+  task_allocation:
     bidding_rule:
       robustness: srea
       temporal: completion_time
     allocation_method: tessi
-    round_time: 10 # seconds
+    round_time: 15 # seconds
     robot_proxies: true
-    auctioneer: zyre_api # This is completely Zyre dependent
+    auctioneer: fms_zyre_api # This is completely Zyre dependent
     alternative_timeslots: True
-    task_type: ropod_task
+    task_type: generic_task
 
 api:
   version: 0.1.0
@@ -20,12 +26,68 @@ api:
     - zyre
   zyre:
     zyre_node:
-      node_name: zyre_api
+      node_name: fms_zyre_api
       interface: null
       groups:
         - TASK-ALLOCATION
-      message_types:
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK-ANNOUNCEMENT
-        - BID
         - ALLOCATION
+        - BID
         - FINISH-ROUND
+    acknowledge: false
+    publish:
+      task-announcement:
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      allocation:
+        method: shout
+    callbacks:
+      - msg_type: 'BID'
+        component: 'auctioneer.bid_cb'
+      - msg_type: 'FINISH-ROUND'
+        component: 'auctioneer.finish_round_cb'
+
+logger:
+  version: 1
+  formatters:
+    default:
+      format: '[%(levelname)-5.5s]  %(asctime)s [%(name)-25.25s] %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+  handlers:
+    console:
+      class: ropod.utils.logging.color.ColorizingStreamHandler
+      level: DEBUG
+      formatter: default
+      stream: ext://sys.stdout
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: default
+      filename: /var/log/ropod/fms/fms.log
+      when: 'm'
+      interval: 5
+  loggers:
+    requests:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    pyre:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    urllib3:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    OSMBridge:
+      level: WARNING
+      handlers: [console]
+    OSMAdapter:
+      level: WARNING
+      handlers: [console]
+    fms:
+      level: DEBUG
+  root:
+    level: DEBUG
+    handlers: [console, file]
