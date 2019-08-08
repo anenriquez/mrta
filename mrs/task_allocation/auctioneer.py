@@ -4,7 +4,7 @@ import logging
 import logging.config
 from datetime import timedelta
 from mrs.task_allocation.round import Round
-from mrs.task_allocation.timetable import Timetable
+from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
