@@ -29,11 +29,11 @@ class Auctioneer(object):
         self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        # TODO: Read timetable from db
-        stp = STP(stp_solver)
+        # TODO: Inititalize the timetables in the loader? and read the timetables here
+        self.stp = STP(stp_solver)
         self.timetables = dict()
         for robot_id in robot_ids:
-            timetable = Timetable(stp, robot_id)
+            timetable = Timetable(self.stp, robot_id)
             self.timetables[robot_id] = timetable
             self.ccu_store.add_timetable(timetable)
 
