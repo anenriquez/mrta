@@ -1,13 +1,12 @@
 import copy
 import uuid
 import time
-import argparse
 import logging.config
 
 from stn.stp import STP
 from mrs.task_allocation.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
-from mrs.task_allocation.timetable import Timetable
+from mrs.timetable import Timetable
 from mrs.exceptions.task_allocation import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
