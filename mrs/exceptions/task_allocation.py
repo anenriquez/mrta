@@ -13,3 +13,21 @@ class AlternativeTimeSlot(Exception):
         self.task_id = task_id
         self.robot_id = robot_id
         self.alternative_start_time = alternative_start_time
+
+
+class NoAllocation(Exception):
+
+    def __init__(self, round_id):
+        """ Raised when no mrs was possible
+
+        """
+        Exception.__init__(self, round_id)
+        self.round_id = round_id
+
+
+class NoSTPSolution(Exception):
+
+    def __init__(self):
+        """ Raised when the stp solver cannot produce a solution for the problem
+        """
+        Exception.__init__(self)

@@ -3,11 +3,11 @@ import time
 import logging
 import logging.config
 from datetime import timedelta
-from allocation.round import Round
-from allocation.timetable import Timetable
+from mrs.task_allocation.round import Round
+from mrs.task_allocation.timetable import Timetable
 from stn.stp import STP
-from allocation.exceptions.no_allocation import NoAllocation
-from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
 
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -59,7 +59,7 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                logging.exception("No allocation made in round %s ", exception.round_id)
+                logging.exception("No mrs made in round %s ", exception.round_id)
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
@@ -155,7 +155,7 @@ class Auctioneer(object):
         allocation['header']['msgId'] = str(uuid.uuid4())
         allocation['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        allocation['payload']['metamodel'] = 'ropod-allocation-schema.json'
+        allocation['payload']['metamodel'] = 'ropod-mrs-schema.json'
         allocation['payload']['task_id'] = task_id
         allocation['payload']['winner_id'] = robot_id
 
@@ -182,7 +182,7 @@ class Auctioneer(object):
 if __name__ == '__main__':
 
     from fleet_management.config.loader import Config
-    config_file_path = '../config/config.yaml'
+    config_file_path = '../../config/config.yaml'
     config = Config(config_file_path, initialize=True)
     auctioneer = config.configure_task_allocator()
 

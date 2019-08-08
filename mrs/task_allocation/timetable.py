@@ -1,10 +1,10 @@
-from allocation.exceptions.no_solution import NoSolution
+from mrs.exceptions.task_allocation import NoSTPSolution
 
 
 class Timetable(object):
     """
     Each robot has a timetable, which contains temporal information about the robot's
-    allocation:
+    mrs:
     - stn:  Simple Temporal Network.
             Contains the allocated tasks along with the original temporal constraints
 
@@ -26,7 +26,7 @@ class Timetable(object):
         result_stp = self.stp.compute_dispatchable_graph(self.stn)
 
         if result_stp is None:
-            raise NoSolution()
+            raise NoSTPSolution()
 
         self.robustness_metric, self.dispatchable_graph = result_stp
 
