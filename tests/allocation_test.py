@@ -73,7 +73,8 @@ class TaskAllocator(object):
     def check_test_termination(self):
         if not self.auctioneer.tasks_to_allocate:
             self.test_terminated = True
-            # self.logger.debug("Allocations %s", self.allocations)
+            self.logger.debug("Allocations %s", self.allocations)
+            self.reset_timetables()
 
     def run(self):
         timeout_duration = 300  # 5 minutes
