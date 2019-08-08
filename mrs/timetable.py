@@ -18,9 +18,9 @@ class Timetable(object):
     """
     def __init__(self, stp, robot_id):
         self.stp = stp  # Simple Temporal Problem
-        self.robot_id = robot_id
         self.robustness_metric = None
 
+        self.robot_id = robot_id
         self.stn = stp.get_stn()
         self.dispatchable_graph = stp.get_stn()
         self.schedule = stp.get_stn()
@@ -65,6 +65,19 @@ class Timetable(object):
         timetable_dict['schedule'] = self.schedule.to_json()
 
         return timetable_dict
+
+    @staticmethod
+    def from_dict(timetable_dict, stp):
+        robot_id = timetable_dict['robot_id']
+        timetable = Timetable(stp, robot_id)
+        stn_cls = stp.get_stn()
+
+        timetable.stn = stn_cls.from_json(timetable_dict['stn'])
+        timetable.dispatchable_graph = stn_cls.from_json(timetable_dict['dispatchable_graph'])
+        timetable.schedule = stn_cls.from_json(timetable_dict['schedule'])
+
+        return timetable
+
 
 
 
