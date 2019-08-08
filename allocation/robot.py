@@ -8,6 +8,8 @@ from stn.stp import STP
 from allocation.utils.config_logger import config_logger
 from allocation.bid import Bid
 from allocation.bidding_rule import BiddingRule
+from allocation.timetable import Timetable
+from allocation.exceptions.no_solution import NoSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -33,7 +35,6 @@ class Robot(object):
 
         self.bidding_rule = BiddingRule(robustness, temporal)
 
-        self.stp = STP(robustness)
         self.auctioneer = auctioneer
 
         self.task_cls = task_cls
@@ -41,9 +42,9 @@ class Robot(object):
         self.logger = logging.getLogger('allocation.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
 
-        # TODO: Read stn and dispatchable graph from db
-        self.stn = self.stp.get_stn()
-        self.dispatchable_graph = self.stp.get_stn()
+        # TODO: Read timetable from db
+        stp = STP(robustness)
+        self.timetable = Timetable(stp, robot_id)
 
         self.bid_placed = Bid()
 
@@ -88,75 +89,62 @@ class Robot(object):
                 bids.append(best_bid)
             else:
                 self.logger.debug("No bid for task %s", task.id)
-                no_bids.append(Bid(task_id=task_id))
+                no_bids.append(best_bid)
 
-        self.send_bids(bids, no_bids)
+        smallest_bid = self.get_smallest_bid(bids)
+        self.bid_placed = copy.deepcopy(smallest_bid)
 
-    def send_bids(self, bids, no_bids):
+        self.send_bids(smallest_bid, no_bids)
+
+    def send_bids(self, bid, no_bids):
         """ Sends the bid with the smallest cost
         Sends a no-bid per task that could not be accommodated in the stn
 
-        :param bids: list of bids
+        :param bid: bid with the smallest cost
         :param no_bids: list of no bids
         """
-        if bids:
-            smallest_bid = self.get_smallest_bid(bids)
-            self.bid_placed = copy.deepcopy(smallest_bid)
-            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
-            self.send_bid(self.bid_placed)
+        self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
+        self.send_bid(bid)
 
         if no_bids:
             for no_bid in no_bids:
-                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
+                self.logger.debug("Sending no bid for task %s", no_bid.task.id)
                 self.send_bid(no_bid)
 
     def insert_task(self, task, round_id):
-        best_bid = Bid()
+        best_bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
 
-        tasks = self.stn.get_tasks()
+        tasks = self.timetable.get_tasks()
         n_tasks = len(tasks)
 
         # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
         for i in range(0, n_tasks + 1):
             # TODO check if the robot can make it to the task, if not, return
             position = i+1
-            self.stn.add_task(task, position)
 
-            result_stp = self.stp.compute_dispatchable_graph(self.stn)
+            self.timetable.add_task_to_stn(task, position)
 
-            if result_stp is not None:
+            try:
+                self.timetable.solve_stp()
 
-                stp_metric, dispatchable_graph = result_stp
+                self.logger.debug("STN %s: ", self.timetable.stn)
+                self.logger.debug("Dispatchable graph %s: ", self.timetable.dispatchable_graph)
+                self.logger.debug("Robustness Metric %s: ", self.timetable.robustness_metric)
 
-                self.logger.debug("STN %s: ", self.stn)
-                self.logger.debug("Dispatchable graph %s: ", dispatchable_graph)
-                self.logger.debug("STP Metric %s: ", stp_metric)
+                bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
+                bid.compute_cost(position)
 
-                bid_attr = {'stp': self.stp,
-                            'stn_position': position,
-                            'robot_id': self.id,
-                            'round_id': round_id,
-                            'task_id': task.id,
-                            'bidding_rule': self.bidding_rule,
-                            'stn': self.stn,
-                            'dispatchable_graph': dispatchable_graph}
-
-                bid = Bid(**bid_attr)
-
-                if task.hard_constraints:
-                    bid.get_cost(stp_metric)
-                else:
-                    bid.get_soft_cost(task)
-
-                if bid < best_bid or (bid == best_bid and bid.task_id < best_bid.task_id):
+                if bid < best_bid or (bid == best_bid and bid.task.id < best_bid.task.id):
                     best_bid = copy.deepcopy(bid)
 
+            except NoSolution:
+                self.logger.exception("The stp solver could not solve the problem for"
+                                      " task %s in position %s", task.id, position)
+
             # Restore schedule for the next iteration
-            self.stn.remove_task(i + 1)
+            self.timetable.remove_task_from_stn(position)
 
         self.logger.debug("Best bid for task %s: %s", task.id, best_bid)
-        self.logger.debug("STN: %s", best_bid.stn)
-        self.logger.debug("Dispatchable_graph %s", best_bid.dispatchable_graph)
 
         return best_bid
 
@@ -170,7 +158,7 @@ class Robot(object):
         smallest_bid = Bid()
 
         for bid in bids:
-            if bid < smallest_bid or (bid == smallest_bid and bid.task_id < smallest_bid.task_id):
+            if bid < smallest_bid or (bid == smallest_bid and bid.task.id < smallest_bid.task.id):
                 smallest_bid = copy.deepcopy(bid)
 
         if smallest_bid.cost == float('inf'):
@@ -185,9 +173,7 @@ class Robot(object):
         :param round_id:
         :return:
         """
-
-        bid_dict = bid.to_dict()
-        self.logger.debug("Bid %s", bid_dict)
+        self.logger.debug("Bid %s", bid.msg.to_dict())
 
         bid_msg = dict()
         bid_msg['header'] = dict()
@@ -198,24 +184,23 @@ class Robot(object):
         bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
 
         bid_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        bid_msg['payload']['bid'] = bid_dict
+        bid_msg['payload']['bid'] = bid.msg.to_dict()
 
-        tasks = [task for task in bid.stn.get_tasks()]
+        tasks = [task for task in bid.timetable.get_tasks()]
 
-        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
+        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task.id, tasks)
         self.api.whisper(bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
 
-        # Update the stn and dispatchable_graph
-        self.stn = copy.deepcopy(self.bid_placed.stn)
-        self.dispatchable_graph = copy.deepcopy(self.bid_placed.dispatchable_graph)
+        # Update the timetable
+        self.timetable = copy.deepcopy(self.bid_placed.timetable)
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
-        self.logger.debug("STN %s", self.stn)
-        self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
+        self.logger.debug("STN %s", self.timetable.stn)
+        self.logger.debug("Dispatchable graph %s", self.timetable.dispatchable_graph)
 
-        tasks = [task for task in self.stn.get_tasks()]
+        tasks = [task for task in self.timetable.get_tasks()]
 
         self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
 
