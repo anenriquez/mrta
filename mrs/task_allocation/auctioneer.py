@@ -33,7 +33,9 @@ class Auctioneer(object):
         stp = STP(stp_solver)
         self.timetables = dict()
         for robot_id in robot_ids:
-            self.timetables[robot_id] = Timetable(stp, robot_id)
+            timetable = Timetable(stp, robot_id)
+            self.timetables[robot_id] = timetable
+            self.ccu_store.add_timetable(timetable)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
@@ -77,15 +79,19 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
+        self.update_timetable(robot_id, task, position)
+
+        return allocation
+
+    def update_timetable(self, robot_id, task, position):
         timetable = self.timetables.get(robot_id)
         timetable.add_task_to_stn(task, position)
         timetable.solve_stp()
         self.timetables.update({robot_id: timetable})
+        self.ccu_store.update_timetable(timetable)
 
         logging.debug("STN robot %s: %s", robot_id, timetable.stn)
         logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
-
-        return allocation
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
