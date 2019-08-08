@@ -1,24 +1,65 @@
 import logging
-from stn.stp import STP
+from allocation.utils.uuid import generate_uuid
 
 
 class Bid(object):
 
-    def __init__(self, **kwargs):
-        self.cost = kwargs.get('cost', float('inf'))
-        self.stn_position = kwargs.get('stn_position', 0)
-        self.robot_id = kwargs.get('robot_id', '')
-        self.round_id = kwargs.get('round_id', '')
-        self.task_id = kwargs.get('task_id', '')
-        self.bidding_rule = kwargs.get('bidding_rule', None)
+    def __init__(self, bidding_rule=None, robot_id='', round_id='', task=None, timetable=None, cost=float('inf')):
+        self.bidding_rule = bidding_rule
+        self.robot_id = robot_id
+        self.round_id = round_id
+        self.task = task
+        self.cost = cost
+        self.timetable = timetable
+        if not task:
+            task_id = generate_uuid()
+        else:
+            task_id = task.id
+        self.msg = BidMsg(cost, robot_id, task_id)
 
-        # The bid is calculated using the constraints given by the user
-        self.hard_constraints = True
-        self.alternative_start_time = -1
+    def __repr__(self):
+        return str(self.msg.to_dict())
 
-        stp = kwargs.get('stp', STP('fpc'))  # TeSSI by default
-        self.stn = kwargs.get('stn', stp.get_stn())
-        self.dispatchable_graph = kwargs.get('dispatchable_graph', stp.get_stn())
+    def __lt__(self, other):
+        if other is None:
+            return False
+        return self.cost < other.cost
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return self.cost == other.cost
+
+    def compute_cost(self, position):
+        dispatchable_graph = self.timetable.dispatchable_graph
+        robustness_metric = self.timetable.robustness_metric
+
+        if self.task.hard_constraints:
+            self.cost = self.bidding_rule.compute_bid_cost(dispatchable_graph, robustness_metric)
+            self.msg = BidMsg(self.cost, self.robot_id, self.task.id, position, self.round_id)
+
+        else:  # soft constraints
+            navigation_start_time = dispatchable_graph.get_task_navigation_start_time(self.task.id)
+            logging.debug("Navigation start time: %s", navigation_start_time)
+            self.cost = abs(navigation_start_time - self.task.earliest_start_time)
+            alternative_start_time = navigation_start_time
+            self.msg = BidMsg(self.cost, self.robot_id, self.task.id, position, self.round_id,
+                                  hard_constraints=False, alternative_start_time=alternative_start_time)
+
+        logging.debug("Cost: %s", self.cost)
+
+
+class BidMsg(object):
+    def __init__(self, cost=float('inf'), robot_id='', task_id='', position=0,
+                 round_id='', **kwargs):
+        self.cost = cost
+        self.robot_id = robot_id
+        self.task_id = task_id
+        self.position = position
+        self.round_id = round_id
+
+        self.hard_constraints = kwargs.get('hard_constraints', True)
+        self.alternative_start_time = kwargs.get('alternative_start_time')
 
     def __repr__(self):
         return str(self.to_dict())
@@ -33,40 +74,30 @@ class Bid(object):
             return False
         return self.cost == other.cost
 
-    def get_cost(self, robustness_metric):
-        bid_cost = self.bidding_rule.compute_bid_cost(self.dispatchable_graph, robustness_metric)
-        self.cost = bid_cost
-
-    def get_soft_cost(self, task):
-        navigation_start_time = self.dispatchable_graph.get_task_navigation_start_time(task.id)
-        logging.debug("Navigation start time: %s", navigation_start_time)
-        bid_cost = abs(navigation_start_time - task.earliest_start_time)
-        logging.debug("Cost: %s", bid_cost)
-
-        # The bid was calculated using soft constraints
-        self.hard_constraints = False
-        self.alternative_start_time = navigation_start_time
-        self.cost = bid_cost
-
     def to_dict(self):
-        bid_dict = dict()
-        bid_dict['cost'] = self.cost
-        bid_dict['stn_position'] = self.stn_position
-        bid_dict['robot_id'] = self.robot_id
-        bid_dict['round_id'] = self.round_id
-        bid_dict['task_id'] = self.task_id
-        bid_dict['hard_constraints'] = self.hard_constraints
-        bid_dict['alternative_start_time'] = self.alternative_start_time
-        return bid_dict
+        bid_msg_dict = dict()
+        bid_msg_dict['cost'] = self.cost
+        bid_msg_dict['robot_id'] = self.robot_id
+        bid_msg_dict['task_id'] = self.task_id
+        bid_msg_dict['position'] = self.position
+        bid_msg_dict['round_id'] = self.round_id
+        bid_msg_dict['hard_constraints'] = self.hard_constraints
+        bid_msg_dict['alternative_start_time'] = self.alternative_start_time
+        return bid_msg_dict
 
     @classmethod
-    def from_dict(cls, bid_dict):
-        bid = cls()
-        bid.cost = bid_dict['cost']
-        bid.stn_position = bid_dict['stn_position']
-        bid.robot_id = bid_dict['robot_id']
-        bid.round_id = bid_dict['round_id']
-        bid.task_id = bid_dict['task_id']
-        bid.hard_constraints = bid_dict['hard_constraints']
-        bid.alternative_start_time = bid_dict['alternative_start_time']
-        return bid
+    def from_dict(cls, bid_msg_dict):
+        bid_msg = cls()
+        bid_msg.cost = bid_msg_dict['cost']
+        bid_msg.robot_id = bid_msg_dict['robot_id']
+        bid_msg.task_id = bid_msg_dict['task_id']
+        bid_msg.position = bid_msg_dict['position']
+        bid_msg.round_id = bid_msg_dict['round_id']
+        bid_msg.hard_constraints = bid_msg_dict['hard_constraints']
+        bid_msg.alternative_start_time = bid_msg_dict['alternative_start_time']
+        return bid_msg
+
+
+
+
+

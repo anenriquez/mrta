@@ -1,7 +1,7 @@
 from allocation.utils.uuid import generate_uuid
 import logging
 from ropod.utils.timestamp import TimeStamp as ts
-from allocation.bid import Bid
+from allocation.bid import BidMsg
 import copy
 from allocation.exceptions.no_allocation import NoAllocation
 from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
@@ -48,10 +48,9 @@ class Round(object):
         self.opened = True
 
     def process_bid(self, bid_dict):
-        bid = Bid.from_dict(bid_dict)
+        bid = BidMsg.from_dict(bid_dict)
 
-        logging.debug("Processing bid from robot %s, cost: %s",
-                          bid.robot_id, bid.cost)
+        logging.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
 
         if bid.cost != float('inf'):
             # Process a bid
@@ -109,7 +108,7 @@ class Round(object):
             winning_bid = self.elect_winner()
             allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
             robot_id = winning_bid.robot_id
-            position = winning_bid.stn_position
+            position = winning_bid.position
             round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
 
             if winning_bid.hard_constraints is False:
@@ -145,7 +144,7 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = Bid()
+        lowest_bid = BidMsg()
 
         for task_id, bid in self.received_bids.items():
             if bid < lowest_bid:

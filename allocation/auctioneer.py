@@ -31,7 +31,9 @@ class Auctioneer(object):
 
         # TODO: Read timetable from db
         stp = STP(stp_solver)
-        self.timetable = Timetable(self.robot_ids, stp)
+        self.timetables = dict()
+        for robot_id in robot_ids:
+            self.timetables[robot_id] = Timetable(stp, robot_id)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
@@ -75,11 +77,13 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
-        stn = self.timetable.update_stn(robot_id, task, position)
-        dispatchable_graph = self.timetable.update_dispatchable_graph(robot_id, stn)
+        timetable = self.timetables.get(robot_id)
+        timetable.add_task_to_stn(task, position)
+        timetable.solve_stp()
+        self.timetables.update({robot_id: timetable})
 
-        logging.debug("STN robot %s: %s", robot_id, stn)
-        logging.debug("Dispatchable graph robot %s: %s", robot_id, dispatchable_graph)
+        logging.debug("STN robot %s: %s", robot_id, timetable.stn)
+        logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
         return allocation
 
@@ -159,16 +163,13 @@ class Auctioneer(object):
         self.api.publish(allocation, groups=['TASK-ALLOCATION'])
 
     def get_task_schedule(self, task_id, robot_id):
-        # For now, returning the start navigation time from the dispathchable graph
+        # For now, returning the start navigation time from the dispatchable graph
 
         task_schedule = dict()
 
-        print("Robot id: ", robot_id)
+        timetable = self.timetables.get(robot_id)
 
-        print("Time table: ", self.timetable.dispatchable_graphs)
-
-        dispatchable_graph = self.timetable.dispatchable_graphs.get(robot_id)
-        start_time = dispatchable_graph.get_task_navigation_start_time(task_id)
+        start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task_id)
 
         logging.debug("Start time of task %s: %s", task_id, start_time)
 
