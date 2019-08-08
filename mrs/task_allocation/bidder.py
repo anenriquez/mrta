@@ -37,9 +37,9 @@ class Bidder(object):
         self.logger = logging.getLogger('mrs.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
 
-        # TODO: Read timetable from db
         stp = STP(robustness)
-        self.timetable = Timetable(stp, robot_id)
+        timetable_dict = self.ccu_store.get_timetable(robot_id)
+        self.timetable = Timetable.from_dict(timetable_dict, stp)
 
         self.bid_placed = Bid()
 
