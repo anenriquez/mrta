@@ -12,7 +12,7 @@ class TaskAllocator(object):
         config = Config(config_file, initialize=True)
         config.configure_logger()
 
-        self.auctioneer = config.configure_task_allocator()
+        self.auctioneer = config.configure_task_allocator(config.ccu_store)
         self.register_api_callbacks(config.api)
 
         self.allocated_tasks = dict()

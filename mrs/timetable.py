@@ -11,13 +11,19 @@ class Timetable(object):
     - dispatchable graph:   Uses the same data structure as the stn and contains the same tasks, but
                             shrinks the original temporal constraints to the times at which the robot
                             can allocate the task
+
+    - schedule: Uses the same data structure as the stn but contains only one task
+                (the next task to be executed)
+                The start navigation time is instantiated to a float value (seconds after epoch)
     """
     def __init__(self, stp, robot_id):
         self.stp = stp  # Simple Temporal Problem
         self.robot_id = robot_id
+        self.robustness_metric = None
+
         self.stn = stp.get_stn()
         self.dispatchable_graph = stp.get_stn()
-        self.robustness_metric = None
+        self.schedule = stp.get_stn()
 
     def solve_stp(self):
         """ Computes the dispatchable graph and robustness metric from the
@@ -50,6 +56,15 @@ class Timetable(object):
         :return: list of tasks
         """
         return self.stn.get_tasks()
+
+    def to_dict(self):
+        timetable_dict = dict()
+        timetable_dict['robot_id'] = self.robot_id
+        timetable_dict['stn'] = self.stn.to_json()
+        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_json()
+        timetable_dict['schedule'] = self.schedule.to_json()
+
+        return timetable_dict
 
 
 
