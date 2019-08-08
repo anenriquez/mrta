@@ -1,10 +1,10 @@
-from allocation.utils.uuid import generate_uuid
+from mrs.utils.uuid import generate_uuid
 import logging
 from ropod.utils.timestamp import TimeStamp as ts
-from allocation.bid import BidMsg
+from mrs.task_allocation.bid import BidMsg
 import copy
-from allocation.exceptions.no_allocation import NoAllocation
-from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
 
 
 class Round(object):
@@ -35,7 +35,7 @@ class Round(object):
 
         After the round closes, the election process takes place
 
-        finished: The election process is over, i.e., an allocation has been made
+        finished: The election process is over, i.e., an mrs has been made
                     (or an exception has been raised)
 
         """
@@ -88,7 +88,7 @@ class Round(object):
         return True
 
     def get_result(self):
-        """ Returns the results of the allocation as a tuple
+        """ Returns the results of the mrs as a tuple
 
         :return: round_result
 
@@ -117,7 +117,7 @@ class Round(object):
             return round_result
 
         except NoAllocation:
-            logging.exception("No allocation made in round %s ", self.id)
+            logging.exception("No mrs made in round %s ", self.id)
             raise NoAllocation(self.id)
 
     def finish(self):
@@ -140,7 +140,7 @@ class Round(object):
         """ Elects the winner of the round
 
         :return:
-        allocation(dict): key - task_id,
+        mrs(dict): key - task_id,
                           value - list of robots assigned to the task
 
         """

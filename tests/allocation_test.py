@@ -2,7 +2,7 @@ import time
 import logging
 
 from fleet_management.config.loader import Config
-from allocation.utils.datasets import load_yaml_dataset
+from mrs.utils.datasets import load_yaml_dataset
 
 
 class TaskAllocator(object):
@@ -57,8 +57,7 @@ class TaskAllocator(object):
 
         while self.auctioneer.allocations:
             allocation = self.auctioneer.allocations.pop()
-            print(allocation)
-            # self.logger.debug("Allocation %s: ", allocation)
+            self.logger.debug("Allocation %s: ", allocation)
             self.allocations.append(allocation)
 
     def check_test_termination(self):

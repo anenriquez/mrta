@@ -1,5 +1,5 @@
 import yaml
-from allocation.config.task_factory import TaskFactory
+from mrs.config.task_factory import TaskFactory
 import collections
 
 
