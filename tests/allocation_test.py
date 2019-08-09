@@ -2,7 +2,8 @@ import time
 import logging
 
 from fleet_management.config.loader import Config
-from allocation.utils.datasets import load_yaml_dataset
+from mrs.utils.datasets import load_yaml_dataset
+from mrs.timetable import Timetable
 
 
 class TaskAllocator(object):
@@ -11,13 +12,22 @@ class TaskAllocator(object):
 
         config = Config(config_file, initialize=True)
         config.configure_logger()
+        self.ccu_store = config.ccu_store
 
-        self.auctioneer = config.configure_task_allocator()
+        self.auctioneer = config.configure_task_allocator(self.ccu_store)
         self.register_api_callbacks(config.api)
 
         self.allocated_tasks = dict()
         self.test_terminated = False
         self.allocations = list()
+        self.reset_timetables()
+
+    def reset_timetables(self):
+        self.logger.debug("Resetting timetables")
+
+        for robot_id in self.auctioneer.robot_ids:
+            timetable = Timetable(self.auctioneer.stp, robot_id)
+            self.ccu_store.update_timetable(timetable)
 
     def register_api_callbacks(self, api):
         for option in api.middleware_collection:
@@ -57,14 +67,14 @@ class TaskAllocator(object):
 
         while self.auctioneer.allocations:
             allocation = self.auctioneer.allocations.pop()
-            print(allocation)
-            # self.logger.debug("Allocation %s: ", allocation)
+            self.logger.debug("Allocation %s: ", allocation)
             self.allocations.append(allocation)
 
     def check_test_termination(self):
         if not self.auctioneer.tasks_to_allocate:
             self.test_terminated = True
-            # self.logger.debug("Allocations %s", self.allocations)
+            self.logger.debug("Allocations %s", self.allocations)
+            self.reset_timetables()
 
     def run(self):
         timeout_duration = 300  # 5 minutes

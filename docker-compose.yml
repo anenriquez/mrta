@@ -3,17 +3,17 @@ version: "2"
 services:
   robot:
     container_name: robot
-    image: ropod-allocation
-    working_dir: /mrta/allocation/
-    command: ["python3", "robot.py", "ropod_001"]
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "ropod_001"]
     network_mode: "host"
     tty: true
     stdin_open: true
 
   task_allocation_test:
     build: .
-    container_name: task-allocation-test
-    image: ropod-allocation
+    container_name: task-mrs-test
+    image: ropod-mrs
     working_dir: /mrta/tests/
     command: ["python3", "allocation_test.py"]
     network_mode: "host"

@@ -1,5 +1,5 @@
 import logging
-from allocation.utils.uuid import generate_uuid
+from mrs.utils.uuid import generate_uuid
 
 
 class Bid(object):

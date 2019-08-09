@@ -3,11 +3,11 @@ import time
 import logging
 import logging.config
 from datetime import timedelta
-from allocation.round import Round
-from allocation.timetable import Timetable
+from mrs.task_allocation.round import Round
+from mrs.timetable import Timetable
 from stn.stp import STP
-from allocation.exceptions.no_allocation import NoAllocation
-from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
 
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -29,11 +29,13 @@ class Auctioneer(object):
         self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        # TODO: Read timetable from db
-        stp = STP(stp_solver)
+        # TODO: Inititalize the timetables in the loader? and read the timetables here
+        self.stp = STP(stp_solver)
         self.timetables = dict()
         for robot_id in robot_ids:
-            self.timetables[robot_id] = Timetable(stp, robot_id)
+            timetable = Timetable(self.stp, robot_id)
+            self.timetables[robot_id] = timetable
+            self.ccu_store.add_timetable(timetable)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
@@ -59,7 +61,7 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                logging.exception("No allocation made in round %s ", exception.round_id)
+                logging.exception("No mrs made in round %s ", exception.round_id)
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
@@ -77,15 +79,25 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
+        self.update_task_status(task, 2)  # 2 is ALLOCATED
+        self.update_timetable(robot_id, task, position)
+
+        return allocation
+
+    def update_task_status(self, task, status):
+        task.status.status = status
+        logging.debug("Updating task status to %s", task.status.status)
+        self.ccu_store.update_task(task)
+
+    def update_timetable(self, robot_id, task, position):
         timetable = self.timetables.get(robot_id)
         timetable.add_task_to_stn(task, position)
         timetable.solve_stp()
         self.timetables.update({robot_id: timetable})
+        self.ccu_store.update_timetable(timetable)
 
         logging.debug("STN robot %s: %s", robot_id, timetable.stn)
         logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
-
-        return allocation
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
@@ -101,9 +113,11 @@ class Auctioneer(object):
         if isinstance(tasks, list):
             for task in tasks:
                 self.tasks_to_allocate[task.id] = task
+                self.ccu_store.add_task(task)
             logging.debug('Auctioneer received a list of tasks')
         else:
             self.tasks_to_allocate[tasks.id] = tasks
+            self.ccu_store.add_task(tasks)
             logging.debug('Auctioneer received one task')
 
     def announce_task(self):
@@ -155,7 +169,7 @@ class Auctioneer(object):
         allocation['header']['msgId'] = str(uuid.uuid4())
         allocation['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        allocation['payload']['metamodel'] = 'ropod-allocation-schema.json'
+        allocation['payload']['metamodel'] = 'ropod-mrs-schema.json'
         allocation['payload']['task_id'] = task_id
         allocation['payload']['winner_id'] = robot_id
 
@@ -182,7 +196,7 @@ class Auctioneer(object):
 if __name__ == '__main__':
 
     from fleet_management.config.loader import Config
-    config_file_path = '../config/config.yaml'
+    config_file_path = '../../config/config.yaml'
     config = Config(config_file_path, initialize=True)
     auctioneer = config.configure_task_allocator()
 

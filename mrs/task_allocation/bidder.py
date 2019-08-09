@@ -1,24 +1,22 @@
 import copy
 import uuid
 import time
-import argparse
 import logging.config
 
 from stn.stp import STP
-from allocation.utils.config_logger import config_logger
-from allocation.bid import Bid
-from allocation.bidding_rule import BiddingRule
-from allocation.timetable import Timetable
-from allocation.exceptions.no_solution import NoSolution
+from mrs.task_allocation.bid import Bid
+from mrs.task_allocation.bidding_rule import BiddingRule
+from mrs.timetable import Timetable
+from mrs.exceptions.task_allocation import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
 """
 
 
-class Robot(object):
+class Bidder(object):
 
-    def __init__(self, robot_id, ccu_store, api, bidding_rule_config, task_cls, allocation_method, auctioneer, **kwargs):
+    def __init__(self, robot_id, ccu_store, api, task_cls, bidding_rule, allocation_method, auctioneer, **kwargs):
 
         self.id = robot_id
         self.ccu_store = ccu_store
@@ -28,23 +26,24 @@ class Robot(object):
         self.api.register_callback(self.allocation_cb, 'ALLOCATION')
         self.api.register_callback(self.task_cb, 'TASK')
 
-        self.allocation_method = allocation_method
-
-        robustness = bidding_rule_config.get('robustness')
-        temporal = bidding_rule_config.get('temporal')
-
+        robustness = bidding_rule.get('robustness')
+        temporal = bidding_rule.get('temporal')
         self.bidding_rule = BiddingRule(robustness, temporal)
 
+        self.task_cls = task_cls
+        self.allocation_method = allocation_method
         self.auctioneer = auctioneer
 
-        self.task_cls = task_cls
-
-        self.logger = logging.getLogger('allocation.robot.%s' % self.id)
+        self.logger = logging.getLogger('mrs.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
 
-        # TODO: Read timetable from db
         stp = STP(robustness)
-        self.timetable = Timetable(stp, robot_id)
+        timetable_dict = self.ccu_store.get_timetable(robot_id)
+
+        if timetable_dict is not None:
+            self.timetable = Timetable.from_dict(timetable_dict, stp)
+        else:
+            self.timetable = Timetable(stp, robot_id)
 
         self.bid_placed = Bid()
 
@@ -137,7 +136,7 @@ class Robot(object):
                 if bid < best_bid or (bid == best_bid and bid.task.id < best_bid.task.id):
                     best_bid = copy.deepcopy(bid)
 
-            except NoSolution:
+            except NoSTPSolution:
                 self.logger.exception("The stp solver could not solve the problem for"
                                       " task %s in position %s", task.id, position)
 
@@ -216,34 +215,4 @@ class Robot(object):
 
         self.logger.info("Robot %s sends close round msg ", self.id)
         self.api.whisper(close_msg, peer=self.auctioneer)
-
-
-if __name__ == '__main__':
-
-    from fleet_management.config.loader import Config
-
-    config_file_path = '../config/config.yaml'
-    config = Config(config_file_path, initialize=False)
-    config.configure_logger()
-    ccu_store = config.configure_ccu_store()
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('robot_id', type=str, help='example: ropod_001')
-    args = parser.parse_args()
-    robot_id = args.robot_id
-
-    robot = config.configure_robot_proxy(robot_id, ccu_store)
-
-    time.sleep(5)
-
-    robot.api.start()
-
-    try:
-        while True:
-            robot.api.run()
-            time.sleep(0.5)
-    except (KeyboardInterrupt, SystemExit):
-        logging.info("Terminating %s proxy ...", robot_id)
-        robot.api.shutdown()
-        logging.info("Exiting...")
 
