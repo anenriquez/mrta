@@ -79,9 +79,15 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
+        self.update_task_status(task, 2)  # 2 is ALLOCATED
         self.update_timetable(robot_id, task, position)
 
         return allocation
+
+    def update_task_status(self, task, status):
+        task.status.status = status
+        logging.debug("Updating task status to %s", task.status.status)
+        self.ccu_store.update_task(task)
 
     def update_timetable(self, robot_id, task, position):
         timetable = self.timetables.get(robot_id)
@@ -107,9 +113,11 @@ class Auctioneer(object):
         if isinstance(tasks, list):
             for task in tasks:
                 self.tasks_to_allocate[task.id] = task
+                self.ccu_store.add_task(task)
             logging.debug('Auctioneer received a list of tasks')
         else:
             self.tasks_to_allocate[tasks.id] = tasks
+            self.ccu_store.add_task(tasks)
             logging.debug('Auctioneer received one task')
 
     def announce_task(self):
