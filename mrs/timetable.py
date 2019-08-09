@@ -57,6 +57,14 @@ class Timetable(object):
         """
         return self.stn.get_tasks()
 
+    def get_earliest_task_id(self):
+        """ Returns the id of task with the earliest start time in the timetable
+
+        :return: task_id (string)
+        """
+        task_id = self.stn.get_earliest_task_id()
+        return task_id
+
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
