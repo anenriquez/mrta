@@ -26,8 +26,9 @@ class Dispatcher(object):
 
         if not self.scheduler.task_scheduled and self.get_timetable():
             task = self.get_next_task_to_schedule()
-            self.scheduler.schedule_task(task, self.timetable)
-            self.get_timetable()
+            if task:
+                self.scheduler.schedule_task(task, self.timetable)
+                self.get_timetable()
 
         if self.scheduler.task_scheduled and self.time_to_dispatch():
             self.dispatch()
