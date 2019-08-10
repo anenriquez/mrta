@@ -17,15 +17,13 @@ class Scheduler(object):
     def assign_timepoint(self, task, timetable, navigation_start):
 
         timetable.dispatchable_graph.assign_timepoint(navigation_start)
-
         minimal_network = self.stp.propagate_constraints(timetable.dispatchable_graph)
 
         if minimal_network:
             print("The assignment is consistent")
             print("Dispatchable graph:", timetable.dispatchable_graph)
-            # TODO: The schedule should have the same times as the dispatchable graph
-            timetable.schedule.add_task(task)
-            timetable.schedule.assign_timepoint(navigation_start)
+
+            timetable.get_schedule(task.id)
 
             print("Schedule: ", timetable.schedule)
 
