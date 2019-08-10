@@ -79,7 +79,7 @@ class Dispatcher(object):
         except NoSTPSolution:
             logging.exception("The stp solver could not solve the problem")
             self.update_task_status(task, 7)   # ABORTED
-            self.timetable.remove_task(task)
+            self.timetable.remove_task()
 
     def update_task_status(self, task, status):
         task.status.status = status
