@@ -26,6 +26,7 @@ class TestDispatcher(object):
     def load_tasks(self, tasks):
         for task in tasks:
             self.ccu_store.add_task(task)
+            self.ccu_store.update_task(task)
 
     def read_timetable(self, timetable_file):
         with open(timetable_file, 'r') as file:
