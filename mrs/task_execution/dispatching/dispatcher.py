@@ -15,7 +15,7 @@ class Dispatcher(object):
         self.task_cls = task_cls
         self.stp = STP(stp_solver)
         self.stp_solver = stp_solver
-        self.scheduler = Scheduler(robot_id, ccu_store, self.stp)
+        self.scheduler = Scheduler(ccu_store, self.stp)
 
         self.timetable = self.get_timetable()
 
@@ -48,7 +48,7 @@ class Dispatcher(object):
         elif task.status.status == 6:
             if self.stp_solver == 'drea':
                 self.recompute_timetable(task)
-            self.scheduler.reset_schedule()
+            self.scheduler.reset_schedule(self.timetable)
 
         # task is delayed and corrective measure reschedule is active
         elif task.status.status == 5 and self.reschedule:
