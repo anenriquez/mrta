@@ -65,6 +65,12 @@ class Timetable(object):
         task_id = self.stn.get_earliest_task_id()
         return task_id
 
+    def remove_task(self, task, position=1):
+        self.stn.remove_task(task, position)
+        self.dispatchable_graph(task, position)
+        # Reset schedule (there is only one task in the schedule)
+        self.schedule = self.stp.get_stn()
+
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id

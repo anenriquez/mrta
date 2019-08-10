@@ -53,6 +53,6 @@ class TestDispatcher(object):
 if __name__ == '__main__':
     config_file = '../config/config.yaml'
     timetable_file = 'data/timetable.yaml'
-    tasks = load_yaml_dataset('data/non_overlapping_1.yaml')
+    tasks = load_yaml_dataset('data/allocated_tasks.yaml')
 
     test = TestDispatcher('ropod_001', timetable_file, tasks, config_file)
