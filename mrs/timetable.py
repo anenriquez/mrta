@@ -58,7 +58,7 @@ class Timetable(object):
         return self.stn.get_tasks()
 
     def get_earliest_task_id(self):
-        """ Returns the id of task with the earliest start time in the timetable
+        """ Returns the id of the task with the earliest start time in the timetable
 
         :return: task_id (string)
         """
@@ -70,6 +70,15 @@ class Timetable(object):
         self.dispatchable_graph(task, position)
         # Reset schedule (there is only one task in the schedule)
         self.schedule = self.stp.get_stn()
+
+    def get_schedule(self, task_id):
+        """ Gets an schedule (stn) containing the nodes associated with the task_id
+
+        :param task_id: (string) id of the task
+        :return: schedule (stn)
+        """
+        node_ids = self.dispatchable_graph.get_task_node_ids(task_id)
+        self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
 
     def to_dict(self):
         timetable_dict = dict()
