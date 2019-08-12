@@ -15,7 +15,7 @@ class TaskAllocator(object):
         self.ccu_store = config.ccu_store
 
         self.auctioneer = config.configure_task_allocator(self.ccu_store)
-        self.register_api_callbacks(config.api)
+        # self.auctioneer.register_api_callbacks()
 
         self.allocated_tasks = dict()
         self.test_terminated = False
@@ -28,29 +28,6 @@ class TaskAllocator(object):
         for robot_id in self.auctioneer.robot_ids:
             timetable = Timetable(self.auctioneer.stp, robot_id)
             self.ccu_store.update_timetable(timetable)
-
-    def register_api_callbacks(self, api):
-        for option in api.middleware_collection:
-            option_config = api.config_params.get(option, None)
-            if option_config is None:
-                self.logger.warning("Option %s has no configuration", option)
-                continue
-
-            callbacks = option_config.get('callbacks', list())
-            for callback in callbacks:
-                component = callback.pop('component', None)
-                function = self.__get_callback_function(component)
-                api.register_callback(option, function, **callback)
-
-    def __get_callback_function(self, component):
-        objects = component.split('.')
-        child = objects.pop(0)
-        parent = getattr(self, child)
-        while objects:
-            child = objects.pop(0)
-            parent = getattr(parent, child)
-
-        return parent
 
     def get_robots_for_task(self, tasks):
         """ Adds a task or list of tasks to the list of tasks_to_allocate
