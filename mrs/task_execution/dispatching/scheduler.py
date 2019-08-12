@@ -1,4 +1,5 @@
 import logging
+from mrs.exceptions.task_execution import InconsistentSchedule
 
 
 class Scheduler(object):
@@ -8,13 +9,16 @@ class Scheduler(object):
         self.stp = stp
         self.navigation_start_time = -float('inf')  # of scheduled task
 
-    def schedule_task(self, task, timetable):
+    def schedule_task(self, task, navigation_start,  timetable):
         print("Dispatchable graph:", timetable.dispatchable_graph)
 
-        navigation_start = timetable.dispatchable_graph.get_task_navigation_start_time(task.id)
-        self.assign_timepoint(task, timetable, navigation_start)
+        try:
+            self.assign_timepoint(task, navigation_start, timetable)
+        except InconsistentSchedule as e:
+            logging.exception("Task %s could not be scheduled.", e.task)
+            raise InconsistentSchedule(e.task)
 
-    def assign_timepoint(self, task, timetable, navigation_start):
+    def assign_timepoint(self, task, navigation_start, timetable):
 
         timetable.dispatchable_graph.assign_timepoint(navigation_start)
         minimal_network = self.stp.propagate_constraints(timetable.dispatchable_graph)
@@ -32,7 +36,7 @@ class Scheduler(object):
             self.navigation_start_time = navigation_start
 
         else:
-            self.reallocate()
+            raise InconsistentSchedule(task)
 
     def reallocate(self):
         pass
