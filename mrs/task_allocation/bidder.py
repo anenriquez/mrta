@@ -37,13 +37,8 @@ class Bidder(object):
         self.logger = logging.getLogger('mrs.robot.%s' % self.id)
         self.logger.debug("Starting robot %s", self.id)
 
-        stp = STP(robustness)
-        timetable_dict = self.ccu_store.get_timetable(robot_id)
-
-        if timetable_dict is not None:
-            self.timetable = Timetable.from_dict(timetable_dict, stp)
-        else:
-            self.timetable = Timetable(stp, robot_id)
+        self.stp = STP(robustness)
+        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
 
         self.bid_placed = Bid()
 
@@ -58,6 +53,7 @@ class Bidder(object):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         round_id = msg['payload']['round_id']
         received_tasks = msg['payload']['tasks']
+        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
         self.compute_bids(received_tasks, round_id)
 
     def allocation_cb(self, msg):
@@ -102,8 +98,9 @@ class Bidder(object):
         :param bid: bid with the smallest cost
         :param no_bids: list of no bids
         """
-        self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
-        self.send_bid(bid)
+        if bid:
+            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
+            self.send_bid(bid)
 
         if no_bids:
             for no_bid in no_bids:
@@ -117,10 +114,15 @@ class Bidder(object):
         n_tasks = len(tasks)
 
         # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
-        for i in range(0, n_tasks + 1):
+        for position in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
-            position = i+1
 
+            self.logger.debug("Schedule: %s", self.timetable.schedule)
+            if position == 1 and self.timetable.is_scheduled():
+                self.logger.debug("Not adding task in position %s", position)
+                continue
+
+            self.logger.debug("Adding task %s in position %s", task.id, position)
             self.timetable.add_task_to_stn(task, position)
 
             try:

@@ -25,6 +25,14 @@ class Timetable(object):
         self.dispatchable_graph = stp.get_stn()
         self.schedule = stp.get_stn()
 
+    @staticmethod
+    def get_timetable(ccu_store, id, stp):
+        timetable_dict = ccu_store.get_timetable(id)
+        if timetable_dict is None:
+            return
+        timetable = Timetable.from_dict(timetable_dict, stp)
+        return timetable
+
     def solve_stp(self):
         """ Computes the dispatchable graph and robustness metric from the
          given stn
@@ -57,6 +65,14 @@ class Timetable(object):
         """
         return self.stn.get_tasks()
 
+    def get_task_id(self, position):
+        """ Returns the id of the task in the given position
+
+        :param position: (int) position in the STN
+        :return: (string) task id
+        """
+        task_id = self.stn.get_task_id(position)
+
     def get_earliest_task_id(self):
         """ Returns the id of the task with the earliest start time in the timetable
 
@@ -70,6 +86,20 @@ class Timetable(object):
         self.dispatchable_graph(position)
         # Reset schedule (there is only one task in the schedule)
         self.schedule = self.stp.get_stn()
+
+    def get_scheduled_task_id(self):
+        task_ids = self.schedule.get_tasks()
+        print("Task ids: ", task_ids)
+        if not task_ids:
+            return None
+        task_id = task_ids.pop()
+        return task_id
+
+    def is_scheduled(self):
+        task_id = self.get_scheduled_task_id()
+        if task_id:
+            return True
+        return False
 
     def get_schedule(self, task_id):
         """ Gets an schedule (stn) containing the nodes associated with the task_id
