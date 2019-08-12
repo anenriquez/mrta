@@ -15,7 +15,6 @@ class TaskAllocator(object):
         self.ccu_store = config.ccu_store
 
         self.auctioneer = config.configure_task_allocator(self.ccu_store)
-        # self.auctioneer.register_api_callbacks()
 
         self.allocated_tasks = dict()
         self.test_terminated = False

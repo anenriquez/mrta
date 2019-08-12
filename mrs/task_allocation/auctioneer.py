@@ -17,7 +17,7 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, robot_ids, ccu_store, api, stp_solver, allocation_method, round_time=5,
+    def __init__(self, robot_ids, ccu_store, api, stp_solver, task_cls, allocation_method, round_time=5,
                  **kwargs):
 
         logging.debug("Starting Auctioneer")
@@ -29,8 +29,10 @@ class Auctioneer(object):
         self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        # TODO: Inititalize the timetables in the loader? and read the timetables here
         self.stp = STP(stp_solver)
+        self.task_cls = task_cls
+
+        # TODO: Inititalize the timetables in the loader? and read the timetables here
         self.timetables = dict()
         for robot_id in robot_ids:
             timetable = Timetable(self.stp, robot_id)
@@ -41,6 +43,8 @@ class Auctioneer(object):
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round()
+
+        self.register_api_callbacks()
 
     def __str__(self):
         to_print = "Auctioneer"
@@ -115,15 +119,17 @@ class Auctioneer(object):
         alternative_allocation = (task_id, [robot_id], alternative_start_time)
         self.waiting_for_user_confirmation.append(alternative_allocation)
 
+    def add_task(self, task):
+        self.tasks_to_allocate[task.id] = task
+        self.ccu_store.add_task(task)
+
     def allocate(self, tasks):
         if isinstance(tasks, list):
             for task in tasks:
-                self.tasks_to_allocate[task.id] = task
-                self.ccu_store.add_task(task)
+                self.add_task(task)
             logging.debug('Auctioneer received a list of tasks')
         else:
-            self.tasks_to_allocate[tasks.id] = tasks
-            self.ccu_store.add_task(tasks)
+            self.add_task(tasks)
             logging.debug('Auctioneer received one task')
 
     def announce_task(self):
@@ -157,6 +163,11 @@ class Auctioneer(object):
 
         self.round.start()
         self.api.publish(task_announcement, groups=['TASK-ALLOCATION'])
+
+    def task_cb(self, msg):
+        task_dict = msg['payload']['task']
+        task = self.task_cls.from_dict(task_dict)
+        self.add_task(task)
 
     def bid_cb(self, msg):
         bid = msg['payload']['bid']
@@ -198,13 +209,34 @@ class Auctioneer(object):
 
         return task_schedule
 
+    def register_api_callbacks(self):
+        for option in self.api.middleware_collection:
+            option_config = self.api.config_params.get(option, None)
+            if option_config is None:
+                continue
+
+            callbacks = option_config.get('callbacks', list())
+            for callback in callbacks:
+                component = callback.pop('component', None)
+                function = self.__get_callback_function(component)
+                self.api.register_callback(option, function, **callback)
+
+    def __get_callback_function(self, component):
+        print("component: ", component)
+
+        objects = component.split('.')
+        function_name = objects.pop(1)
+        print("function_name: ", function_name)
+        function = getattr(self, function_name)
+        return function
+
 
 if __name__ == '__main__':
 
     from fleet_management.config.loader import Config
     config_file_path = '../../config/config.yaml'
     config = Config(config_file_path, initialize=True)
-    auctioneer = config.configure_task_allocator()
+    auctioneer = config.configure_task_allocator(config.ccu_store)
 
     time.sleep(5)
 

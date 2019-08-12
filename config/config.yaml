@@ -33,6 +33,7 @@ api:
       groups:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK
         - TASK-ANNOUNCEMENT
         - ALLOCATION
         - BID
@@ -45,6 +46,8 @@ api:
       allocation:
         method: shout
     callbacks:
+      - msg_type: 'TASK'
+        component: 'auctioneer.task_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
