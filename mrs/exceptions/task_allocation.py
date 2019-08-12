@@ -18,7 +18,7 @@ class AlternativeTimeSlot(Exception):
 class NoAllocation(Exception):
 
     def __init__(self, round_id):
-        """ Raised when no mrs was possible
+        """ Raised when no allocation was possible in round_id
 
         """
         Exception.__init__(self, round_id)
