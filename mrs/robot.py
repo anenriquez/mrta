@@ -43,8 +43,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     robot_id = args.robot_id
 
-    robot_proxy = config.configure_robot_proxy(robot_id, ccu_store)
+    robot = config.configure_robot_proxy(robot_id, ccu_store)
 
-    robot_proxy.run()
+    robot.run()
 
 
