@@ -5,7 +5,7 @@ services:
     container_name: robot
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "ropod_001"]
+    command: ["python3", "robot.py", "ropod_001"]
     network_mode: "host"
     tty: true
     stdin_open: true

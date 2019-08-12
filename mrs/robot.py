@@ -9,16 +9,18 @@ import logging
 """
 
 
-class RobotProxy(object):
+class Robot(object):
 
-    def __init__(self, bidder):
+    def __init__(self, bidder, dispatcher):
         self.bidder = bidder
+        self.dispatcher = dispatcher
 
     def run(self):
         try:
             self.bidder.api.start()
             while True:
                 self.bidder.api.run()
+                self.dispatcher.run()
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):

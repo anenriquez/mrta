@@ -90,9 +90,15 @@ class Auctioneer(object):
         self.ccu_store.update_task(task)
 
     def update_timetable(self, robot_id, task, position):
-        timetable = self.timetables.get(robot_id)
+        timetable = Timetable.get_timetable(self.ccu_store, robot_id, self.stp)
         timetable.add_task_to_stn(task, position)
         timetable.solve_stp()
+
+        # Update schedule to reflect the changes in the dispatchable graph
+        if timetable.is_scheduled():
+            # TODO: Request re-scheduling to the scheduler via pyre
+            pass
+
         self.timetables.update({robot_id: timetable})
         self.ccu_store.update_timetable(timetable)
 
