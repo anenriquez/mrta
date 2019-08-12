@@ -15,7 +15,7 @@ services:
     container_name: task-mrs-test
     image: ropod-mrs
     working_dir: /mrta/tests/
-    command: ["python3", "allocation_test.py"]
+    command: ["python3", "fms_integration_test.py"]
     network_mode: "host"
     tty: true
     stdin_open: true
