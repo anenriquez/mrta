@@ -1,15 +1,18 @@
 import logging
+import uuid
+import time
 
 from ropod.utils.timestamp import TimeStamp as ts
 from mrs.task_execution.dispatching.scheduler import Scheduler
 from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.exceptions.task_execution import InconsistentSchedule
 
 
 class Dispatcher(object):
 
-    def __init__(self, robot_id, ccu_store, task_cls, stp_solver, corrective_measure, freeze_window):
+    def __init__(self, robot_id, ccu_store, task_cls, stp_solver, corrective_measure, freeze_window, api, auctioneer):
         self.id = robot_id
         self.ccu_store = ccu_store
         self.task_cls = task_cls
@@ -17,6 +20,8 @@ class Dispatcher(object):
         self.stp_solver = stp_solver
         self.corrective_measure = corrective_measure
         self.freeze_window = freeze_window
+        self.api = api
+        self.auctioneer = auctioneer
 
         self.scheduler = Scheduler(ccu_store, self.stp)
 
@@ -24,9 +29,10 @@ class Dispatcher(object):
 
     def run(self):
         self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
-        task = self.get_earliest_task()
-        if task:
-            self.check_earliest_task_status(task)
+        if self.timetable is not None:
+            task = self.get_earliest_task()
+            if task is not None:
+                self.check_earliest_task_status(task)
 
     def check_earliest_task_status(self, task):
         # task is allocated
@@ -45,7 +51,7 @@ class Dispatcher(object):
 
         elif task.status.status == 5 and self.corrective_measure == 're-allocate':
             self.scheduler.reset_schedule(self.timetable)
-            # TODO: Request re-allocation
+            self.request_reallocation(task)
 
         elif task.status.status == 3 and self.time_to_dispatch():
             self.dispatch()
@@ -59,14 +65,19 @@ class Dispatcher(object):
 
     def schedule_task(self, task):
         print("Scheduling task")
-        self.scheduler.schedule_task(task, self.timetable)
+
         navigation_start = self.timetable.dispatchable_graph.get_task_navigation_start_time(task.id)
         current_time = ts.get_time_stamp()
 
         # Schedule the task freeze_window time before the navigation start and freeze it
         #  i.e., the task cannot longer change position in the dispatchable graph
         if (navigation_start - current_time) <= self.freeze_window:
-            self.scheduler.schedule_task(task, self.timetable)
+            try:
+                self.scheduler.schedule_task(task, navigation_start, self.timetable)
+            except InconsistentSchedule as e:
+                logging.exception("Task %s could not be scheduled.", e.task)
+                if self.corrective_measure == 're-allocate':
+                    self.request_reallocation(task)
 
         self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
 
@@ -79,7 +90,7 @@ class Dispatcher(object):
 
         except NoSTPSolution:
             logging.exception("The stp solver could not solve the problem")
-            self.update_task_status(task, 7)   # ABORTED
+            self.update_task_status(task, 8)   # FAILED
             self.timetable.remove_task()
 
     def update_task_status(self, task, status):
@@ -96,6 +107,21 @@ class Dispatcher(object):
     def dispatch(self):
         current_time = ts.get_time_stamp()
         print("Dispatching task at: ", current_time)
+
+    def request_reallocation(self, task):
+        self.update_task_status(task, 7)  # ABORTED
+        task_msg = dict()
+        task_msg['header'] = dict()
+        task_msg['payload'] = dict()
+        task_msg['header']['type'] = 'TASK'
+        task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        task_msg['header']['msgId'] = str(uuid.uuid4())
+        task_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+
+        task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
+        task_msg['payload']['task'] = task.to_dict()
+
+        self.api.whisper(task_msg, peer=self.auctioneer)
 
 
 
