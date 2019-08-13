@@ -22,9 +22,6 @@ class Bidder(object):
         self.ccu_store = ccu_store
 
         self.api = api
-        self.api.register_callback(self.task_announcement_cb, 'TASK-ANNOUNCEMENT')
-        self.api.register_callback(self.allocation_cb, 'ALLOCATION')
-        self.api.register_callback(self.task_cb, 'TASK')
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
@@ -46,7 +43,7 @@ class Bidder(object):
         to_print = ""
         to_print += "Robot {}".format(self.id)
         to_print += '\n'
-        to_print += "Groups {}".format(self.api.groups())
+        to_print += "Groups {}".format(self.api.zyre.groups())
         return to_print
 
     def task_announcement_cb(self, msg):
@@ -64,9 +61,6 @@ class Bidder(object):
         if winner_id == self.id:
             self.allocate_to_robot(task_id)
             self.send_finish_round()
-
-    def task_cb(self, msg):
-        self.logger.debug("Received task message")
 
     def compute_bids(self, received_tasks, round_id):
         bids = list()
@@ -190,7 +184,7 @@ class Bidder(object):
         tasks = [task for task in bid.timetable.get_tasks()]
 
         self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task.id, tasks)
-        self.api.whisper(bid_msg, peer=self.auctioneer)
+        self.api.publish(bid_msg, peer=self.auctioneer)
 
     def allocate_to_robot(self, task_id):
 
@@ -203,7 +197,7 @@ class Bidder(object):
 
         tasks = [task for task in self.timetable.get_tasks()]
 
-        self.logger.debug("Tasks scheduled to robot %s:%s", self.id, tasks)
+        self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
 
     def send_finish_round(self):
         close_msg = dict()
@@ -214,7 +208,8 @@ class Bidder(object):
         close_msg['header']['msgId'] = str(uuid.uuid4())
         close_msg['header']['timestamp'] = int(round(time.time()) * 1000)
         close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
+        close_msg['payload']['robot_id'] = self.id
 
         self.logger.info("Robot %s sends close round msg ", self.id)
-        self.api.whisper(close_msg, peer=self.auctioneer)
+        self.api.publish(close_msg)
 

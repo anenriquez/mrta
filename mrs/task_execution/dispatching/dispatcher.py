@@ -119,9 +119,10 @@ class Dispatcher(object):
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task.to_dict()
 
-        self.api.shout(task_msg, groups=['ROPOD'])
-
         self.update_task_status(task, TaskStatus.SHIPPED)
+        self.timetable.remove_task()
+
+        self.api.publish(task_msg, groups=['ROPOD'])
 
     def request_reallocation(self, task):
         self.update_task_status(task, TaskStatus.ABORTED)  # ABORTED
@@ -136,7 +137,7 @@ class Dispatcher(object):
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task.to_dict()
 
-        self.api.whisper(task_msg, peer=self.auctioneer)
+        self.api.publish(task_msg, groups=['TASK-ALLOCATION'])
 
 
 

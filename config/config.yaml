@@ -35,30 +35,28 @@ robot_proxy:
           - TASK-ALLOCATION
           - ROPOD
         message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-          - TASK
           - TASK-ANNOUNCEMENT
           - ALLOCATION
-          - BID
-          - FINISH-ROUND
       acknowledge: false
       publish:
         task:
-          groups: ['ROPOD'] # Optional, if not present will shout to all groups
+          groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
           msg_type: 'TASK'
           method: shout
-        task-announcement:
+        bid:
           groups: ['TASK-ALLOCATION']
-          method: shout
-        allocation:
+          msg_type: 'BID'
+          method: whisper
+        finish-round:
           groups: ['TASK-ALLOCATION']
+          msg_type: 'FINISH-ROUND'
           method: shout
       callbacks:
-        - msg_type: 'TASK'
-          component: 'auctioneer.task_cb'
-        - msg_type: 'BID'
-          component: 'auctioneer.bid_cb'
-        - msg_type: 'FINISH-ROUND'
-          component: 'auctioneer.finish_round_cb'
+        - msg_type: 'TASK-ANNOUNCEMENT'
+          component: 'bidder.task_announcement_cb'
+        - msg_type: 'ALLOCATION'
+          component: 'bidder.allocation_cb'
+
 
 api:
   version: 0.1.0
@@ -72,8 +70,6 @@ api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK
-        - TASK-ANNOUNCEMENT
-        - ALLOCATION
         - BID
         - FINISH-ROUND
     acknowledge: false
@@ -82,14 +78,15 @@ api:
         groups: ['TASK-ALLOCATION']
         method: shout
       allocation:
+        groups: ['TASK-ALLOCATION']
         method: shout
     callbacks:
       - msg_type: 'TASK'
-        component: 'auctioneer.task_cb'
+        component: '.task_cb'
       - msg_type: 'BID'
-        component: 'auctioneer.bid_cb'
+        component: '.bid_cb'
       - msg_type: 'FINISH-ROUND'
-        component: 'auctioneer.finish_round_cb'
+        component: '.finish_round_cb'
 
 logger:
   version: 1

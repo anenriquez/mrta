@@ -44,8 +44,6 @@ class Auctioneer(object):
         self.waiting_for_user_confirmation = list()
         self.round = Round()
 
-        self.register_api_callbacks()
-
     def __str__(self):
         to_print = "Auctioneer"
         to_print += '\n'
@@ -210,39 +208,17 @@ class Auctioneer(object):
 
         return task_schedule
 
-    def register_api_callbacks(self):
-        for option in self.api.middleware_collection:
-            option_config = self.api.config_params.get(option, None)
-            if option_config is None:
-                continue
-
-            callbacks = option_config.get('callbacks', list())
-            for callback in callbacks:
-                component = callback.get('component', None)
-                function = self.__get_callback_function(component)
-                if function:
-                    self.api.register_callback(option, function, **callback)
-
-    def __get_callback_function(self, component):
-        objects = component.split('.')
-        function_name = objects[1]
-        try:
-            function = getattr(self, function_name)
-            return function
-        except AttributeError:
-            logging.exception("%s is not part of %s", function_name, self)
-
-
-
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config
+    from fleet_management.config.loader import Config, register_api_callbacks
     config_file_path = '../../config/config.yaml'
     config = Config(config_file_path, initialize=True)
     auctioneer = config.configure_task_allocator(config.ccu_store)
 
     time.sleep(5)
+
+    register_api_callbacks(auctioneer, auctioneer.api)
 
     auctioneer.api.start()
 
