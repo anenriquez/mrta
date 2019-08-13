@@ -11,16 +11,22 @@ import logging
 
 class Robot(object):
 
-    def __init__(self, bidder, dispatcher):
+    def __init__(self, bidder, **kwargs):
         self.bidder = bidder
-        self.dispatcher = dispatcher
+        self.dispatcher = kwargs.get('dispatcher')
+
+    def start_components(self):
+        self.bidder.api.start()
+        if self.dispatcher is not None:
+            self.dispatcher.api.start()
 
     def run(self):
         try:
-            self.bidder.api.start()
+            self.start_components()
             while True:
                 self.bidder.api.run()
-                self.dispatcher.run()
+                if self.dispatcher is not None:
+                    self.dispatcher.run()
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):
@@ -43,7 +49,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     robot_id = args.robot_id
 
-    robot = config.configure_robot_proxy(robot_id, ccu_store)
+    robot = config.configure_robot_proxy(robot_id, ccu_store, dispatcher=True)
 
     robot.run()
 
