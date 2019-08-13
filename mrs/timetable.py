@@ -83,7 +83,7 @@ class Timetable(object):
 
     def remove_task(self, position=1):
         self.stn.remove_task(position)
-        self.dispatchable_graph(position)
+        self.dispatchable_graph.remove_task(position)
         # Reset schedule (there is only one task in the schedule)
         self.schedule = self.stp.get_stn()
 
