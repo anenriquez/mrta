@@ -48,5 +48,5 @@ class Scheduler(object):
         self.ccu_store.update_task(task)
 
     def reset_schedule(self, timetable):
-        timetable.schedule = self.stp.get_stn()
+        timetable.remove_task()
         self.ccu_store.update_timetable(timetable)
