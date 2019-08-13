@@ -1,10 +1,10 @@
-from allocation.utils.uuid import generate_uuid
+from mrs.utils.uuid import generate_uuid
 import logging
 from ropod.utils.timestamp import TimeStamp as ts
-from allocation.bid import Bid
+from mrs.task_allocation.bid import BidMsg
 import copy
-from allocation.exceptions.no_allocation import NoAllocation
-from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
 
 
 class Round(object):
@@ -35,7 +35,7 @@ class Round(object):
 
         After the round closes, the election process takes place
 
-        finished: The election process is over, i.e., an allocation has been made
+        finished: The election process is over, i.e., an mrs has been made
                     (or an exception has been raised)
 
         """
@@ -48,10 +48,9 @@ class Round(object):
         self.opened = True
 
     def process_bid(self, bid_dict):
-        bid = Bid.from_dict(bid_dict)
+        bid = BidMsg.from_dict(bid_dict)
 
-        logging.debug("Processing bid from robot %s, cost: %s",
-                          bid.robot_id, bid.cost)
+        logging.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
 
         if bid.cost != float('inf'):
             # Process a bid
@@ -89,7 +88,7 @@ class Round(object):
         return True
 
     def get_result(self):
-        """ Returns the results of the allocation as a tuple
+        """ Returns the results of the mrs as a tuple
 
         :return: round_result
 
@@ -109,7 +108,7 @@ class Round(object):
             winning_bid = self.elect_winner()
             allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
             robot_id = winning_bid.robot_id
-            position = winning_bid.stn_position
+            position = winning_bid.position
             round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
 
             if winning_bid.hard_constraints is False:
@@ -118,7 +117,7 @@ class Round(object):
             return round_result
 
         except NoAllocation:
-            logging.exception("No allocation made in round %s ", self.id)
+            logging.exception("No mrs made in round %s ", self.id)
             raise NoAllocation(self.id)
 
     def finish(self):
@@ -141,11 +140,11 @@ class Round(object):
         """ Elects the winner of the round
 
         :return:
-        allocation(dict): key - task_id,
+        mrs(dict): key - task_id,
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = Bid()
+        lowest_bid = BidMsg()
 
         for task_id, bid in self.received_bids.items():
             if bid < lowest_bid:

@@ -3,12 +3,12 @@ import time
 import logging
 import logging.config
 from datetime import timedelta
-from allocation.round import Round
-from allocation.timetable import Timetable
+from mrs.task_allocation.round import Round
+from mrs.timetable import Timetable
 from stn.stp import STP
-from allocation.exceptions.no_allocation import NoAllocation
-from allocation.exceptions.alternative_timeslot import AlternativeTimeSlot
-
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
+from dataset_lib.task import TaskStatus
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -17,32 +17,38 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, robot_ids, ccu_store, api, stp_solver, task_cls, allocation_method, round_time=5,
+                 **kwargs):
 
         logging.debug("Starting Auctioneer")
 
-        self.robot_ids = kwargs.get('robot_ids', list())
-
-        stp_solver = kwargs.get('stp_solver', None)
-        stp = STP(stp_solver)
-
-        # TODO: Read timetable from db
-        self.timetable = Timetable(self.robot_ids, stp)
-
+        self.robot_ids = robot_ids
+        self.ccu_store = ccu_store
+        self.api = api
+        self.allocation_method = allocation_method
+        self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        round_time = kwargs.get('round_time', 0)
-        self.round_time = timedelta(seconds=round_time)
+        self.stp = STP(stp_solver)
+        self.task_cls = task_cls
+
+        # TODO: Inititalize the timetables in the loader? and read the timetables here
+        self.timetables = dict()
+        for robot_id in robot_ids:
+            timetable = Timetable(self.stp, robot_id)
+            self.timetables[robot_id] = timetable
+            self.ccu_store.add_timetable(timetable)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round()
 
-        # TODO: Add callbacks in loader file
-        self.api = kwargs.get('api', None)
-        self.api.add_callback(self, 'BID', 'bid_cb')
-        self.api.add_callback(self, 'FINISH-ROUND', 'finish_round_cb')
+    def __str__(self):
+        to_print = "Auctioneer"
+        to_print += '\n'
+        to_print += "Groups {}".format(self.api.interfaces[0].groups())
+        return to_print
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -57,7 +63,7 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                logging.exception("No allocation made in round %s ", exception.round_id)
+                logging.exception("No mrs made in round %s ", exception.round_id)
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
@@ -75,13 +81,32 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
-        stn = self.timetable.update_stn(robot_id, task, position)
-        dispatchable_graph = self.timetable.update_dispatchable_graph(robot_id, stn)
-
-        logging.debug("STN robot %s: %s", robot_id, stn)
-        logging.debug("Dispatchable graph robot %s: %s", robot_id, dispatchable_graph)
+        self.update_task_status(task, TaskStatus.ALLOCATED)
+        self.update_timetable(robot_id, task, position)
 
         return allocation
+
+    def update_task_status(self, task, status):
+        task.status.status = status
+        logging.debug("Updating task status to %s", task.status.status)
+        self.ccu_store.update_task(task)
+        logging.debug('Tasks saved')
+
+    def update_timetable(self, robot_id, task, position):
+        timetable = Timetable.get_timetable(self.ccu_store, robot_id, self.stp)
+        timetable.add_task_to_stn(task, position)
+        timetable.solve_stp()
+
+        # Update schedule to reflect the changes in the dispatchable graph
+        if timetable.is_scheduled():
+            # TODO: Request re-scheduling to the scheduler via pyre
+            pass
+
+        self.timetables.update({robot_id: timetable})
+        self.ccu_store.update_timetable(timetable)
+
+        logging.debug("STN robot %s: %s", robot_id, timetable.stn)
+        logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
@@ -93,13 +118,17 @@ class Auctioneer(object):
         alternative_allocation = (task_id, [robot_id], alternative_start_time)
         self.waiting_for_user_confirmation.append(alternative_allocation)
 
+    def add_task(self, task):
+        self.tasks_to_allocate[task.id] = task
+        self.ccu_store.add_task(task)
+
     def allocate(self, tasks):
         if isinstance(tasks, list):
             for task in tasks:
-                self.tasks_to_allocate[task.id] = task
+                self.add_task(task)
             logging.debug('Auctioneer received a list of tasks')
         else:
-            self.tasks_to_allocate[tasks.id] = tasks
+            self.add_task(tasks)
             logging.debug('Auctioneer received one task')
 
     def announce_task(self):
@@ -132,7 +161,12 @@ class Auctioneer(object):
         logging.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.round.start()
-        self.api.shout(task_announcement, 'TASK-ALLOCATION')
+        self.api.publish(task_announcement, groups=['TASK-ALLOCATION'])
+
+    def task_cb(self, msg):
+        task_dict = msg['payload']['task']
+        task = self.task_cls.from_dict(task_dict)
+        self.add_task(task)
 
     def bid_cb(self, msg):
         bid = msg['payload']['bid']
@@ -151,12 +185,49 @@ class Auctioneer(object):
         allocation['header']['msgId'] = str(uuid.uuid4())
         allocation['header']['timestamp'] = int(round(time.time()) * 1000)
 
-        allocation['payload']['metamodel'] = 'ropod-allocation-schema.json'
+        allocation['payload']['metamodel'] = 'ropod-mrs-schema.json'
         allocation['payload']['task_id'] = task_id
         allocation['payload']['winner_id'] = robot_id
 
         logging.debug("Accouncing winner...")
-        self.api.shout(allocation, 'TASK-ALLOCATION')
+        self.api.publish(allocation, groups=['TASK-ALLOCATION'])
 
-    def shutdown(self):
-        self.api.shutdown()
+    def get_task_schedule(self, task_id, robot_id):
+        # For now, returning the start navigation time from the dispatchable graph
+
+        task_schedule = dict()
+
+        timetable = self.timetables.get(robot_id)
+
+        start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task_id)
+
+        logging.debug("Start time of task %s: %s", task_id, start_time)
+
+        task_schedule['start_time'] = start_time
+        task_schedule['finish_time'] = -1  # This info is not available here.
+
+        return task_schedule
+
+
+if __name__ == '__main__':
+
+    from fleet_management.config.loader import Config, register_api_callbacks
+    config_file_path = '../../config/config.yaml'
+    config = Config(config_file_path, initialize=True)
+    auctioneer = config.configure_task_allocator(config.ccu_store)
+
+    time.sleep(5)
+
+    register_api_callbacks(auctioneer, auctioneer.api)
+
+    auctioneer.api.start()
+
+    try:
+        while True:
+            auctioneer.api.run()
+            auctioneer.run()
+            time.sleep(0.5)
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Terminating %s auctioneer ...")
+        auctioneer.api.shutdown()
+        logging.info("Exiting...")

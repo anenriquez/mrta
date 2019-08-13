@@ -1,25 +1,133 @@
-fleet:
+version: 2
+ccu_store:
+  db_name: ropod_ccu_store
+  port: 27017
+resources:
+  fleet:
     - ropod_001
-    # - ropod_002
-    # - ropod_003
+    - ropod_002
+    - ropod_003
 
-task_allocation:
+plugins:
+  task_allocation:
     bidding_rule:
       robustness: srea
       temporal: completion_time
-    round_time: 10 # seconds
-    auctioneer: zyre_api # This is completely Zyre dependent
+    allocation_method: tessi
+    round_time: 15 # seconds
+    robot_proxies: true
+    auctioneer: fms_zyre_api # This is completely Zyre dependent
     alternative_timeslots: True
+    task_type: generic_task
+    corrective_measure: re-allocate
+    freeze_window: 300 # seconds
+
+robot_proxy:
+  api:
+    version: 0.1.0
+    middleware:
+      - zyre
+    zyre:
+      zyre_node:
+        node_name: proxy
+        interface: null
+        groups:
+          - TASK-ALLOCATION
+          - ROPOD
+        message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+          - TASK-ANNOUNCEMENT
+          - ALLOCATION
+      acknowledge: false
+      publish:
+        task:
+          groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
+          msg_type: 'TASK'
+          method: shout
+        bid:
+          groups: ['TASK-ALLOCATION']
+          msg_type: 'BID'
+          method: whisper
+        finish-round:
+          groups: ['TASK-ALLOCATION']
+          msg_type: 'FINISH-ROUND'
+          method: shout
+      callbacks:
+        - msg_type: 'TASK-ANNOUNCEMENT'
+          component: 'bidder.task_announcement_cb'
+        - msg_type: 'ALLOCATION'
+          component: 'bidder.allocation_cb'
+
 
 api:
   version: 0.1.0
+  middleware:
+    - zyre
   zyre:
-    node_name: zyre_api
-    interface: null
-    groups:
-      - TASK-ALLOCATION
-    message_types:
-      - TASK-ANNOUNCEMENT
-      - BID
-      - ALLOCATION
-      - FINISH-ROUND
+    zyre_node:
+      node_name: fms_zyre_api
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK
+        - BID
+        - FINISH-ROUND
+    acknowledge: false
+    publish:
+      task-announcement:
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      allocation:
+        groups: ['TASK-ALLOCATION']
+        method: shout
+    callbacks:
+      - msg_type: 'TASK'
+        component: '.task_cb'
+      - msg_type: 'BID'
+        component: '.bid_cb'
+      - msg_type: 'FINISH-ROUND'
+        component: '.finish_round_cb'
+
+logger:
+  version: 1
+  formatters:
+    default:
+      format: '[%(levelname)-5.5s]  %(asctime)s [%(name)-25.25s] %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+  handlers:
+    console:
+      class: ropod.utils.logging.color.ColorizingStreamHandler
+      level: DEBUG
+      formatter: default
+      stream: ext://sys.stdout
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: default
+      filename: /var/log/ropod/fms/fms.log
+      when: 'm'
+      interval: 5
+  loggers:
+    requests:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    pyre:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    urllib3:
+      level: WARNING
+      handlers: [console]
+      propagate: no
+    OSMBridge:
+      level: WARNING
+      handlers: [console]
+    OSMAdapter:
+      level: WARNING
+      handlers: [console]
+    fms:
+      level: DEBUG
+  root:
+    level: DEBUG
+    handlers: [console, file]
