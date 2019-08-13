@@ -11,7 +11,8 @@ import logging
 
 class Robot(object):
 
-    def __init__(self, bidder, **kwargs):
+    def __init__(self, api, bidder, **kwargs):
+        self.api = api
         self.bidder = bidder
         self.dispatcher = kwargs.get('dispatcher')
 
@@ -37,7 +38,7 @@ class Robot(object):
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config
+    from fleet_management.config.loader import Config, register_api_callbacks
 
     config_file_path = '../config/config.yaml'
     config = Config(config_file_path, initialize=False)
@@ -50,6 +51,8 @@ if __name__ == '__main__':
     robot_id = args.robot_id
 
     robot = config.configure_robot_proxy(robot_id, ccu_store, dispatcher=True)
+
+    register_api_callbacks(robot, robot.api)
 
     robot.run()
 
