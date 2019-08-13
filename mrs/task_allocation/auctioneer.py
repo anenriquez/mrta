@@ -217,18 +217,21 @@ class Auctioneer(object):
 
             callbacks = option_config.get('callbacks', list())
             for callback in callbacks:
-                component = callback.pop('component', None)
+                component = callback.get('component', None)
                 function = self.__get_callback_function(component)
-                self.api.register_callback(option, function, **callback)
+                if function:
+                    self.api.register_callback(option, function, **callback)
 
     def __get_callback_function(self, component):
-        print("component: ", component)
-
         objects = component.split('.')
-        function_name = objects.pop(1)
-        print("function_name: ", function_name)
-        function = getattr(self, function_name)
-        return function
+        function_name = objects[1]
+        try:
+            function = getattr(self, function_name)
+            return function
+        except AttributeError:
+            logging.exception("%s is not part of %s", function_name, self)
+
+
 
 
 if __name__ == '__main__':
