@@ -4,6 +4,9 @@ from setuptools import setup
 
 setup(name='mrs',
       version='0.1.0',
+      install_requires=[
+            'numpy'
+      ],
       description='Multi-Robot System (MRS) components for allocating '
                   'and executing tasks with temporal constraints and uncertain durations',
       author='Angela Enriquez Gomez',
