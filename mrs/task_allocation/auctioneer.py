@@ -8,7 +8,7 @@ from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
-
+from dataset_lib.task import TaskStatus
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -83,7 +83,7 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
-        self.update_task_status(task, 2)  # 2 is ALLOCATED
+        self.update_task_status(task, TaskStatus.ALLOCATED)
         self.update_timetable(robot_id, task, position)
 
         return allocation
@@ -92,6 +92,7 @@ class Auctioneer(object):
         task.status.status = status
         logging.debug("Updating task status to %s", task.status.status)
         self.ccu_store.update_task(task)
+        logging.debug('Tasks saved')
 
     def update_timetable(self, robot_id, task, position):
         timetable = Timetable.get_timetable(self.ccu_store, robot_id, self.stp)

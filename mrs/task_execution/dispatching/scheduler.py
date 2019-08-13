@@ -1,5 +1,6 @@
 import logging
 from mrs.exceptions.task_execution import InconsistentSchedule
+from dataset_lib.task import TaskStatus
 
 
 class Scheduler(object):
@@ -32,7 +33,7 @@ class Scheduler(object):
             print("Schedule: ", timetable.schedule)
 
             self.ccu_store.update_timetable(timetable)
-            self.update_task_status(task, 3)  # 3 is SCHEDULED
+            self.update_task_status(task, TaskStatus.SCHEDULED)
             self.navigation_start_time = navigation_start
 
         else:

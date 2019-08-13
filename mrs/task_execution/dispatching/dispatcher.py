@@ -8,6 +8,7 @@ from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
+from dataset_lib.task import TaskStatus
 
 
 class Dispatcher(object):
@@ -35,26 +36,23 @@ class Dispatcher(object):
                 self.check_earliest_task_status(task)
 
     def check_earliest_task_status(self, task):
-        # task is allocated
-        if task.status.status == 2:
+        if task.status.status == TaskStatus.ALLOCATED:
             self.schedule_task(task)
 
-        # task is completed
-        elif task.status.status == 6:
+        elif task.status.status == TaskStatus.COMPLETED:
             if self.stp_solver == 'drea':
                 self.recompute_timetable(task)
             self.scheduler.reset_schedule(self.timetable)
 
-        # task is delayed and corrective measure reschedule is active
-        elif task.status.status == 5 and self.corrective_measure == 're-schedule':
+        elif task.status.status == TaskStatus.DELAYED and self.corrective_measure == 're-schedule':
             self.recompute_timetable(task)
 
-        elif task.status.status == 5 and self.corrective_measure == 're-allocate':
+        elif task.status.status == TaskStatus.DELAYED and self.corrective_measure == 're-allocate':
             self.scheduler.reset_schedule(self.timetable)
             self.request_reallocation(task)
 
-        elif task.status.status == 3 and self.time_to_dispatch():
-            self.dispatch()
+        elif task.status.status == TaskStatus.SCHEDULED and self.time_to_dispatch():
+            self.dispatch(task)
 
     def get_earliest_task(self):
         task_id = self.timetable.get_earliest_task_id()
@@ -90,7 +88,7 @@ class Dispatcher(object):
 
         except NoSTPSolution:
             logging.exception("The stp solver could not solve the problem")
-            self.update_task_status(task, 8)   # FAILED
+            self.update_task_status(task, TaskStatus.FAILED)
             self.timetable.remove_task()
 
     def update_task_status(self, task, status):
@@ -104,12 +102,29 @@ class Dispatcher(object):
             return False
         return True
 
-    def dispatch(self):
+    def dispatch(self, task):
         current_time = ts.get_time_stamp()
         print("Dispatching task at: ", current_time)
 
+        logging.info("Dispatching task to robot %s", self.id)
+
+        task_msg = dict()
+        task_msg['header'] = dict()
+        task_msg['payload'] = dict()
+        task_msg['header']['type'] = 'TASK'
+        task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        task_msg['header']['msgId'] = str(uuid.uuid4())
+        task_msg['header']['timestamp'] = int(round(time.time()) * 1000)
+
+        task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
+        task_msg['payload']['task'] = task.to_dict()
+
+        self.api.shout(task_msg, groups=['ROPOD'])
+
+        self.update_task_status(task, TaskStatus.SHIPPED)
+
     def request_reallocation(self, task):
-        self.update_task_status(task, 7)  # ABORTED
+        self.update_task_status(task, TaskStatus.ABORTED)  # ABORTED
         task_msg = dict()
         task_msg['header'] = dict()
         task_msg['payload'] = dict()
