@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-setup(name='mrs',
+setup(name='mrta',
       version='0.1.0',
       install_requires=[
             'numpy'
