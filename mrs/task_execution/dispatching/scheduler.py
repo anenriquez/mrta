@@ -1,6 +1,6 @@
 import logging
 from mrs.exceptions.task_execution import InconsistentSchedule
-from dataset_lib.task import TaskStatus
+from mrs.task import TaskStatus
 
 
 class Scheduler(object):

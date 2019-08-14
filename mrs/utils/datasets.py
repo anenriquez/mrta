@@ -30,3 +30,24 @@ def load_yaml_dataset(dataset_path):
         tasks.append(task)
 
     return tasks
+
+def flatten_dict(dict_input):
+    """ Returns a dictionary without nested dictionaries
+
+    :param dict_input: nested dictionary
+    :return: flattened dictionary
+
+    """
+    flattened_dict = dict()
+
+    for key, value in dict_input.items():
+        if isinstance(value, dict):
+            new_keys = sorted(value.keys())
+            for new_key in new_keys:
+                entry = {key + '_' + new_key: value[new_key]}
+                flattened_dict.update(entry)
+        else:
+            entry = {key: value}
+            flattened_dict.update(entry)
+
+    return flattened_dict

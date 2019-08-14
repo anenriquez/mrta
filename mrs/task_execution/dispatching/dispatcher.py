@@ -8,7 +8,7 @@ from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
-from dataset_lib.task import TaskStatus
+from mrs.task import TaskStatus
 
 
 class Dispatcher(object):
