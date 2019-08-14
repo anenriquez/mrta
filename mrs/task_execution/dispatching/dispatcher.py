@@ -44,15 +44,22 @@ class Dispatcher(object):
                 self.recompute_timetable(task)
             self.scheduler.reset_schedule(self.timetable)
 
-        elif task.status.status == TaskStatus.DELAYED and self.corrective_measure == 're-schedule':
-            self.recompute_timetable(task)
-
-        elif task.status.status == TaskStatus.DELAYED and self.corrective_measure == 're-allocate':
-            self.scheduler.reset_schedule(self.timetable)
-            self.request_reallocation(task)
+        elif task.status.status == TaskStatus.ONGOING and task.status.delayed:
+            self.apply_corrective_measure(task)
 
         elif task.status.status == TaskStatus.SCHEDULED and self.time_to_dispatch():
             self.dispatch(task)
+
+    def apply_corrective_measure(self, task):
+        if self.corrective_measure == 're-schedule':
+            self.recompute_timetable(task)
+
+        elif self.corrective_measure == 're-allocate':
+            self.scheduler.reset_schedule(self.timetable)
+            self.request_reallocation(task)
+
+        else:
+            logging.debug("Not applying corrective measure")
 
     def get_earliest_task(self):
         task_id = self.timetable.get_earliest_task_id()
