@@ -3,6 +3,8 @@
 from setuptools import setup
 
 setup(name='mrs',
+      packages=['mrs', 'mrs.config', 'mrs.utils', 'mrs.exceptions', 'mrs.task_allocation',
+                'mrs.task_execution', 'mrs.task_execution.dispatching'],
       version='0.1.0',
       install_requires=[
             'numpy'

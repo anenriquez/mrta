@@ -20,7 +20,7 @@ class TaskFactory(object):
         ropod_task_cls = getattr(import_module('ropod.structs.task'), 'Task')
         self.register_task_cls('ropod_task', ropod_task_cls)
 
-        generic_task_cls = getattr(import_module('dataset_lib.task'), 'Task')
+        generic_task_cls = getattr(import_module('mrs.task'), 'Task')
         self.register_task_cls('generic_task', generic_task_cls)
 
         task_request_cls = getattr(import_module('ropod.structs.task'), 'TaskRequest')
