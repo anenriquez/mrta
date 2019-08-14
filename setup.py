@@ -7,8 +7,10 @@ setup(name='mrs',
       install_requires=[
             'numpy'
       ],
-      description='Multi-Robot System (MRS) components for allocating '
-                  'and executing tasks with temporal constraints and uncertain durations',
+      description='Multi-Robot System (MRS) components for performing'
+                  'Multi-Robot Task Allocation (MRTA) and executing'
+                  'tasks with temporal constraints and uncertain '
+                  'durations',
       author='Angela Enriquez Gomez',
       author_email='angela.enriquez@smail.inf.h-brs.de',
       package_dir={'': '.'}
