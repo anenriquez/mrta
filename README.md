@@ -71,7 +71,7 @@ pip3 install -r requirements.txt
 Add the task_allocation to your `PYTHONPATH` by running:
 
 ```
-sudo pip3 install -e .
+pip3 install --user -e .
 ```
 
 Go to `/allocation` and run in a terminal
