@@ -9,6 +9,7 @@ setup(name='mrs',
       install_requires=[
             'numpy'
       ],
+      dependency_links=['git+https://github.com/anenriquez/mrta_stn.git#egg=stn'],
       description='Multi-Robot System (MRS) components for performing'
                   'Multi-Robot Task Allocation (MRTA) and executing'
                   'tasks with temporal constraints and uncertain '
