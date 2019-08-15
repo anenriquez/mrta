@@ -8,7 +8,7 @@ from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
-from dataset_lib.task import TaskStatus
+from mrs.task import TaskStatus
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
