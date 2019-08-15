@@ -105,7 +105,10 @@ class Bidder(object):
         best_bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
 
         tasks = self.timetable.get_tasks()
-        n_tasks = len(tasks)
+        if tasks:
+            n_tasks = len(tasks)
+        else:
+            n_tasks = 0
 
         # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
         for position in range(1, n_tasks+2):
