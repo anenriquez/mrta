@@ -8,6 +8,7 @@ from mrs.task_allocation.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
 from mrs.timetable import Timetable
 from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.db_interface import DBInterface
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -19,7 +20,7 @@ class Bidder(object):
     def __init__(self, robot_id, ccu_store, api, task_cls, bidding_rule, allocation_method, auctioneer, **kwargs):
 
         self.id = robot_id
-        self.ccu_store = ccu_store
+        self.db_interface = DBInterface(ccu_store)
 
         self.api = api
 
@@ -35,7 +36,7 @@ class Bidder(object):
         self.logger.debug("Starting robot %s", self.id)
 
         self.stp = STP(robustness)
-        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
 
         self.bid_placed = Bid()
 
@@ -50,7 +51,7 @@ class Bidder(object):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         round_id = msg['payload']['round_id']
         received_tasks = msg['payload']['tasks']
-        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
         self.compute_bids(received_tasks, round_id)
 
     def allocation_cb(self, msg):

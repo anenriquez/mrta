@@ -25,14 +25,6 @@ class Timetable(object):
         self.dispatchable_graph = stp.get_stn()
         self.schedule = stp.get_stn()
 
-    @staticmethod
-    def get_timetable(ccu_store, id, stp):
-        timetable_dict = ccu_store.get_timetable(id)
-        if timetable_dict is None:
-            return
-        timetable = Timetable.from_dict(timetable_dict, stp)
-        return timetable
-
     def solve_stp(self):
         """ Computes the dispatchable graph and robustness metric from the
          given stn

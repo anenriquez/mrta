@@ -9,6 +9,7 @@ from stn.stp import STP
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.task import TaskStatus
+from mrs.db_interface import DBInterface
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -23,7 +24,7 @@ class Auctioneer(object):
         logging.debug("Starting Auctioneer")
 
         self.robot_ids = robot_ids
-        self.ccu_store = ccu_store
+        self.db_interface = DBInterface(ccu_store)
         self.api = api
         self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
@@ -37,7 +38,7 @@ class Auctioneer(object):
         for robot_id in robot_ids:
             timetable = Timetable(self.stp, robot_id)
             self.timetables[robot_id] = timetable
-            self.ccu_store.add_timetable(timetable)
+            self.db_interface.add_timetable(timetable)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
@@ -81,19 +82,13 @@ class Auctioneer(object):
         logging.debug("Allocation: %s", allocation)
         logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
-        self.update_task_status(task, TaskStatus.ALLOCATED)
+        self.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
         self.update_timetable(robot_id, task, position)
 
         return allocation
 
-    def update_task_status(self, task, status):
-        task.status.status = status
-        logging.debug("Updating task status to %s", task.status.status)
-        self.ccu_store.update_task(task)
-        logging.debug('Tasks saved')
-
     def update_timetable(self, robot_id, task, position):
-        timetable = Timetable.get_timetable(self.ccu_store, robot_id, self.stp)
+        timetable = self.db_interface.get_timetable(robot_id, self.stp)
         timetable.add_task_to_stn(task, position)
         timetable.solve_stp()
 
@@ -103,7 +98,7 @@ class Auctioneer(object):
             pass
 
         self.timetables.update({robot_id: timetable})
-        self.ccu_store.update_timetable(timetable)
+        self.db_interface.update_timetable(timetable)
 
         logging.debug("STN robot %s: %s", robot_id, timetable.stn)
         logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
@@ -120,7 +115,7 @@ class Auctioneer(object):
 
     def add_task(self, task):
         self.tasks_to_allocate[task.id] = task
-        self.ccu_store.add_task(task)
+        self.db_interface.add_task(task)
 
     def allocate(self, tasks):
         if isinstance(tasks, list):

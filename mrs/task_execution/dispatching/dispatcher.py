@@ -4,18 +4,18 @@ import time
 
 from ropod.utils.timestamp import TimeStamp as ts
 from mrs.task_execution.dispatching.scheduler import Scheduler
-from mrs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
 from mrs.task import TaskStatus
+from mrs.db_interface import DBInterface
 
 
 class Dispatcher(object):
 
     def __init__(self, robot_id, ccu_store, task_cls, stp_solver, corrective_measure, freeze_window, api, auctioneer):
         self.id = robot_id
-        self.ccu_store = ccu_store
+        self.db_interface = DBInterface(ccu_store)
         self.task_cls = task_cls
         self.stp = STP(stp_solver)
         self.stp_solver = stp_solver
@@ -26,10 +26,10 @@ class Dispatcher(object):
 
         self.scheduler = Scheduler(ccu_store, self.stp)
 
-        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
 
     def run(self):
-        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
         if self.timetable is not None:
             task = self.get_earliest_task()
             if task is not None:
@@ -64,7 +64,7 @@ class Dispatcher(object):
     def get_earliest_task(self):
         task_id = self.timetable.get_earliest_task_id()
         if task_id:
-            task_dict = self.ccu_store.get_task(task_id)
+            task_dict = self.db_interface.get_task(task_id)
             task = self.task_cls.from_dict(task_dict)
             return task
 
@@ -84,7 +84,7 @@ class Dispatcher(object):
                 if self.corrective_measure == 're-allocate':
                     self.request_reallocation(task)
 
-        self.timetable = Timetable.get_timetable(self.ccu_store, self.id, self.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
 
     def recompute_timetable(self, task):
         try:
@@ -95,13 +95,8 @@ class Dispatcher(object):
 
         except NoSTPSolution:
             logging.exception("The stp solver could not solve the problem")
-            self.update_task_status(task, TaskStatus.FAILED)
+            self.db_interface.update_task_status(task, TaskStatus.FAILED)
             self.timetable.remove_task()
-
-    def update_task_status(self, task, status):
-        task.status.status = status
-        logging.debug("Updating task status to %s", task.status.status)
-        self.ccu_store.update_task(task)
 
     def time_to_dispatch(self):
         current_time = ts.get_time_stamp()
@@ -126,13 +121,13 @@ class Dispatcher(object):
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task.to_dict()
 
-        self.update_task_status(task, TaskStatus.SHIPPED)
+        self.db_interface.update_task_status(task, TaskStatus.SHIPPED)
         self.timetable.remove_task()
 
         self.api.publish(task_msg, groups=['ROPOD'])
 
     def request_reallocation(self, task):
-        self.update_task_status(task, TaskStatus.ABORTED)  # ABORTED
+        self.update_task_status(task, TaskStatus.UNALLOCATED)  # ABORTED
         task_msg = dict()
         task_msg['header'] = dict()
         task_msg['payload'] = dict()

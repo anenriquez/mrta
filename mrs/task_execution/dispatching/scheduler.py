@@ -1,12 +1,13 @@
 import logging
 from mrs.exceptions.task_execution import InconsistentSchedule
 from mrs.task import TaskStatus
+from mrs.db_interface import DBInterface
 
 
 class Scheduler(object):
 
     def __init__(self, ccu_store, stp):
-        self.ccu_store = ccu_store
+        self.db_interface = DBInterface(ccu_store)
         self.stp = stp
         self.navigation_start_time = -float('inf')  # of scheduled task
 
@@ -32,8 +33,8 @@ class Scheduler(object):
 
             print("Schedule: ", timetable.schedule)
 
-            self.ccu_store.update_timetable(timetable)
-            self.update_task_status(task, TaskStatus.SCHEDULED)
+            self.db_interface.update_timetable(timetable)
+            self.db_interface.update_task_status(task, TaskStatus.SCHEDULED)
             self.navigation_start_time = navigation_start
 
         else:
@@ -42,11 +43,6 @@ class Scheduler(object):
     def reallocate(self):
         pass
 
-    def update_task_status(self, task, status):
-        task.status.status = status
-        logging.debug("Updating task status to %s", task.status.status)
-        self.ccu_store.update_task(task)
-
     def reset_schedule(self, timetable):
         timetable.remove_task()
-        self.ccu_store.update_timetable(timetable)
+        self.db_interface.update_timetable(timetable)
