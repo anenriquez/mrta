@@ -21,6 +21,8 @@ plugins:
     task_type: generic_task
     corrective_measure: re-allocate
     freeze_window: 300 # seconds
+  task_monitor:
+    task_type: ropod_task
 
 robot_proxy:
   api:
@@ -70,6 +72,7 @@ api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK
+        - TASK-PROGRESS
         - BID
         - FINISH-ROUND
     acknowledge: false
@@ -82,11 +85,13 @@ api:
         method: shout
     callbacks:
       - msg_type: 'TASK'
-        component: '.task_cb'
+        component: 'auctioneer.task_cb'
       - msg_type: 'BID'
-        component: '.bid_cb'
+        component: 'auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
-        component: '.finish_round_cb'
+        component: 'auctioneer.finish_round_cb'
+      - msg_type: 'TASK-PROGRESS'
+        component: 'task_monitor.task_progress_cb'
 
 logger:
   version: 1
