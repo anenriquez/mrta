@@ -16,14 +16,9 @@ class Robot(object):
         self.bidder = bidder
         self.dispatcher = kwargs.get('dispatcher')
 
-    def start_components(self):
-        self.bidder.api.start()
-        if self.dispatcher is not None:
-            self.dispatcher.api.start()
-
     def run(self):
         try:
-            self.start_components()
+            self.api.start()
             while True:
                 self.bidder.api.run()
                 if self.dispatcher is not None:
@@ -31,8 +26,8 @@ class Robot(object):
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):
-            logging.info("Terminating %s proxy ...", robot_id)
-            self.bidder.api.shutdown()
+            logging.info("Terminating %s robot ...")
+            self.api.shutdown()
             logging.info("Exiting...")
 
 
