@@ -1,6 +1,6 @@
 import logging
 
-from mrs.timetable import Timetable
+from mrs.structs.timetable import Timetable
 
 
 class DBInterface(object):

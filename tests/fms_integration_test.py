@@ -3,7 +3,7 @@ import logging
 
 from fleet_management.config.loader import Config
 from mrs.utils.datasets import load_yaml_dataset
-from mrs.timetable import Timetable
+from mrs.structs.timetable import Timetable
 
 
 class TaskAllocator(object):

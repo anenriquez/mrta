@@ -4,12 +4,13 @@ import logging
 import logging.config
 from datetime import timedelta
 from mrs.task_allocation.round import Round
-from mrs.timetable import Timetable
+from mrs.structs.timetable import Timetable
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
-from mrs.task import TaskStatus
+from mrs.structs.task import TaskStatus
 from mrs.db_interface import DBInterface
+from mrs.structs.allocation import TaskAnnouncement, Allocation
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -138,25 +139,16 @@ class Auctioneer(object):
         logging.info("Starting round: %s", self.round.id)
         logging.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
-        # Create task announcement message that contains all unallocated tasks
-        task_announcement = dict()
-        task_announcement['header'] = dict()
-        task_announcement['payload'] = dict()
-        task_announcement['header']['type'] = 'TASK-ANNOUNCEMENT'
-        task_announcement['header']['metamodel'] = 'ropod-msg-schema.json'
-        task_announcement['header']['msgId'] = str(uuid.uuid4())
-        task_announcement['header']['timestamp'] = int(round(time.time()) * 1000)
-        task_announcement['payload']['metamodel'] = 'ropod-task-announcement-schema.json'
-        task_announcement['payload']['round_id'] = self.round.id
-        task_announcement['payload']['tasks'] = dict()
+        tasks = list(self.tasks_to_allocate.values())
+        task_annoucement = TaskAnnouncement(tasks, self.round.id)
+        msg = self.api.create_message(task_annoucement)
 
-        for task_id, task in self.tasks_to_allocate.items():
-            task_announcement['payload']['tasks'][task.id] = task.to_dict()
+        logging.debug('task annoucement msg: %s', msg)
 
         logging.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.round.start()
-        self.api.publish(task_announcement, groups=['TASK-ALLOCATION'])
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def task_cb(self, msg):
         task_dict = msg['payload']['task']
@@ -164,28 +156,16 @@ class Auctioneer(object):
         self.add_task(task)
 
     def bid_cb(self, msg):
-        bid = msg['payload']['bid']
+        bid = msg['payload']
         self.round.process_bid(bid)
 
     def finish_round_cb(self, msg):
         self.round.finish()
 
     def announce_winner(self, task_id, robot_id):
-
-        allocation = dict()
-        allocation['header'] = dict()
-        allocation['payload'] = dict()
-        allocation['header']['type'] = 'ALLOCATION'
-        allocation['header']['metamodel'] = 'ropod-msg-schema.json'
-        allocation['header']['msgId'] = str(uuid.uuid4())
-        allocation['header']['timestamp'] = int(round(time.time()) * 1000)
-
-        allocation['payload']['metamodel'] = 'ropod-mrs-schema.json'
-        allocation['payload']['task_id'] = task_id
-        allocation['payload']['winner_id'] = robot_id
-
-        logging.debug("Accouncing winner...")
-        self.api.publish(allocation, groups=['TASK-ALLOCATION'])
+        allocation = Allocation(task_id, robot_id)
+        msg = self.api.create_message(allocation)
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

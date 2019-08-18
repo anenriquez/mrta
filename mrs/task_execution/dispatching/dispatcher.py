@@ -7,7 +7,7 @@ from mrs.task_execution.dispatching.scheduler import Scheduler
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.task import TaskStatus
+from mrs.structs.task import TaskStatus
 from mrs.db_interface import DBInterface
 
 
@@ -127,7 +127,7 @@ class Dispatcher(object):
         self.api.publish(task_msg, groups=['ROPOD'])
 
     def request_reallocation(self, task):
-        self.update_task_status(task, TaskStatus.UNALLOCATED)  # ABORTED
+        self.db_interface.update_task_status(task, TaskStatus.UNALLOCATED)  # ABORTED
         task_msg = dict()
         task_msg['header'] = dict()
         task_msg['payload'] = dict()

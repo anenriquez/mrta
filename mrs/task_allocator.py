@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fleet_management.config.loader import Config, register_api_callbacks
+from fleet_management.config.loader import Config
 
 
 class TaskAllocator(object):
@@ -16,7 +16,7 @@ class TaskAllocator(object):
         self.auctioneer = self.config.configure_task_allocator(self.ccu_store)
         self.task_monitor = self.config.configure_task_monitor(self.ccu_store)
 
-        register_api_callbacks(self, self.api)
+        self.api.register_callbacks(self)
 
     def run(self):
         try:
@@ -24,7 +24,6 @@ class TaskAllocator(object):
             while True:
                 self.api.run()
                 self.auctioneer.run()
-                self.task_monitor.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s auctioneer ...")

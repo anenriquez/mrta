@@ -50,7 +50,7 @@ class TaskRequester(RopodPyre):
         if msg['header']['type'] == 'ALLOCATION':
             self.logger.debug("Received allocation message")
             task_id = msg['payload']['task_id']
-            winner_id = msg['payload']['winner_id']
+            winner_id = msg['payload']['robot_id']
             allocation = (task_id, [winner_id])
             self.allocations.append(allocation)
             logging.debug("Receiving allocation %s", allocation)
