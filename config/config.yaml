@@ -42,16 +42,16 @@ robot_proxy:
       acknowledge: false
       publish:
         task:
-          groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
           msg_type: 'TASK'
+          groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
           method: shout
         bid:
-          groups: ['TASK-ALLOCATION']
           msg_type: 'BID'
+          groups: ['TASK-ALLOCATION']
           method: whisper
         finish-round:
-          groups: ['TASK-ALLOCATION']
           msg_type: 'FINISH-ROUND'
+          groups: ['TASK-ALLOCATION']
           method: shout
       callbacks:
         - msg_type: 'TASK-ANNOUNCEMENT'
@@ -78,9 +78,11 @@ api:
     acknowledge: false
     publish:
       task-announcement:
+        msg_type: 'TASK-ANNOUNCEMENT'
         groups: ['TASK-ALLOCATION']
         method: shout
       allocation:
+        msg_type: 'ALLOCATION'
         groups: ['TASK-ALLOCATION']
         method: shout
     callbacks:

@@ -1,6 +1,6 @@
 import logging
 from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.task import TaskStatus
+from mrs.structs.task import TaskStatus
 from mrs.db_interface import DBInterface
 
 

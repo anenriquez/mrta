@@ -10,16 +10,26 @@ services:
     tty: true
     stdin_open: true
 
+  task_allocator:
+    container_name: task-allocator
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "task_allocator.py"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+
   task_allocation_test:
     build: .
     container_name: task-mrs-test
     image: ropod-mrs
     working_dir: /mrta/tests/
-    command: ["python3", "fms_integration_test.py"]
+    command: ["python3", "allocation_test.py"]
     network_mode: "host"
     tty: true
     stdin_open: true
     depends_on:
       - robot
+      - task_allocator
 
 

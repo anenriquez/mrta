@@ -7,8 +7,9 @@ from mrs.task_execution.dispatching.scheduler import Scheduler
 from stn.stp import STP
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.task import TaskStatus
+from mrs.structs.task import TaskStatus
 from mrs.db_interface import DBInterface
+from mrs.structs.timetable import Timetable
 
 
 class Dispatcher(object):
@@ -26,7 +27,10 @@ class Dispatcher(object):
 
         self.scheduler = Scheduler(ccu_store, self.stp)
 
-        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        timetable = self.db_interface.get_timetable(self.id, self.stp)
+        if timetable is None:
+            timetable = Timetable(self.stp, robot_id)
+        self.timetable = timetable
 
     def run(self):
         self.timetable = self.db_interface.get_timetable(self.id, self.stp)
@@ -127,7 +131,7 @@ class Dispatcher(object):
         self.api.publish(task_msg, groups=['ROPOD'])
 
     def request_reallocation(self, task):
-        self.update_task_status(task, TaskStatus.UNALLOCATED)  # ABORTED
+        self.db_interface.update_task_status(task, TaskStatus.UNALLOCATED)  # ABORTED
         task_msg = dict()
         task_msg['header'] = dict()
         task_msg['payload'] = dict()

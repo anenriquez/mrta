@@ -76,13 +76,14 @@ class TaskStatus(object):
 
     def __init__(self, task_id=''):
         self.task_id = task_id
-        self.delayed = False
         self.status = self.UNALLOCATED
+        self.delayed = False
 
     def to_dict(self):
         task_dict = dict()
         task_dict['task_id'] = self.task_id
         task_dict['status'] = self.status
+        task_dict['delayed'] = self.delayed
         return task_dict
 
     @staticmethod
@@ -91,6 +92,7 @@ class TaskStatus(object):
         status = TaskStatus(task_id)
         status.task_id = task_id
         status.status = status_dict['status']
+        status.status = status_dict['delayed']
         return status
 
     @staticmethod

@@ -1,7 +1,7 @@
 from mrs.utils.uuid import generate_uuid
 import logging
 from ropod.utils.timestamp import TimeStamp as ts
-from mrs.task_allocation.bid import BidMsg
+from mrs.structs.bid import Bid
 import copy
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
@@ -47,8 +47,8 @@ class Round(object):
         self.finished = False
         self.opened = True
 
-    def process_bid(self, bid_dict):
-        bid = BidMsg.from_dict(bid_dict)
+    def process_bid(self, bid_msg):
+        bid = Bid.from_dict(bid_msg)
 
         logging.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
 
@@ -144,7 +144,7 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = BidMsg()
+        lowest_bid = Bid()
 
         for task_id, bid in self.received_bids.items():
             if bid < lowest_bid:

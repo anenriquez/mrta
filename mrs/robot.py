@@ -33,7 +33,7 @@ class Robot(object):
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config, register_api_callbacks
+    from fleet_management.config.loader import Config
 
     config_file_path = '../config/config.yaml'
     config = Config(config_file_path, initialize=False)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     robot = config.configure_robot_proxy(robot_id, ccu_store, dispatcher=True)
 
-    register_api_callbacks(robot, robot.api)
+    robot.api.register_callbacks(robot)
 
     robot.run()
 
