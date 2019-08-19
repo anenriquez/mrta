@@ -9,6 +9,7 @@ from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
 from mrs.structs.task import TaskStatus
 from mrs.db_interface import DBInterface
+from mrs.structs.timetable import Timetable
 
 
 class Dispatcher(object):
@@ -26,7 +27,10 @@ class Dispatcher(object):
 
         self.scheduler = Scheduler(ccu_store, self.stp)
 
-        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        timetable = self.db_interface.get_timetable(self.id, self.stp)
+        if timetable is None:
+            timetable = Timetable(self.stp, robot_id)
+        self.timetable = timetable
 
     def run(self):
         self.timetable = self.db_interface.get_timetable(self.id, self.stp)

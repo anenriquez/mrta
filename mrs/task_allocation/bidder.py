@@ -9,6 +9,7 @@ from mrs.task_allocation.bidding_rule import BiddingRule
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.db_interface import DBInterface
 from mrs.structs.allocation import FinishRound
+from mrs.structs.timetable import Timetable
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -36,7 +37,10 @@ class Bidder(object):
         self.logger.debug("Starting robot %s", self.id)
 
         self.stp = STP(robustness)
-        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        timetable = self.db_interface.get_timetable(self.id, self.stp)
+        if timetable is None:
+            timetable = Timetable(self.stp, robot_id)
+        self.timetable = timetable
 
         self.bid_placed = Bid()
 
@@ -174,16 +178,6 @@ class Bidder(object):
         """
         self.logger.debug("Bid %s", bid.to_dict())
 
-        # bid_msg = dict()
-        # bid_msg['header'] = dict()
-        # bid_msg['payload'] = dict()
-        # bid_msg['header']['type'] = 'BID'
-        # bid_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        # bid_msg['header']['msgId'] = str(uuid.uuid4())
-        # bid_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        #
-        # bid_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        # bid_msg['payload']['bid'] = bid.to_dict()
         msg = self.api.create_message(bid)
 
         self.logger.debug("Bid msg %s", msg)
@@ -197,6 +191,7 @@ class Bidder(object):
 
         # Update the timetable
         self.timetable = copy.deepcopy(self.bid_placed.timetable)
+        self.db_interface.update_timetable(self.timetable)
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
         self.logger.debug("STN %s", self.timetable.stn)
@@ -207,15 +202,6 @@ class Bidder(object):
         self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
 
     def send_finish_round(self):
-        # close_msg = dict()
-        # close_msg['header'] = dict()
-        # close_msg['payload'] = dict()
-        # close_msg['header']['type'] = 'FINISH-ROUND'
-        # close_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        # close_msg['header']['msgId'] = str(uuid.uuid4())
-        # close_msg['header']['timestamp'] = int(round(time.time()) * 1000)
-        # close_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        # close_msg['payload']['robot_id'] = self.id
         finish_round = FinishRound(self.id)
         msg = self.api.create_message(finish_round)
 

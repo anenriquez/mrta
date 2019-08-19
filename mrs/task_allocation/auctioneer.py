@@ -37,9 +37,12 @@ class Auctioneer(object):
         # TODO: Inititalize the timetables in the loader? and read the timetables here
         self.timetables = dict()
         for robot_id in robot_ids:
-            timetable = Timetable(self.stp, robot_id)
+            timetable = self.db_interface.get_timetable(robot_id, self.stp)
+            if timetable is None:
+                timetable = Timetable(self.stp, robot_id)
+                self.db_interface.add_timetable(timetable)
+
             self.timetables[robot_id] = timetable
-            self.db_interface.add_timetable(timetable)
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
