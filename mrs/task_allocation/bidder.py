@@ -6,18 +6,18 @@ from mrs.structs.allocation import FinishRound
 from mrs.structs.bid import Bid
 from mrs.structs.task import TaskStatus
 from mrs.task_allocation.bidding_rule import BiddingRule
+from mrs.robot_base import RobotBase
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
 """
 
 
-class Bidder(object):
+class Bidder(RobotBase):
 
-    def __init__(self, robot_common, bidder_config):
-
-        self.common = robot_common
-        self.logger = logging.getLogger('mrs.bidder.%s' % self.common.id)
+    def __init__(self, robot_config, bidder_config):
+        super().__init__(**robot_config)
+        self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
 
         robustness = bidder_config.get('bidding_rule').get('robustness')
         temporal = bidder_config.get('bidding_rule').get('temporal')
@@ -25,21 +25,21 @@ class Bidder(object):
         self.auctioneer_name = bidder_config.get("auctioneer_name")
         self.bid_placed = Bid()
 
-        self.logger.debug("Bidder initialized %s", self.common.id)
+        self.logger.debug("Bidder initialized %s", self.id)
 
     def task_announcement_cb(self, msg):
-        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.common.id)
+        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         round_id = msg['payload']['round_id']
         received_tasks = msg['payload']['tasks']
-        self.common.timetable = self.common.db_interface.get_timetable(self.common.id, self.common.stp)
+        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
         self.compute_bids(received_tasks, round_id)
 
     def allocation_cb(self, msg):
-        self.logger.debug("Robot %s received ALLOCATION", self.common.id)
+        self.logger.debug("Robot %s received ALLOCATION", self.id)
         task_id = msg['payload']['task_id']
         winner_id = msg['payload']['robot_id']
 
-        if winner_id == self.common.id:
+        if winner_id == self.id:
             self.allocate_to_robot(task_id)
             self.send_finish_round()
 
@@ -48,8 +48,8 @@ class Bidder(object):
         no_bids = list()
 
         for task_id, task_info in received_tasks.items():
-            task = self.common.task_cls.from_dict(task_info)
-            self.common.db_interface.update_task(task)
+            task = self.task_cls.from_dict(task_info)
+            self.db_interface.update_task(task)
             self.logger.debug("Computing bid of task %s", task.id)
 
             # Insert task in each possible position of the stn and
@@ -75,7 +75,7 @@ class Bidder(object):
         :param no_bids: list of no bids
         """
         if bid:
-            self.logger.debug("Robot %s placed bid %s", self.common.id, self.bid_placed)
+            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
             self.send_bid(bid)
 
         if no_bids:
@@ -84,9 +84,9 @@ class Bidder(object):
                 self.send_bid(no_bid)
 
     def insert_task(self, task, round_id):
-        best_bid = Bid(self.bidding_rule, self.common.id, round_id, task, self.common.timetable)
+        best_bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
 
-        tasks = self.common.timetable.get_tasks()
+        tasks = self.timetable.get_tasks()
         if tasks:
             n_tasks = len(tasks)
         else:
@@ -96,22 +96,22 @@ class Bidder(object):
         for position in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
-            self.logger.debug("Schedule: %s", self.common.timetable.schedule)
-            if position == 1 and self.common.timetable.is_scheduled():
+            self.logger.debug("Schedule: %s", self.timetable.schedule)
+            if position == 1 and self.timetable.is_scheduled():
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
             self.logger.debug("Adding task %s in position %s", task.id, position)
-            self.common.timetable.add_task_to_stn(task, position)
+            self.timetable.add_task_to_stn(task, position)
 
             try:
-                self.common.timetable.solve_stp()
+                self.timetable.solve_stp()
 
-                self.logger.debug("STN %s: ", self.common.timetable.stn)
-                self.logger.debug("Dispatchable graph %s: ", self.common.timetable.dispatchable_graph)
-                self.logger.debug("Robustness Metric %s: ", self.common.timetable.robustness_metric)
+                self.logger.debug("STN %s: ", self.timetable.stn)
+                self.logger.debug("Dispatchable graph %s: ", self.timetable.dispatchable_graph)
+                self.logger.debug("Robustness Metric %s: ", self.timetable.robustness_metric)
 
-                bid = Bid(self.bidding_rule, self.common.id, round_id, task, self.common.timetable)
+                bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
                 bid.compute_cost(position)
                 self.logger.debug("Cost: %s", bid.cost)
 
@@ -123,7 +123,7 @@ class Bidder(object):
                                       " task %s in position %s", task.id, position)
 
             # Restore schedule for the next iteration
-            self.common.timetable.remove_task_from_stn(position)
+            self.timetable.remove_task_from_stn(position)
 
         self.logger.debug("Best bid for task %s: %s", task.id, best_bid)
 
@@ -154,32 +154,32 @@ class Bidder(object):
         :param round_id:
         :return:
         """
-        msg = self.common.api.create_message(bid)
+        msg = self.api.create_message(bid)
         tasks = [task for task in bid.timetable.get_tasks()]
 
-        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.common.id, bid.cost, bid.task.id, tasks)
-        self.common.api.publish(msg, peer=self.auctioneer_name)
+        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task.id, tasks)
+        self.api.publish(msg, peer=self.auctioneer_name)
 
     def allocate_to_robot(self, task_id):
 
-        self.common.timetable = copy.deepcopy(self.bid_placed.timetable)
-        self.common.db_interface.update_timetable(self.common.timetable)
-        task_dict = self.common.db_interface.get_task(task_id)
-        task = self.common.task_cls.from_dict(task_dict)
-        self.common.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
+        self.timetable = copy.deepcopy(self.bid_placed.timetable)
+        self.db_interface.update_timetable(self.timetable)
+        task_dict = self.db_interface.get_task(task_id)
+        task = self.task_cls.from_dict(task_dict)
+        self.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
 
-        self.logger.info("Robot %s allocated task %s", self.common.id, task_id)
-        self.logger.debug("STN %s", self.common.timetable.stn)
-        self.logger.debug("Dispatchable graph %s", self.common.timetable.dispatchable_graph)
+        self.logger.info("Robot %s allocated task %s", self.id, task_id)
+        self.logger.debug("STN %s", self.timetable.stn)
+        self.logger.debug("Dispatchable graph %s", self.timetable.dispatchable_graph)
 
-        tasks = [task for task in self.common.timetable.get_tasks()]
+        tasks = [task for task in self.timetable.get_tasks()]
 
-        self.logger.debug("Tasks allocated to robot %s:%s", self.common.id, tasks)
+        self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
 
     def send_finish_round(self):
-        finish_round = FinishRound(self.common.id)
-        msg = self.common.api.create_message(finish_round)
+        finish_round = FinishRound(self.id)
+        msg = self.api.create_message(finish_round)
 
-        self.logger.info("Robot %s sends close round msg ", self.common.id)
-        self.common.api.publish(msg, groups=['TASK-ALLOCATION'])
+        self.logger.info("Robot %s sends close round msg ", self.id)
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
