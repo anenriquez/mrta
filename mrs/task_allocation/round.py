@@ -1,15 +1,19 @@
-from mrs.utils.uuid import generate_uuid
-import logging
-from ropod.utils.timestamp import TimeStamp as ts
-from mrs.task_allocation.bid import BidMsg
 import copy
-from mrs.exceptions.task_allocation import NoAllocation
+import logging
+
+from ropod.utils.timestamp import TimeStamp as ts
+from ropod.utils.uuid import generate_uuid
+
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
+from mrs.structs.bid import Bid
 
 
 class Round(object):
 
     def __init__(self, **kwargs):
+
+        self.logger = logging.getLogger('mrs.auctioneer.round')
 
         self.tasks_to_allocate = kwargs.get('tasks_to_allocate', dict())
         self.round_time = kwargs.get('round_time', 0)
@@ -41,16 +45,16 @@ class Round(object):
         """
         open_time = ts.get_time_stamp()
         self.closure_time = ts.get_time_stamp(self.round_time)
-        logging.debug("Round opened at %s and will close at %s",
+        self.logger.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
 
         self.finished = False
         self.opened = True
 
-    def process_bid(self, bid_dict):
-        bid = BidMsg.from_dict(bid_dict)
+    def process_bid(self, bid_msg):
+        bid = Bid.from_dict(bid_msg)
 
-        logging.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
+        self.logger.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
 
         if bid.cost != float('inf'):
             # Process a bid
@@ -83,7 +87,7 @@ class Round(object):
         if current_time < self.closure_time:
             return False
 
-        logging.debug("Closing round at %s", current_time)
+        self.logger.debug("Closing round at %s", current_time)
         self.opened = False
         return True
 
@@ -117,12 +121,12 @@ class Round(object):
             return round_result
 
         except NoAllocation:
-            logging.exception("No mrs made in round %s ", self.id)
+            self.logger.exception("No mrs made in round %s ", self.id)
             raise NoAllocation(self.id)
 
     def finish(self):
         self.finished = True
-        logging.debug("Round finished")
+        self.logger.debug("Round finished")
 
     def set_soft_constraints(self):
         """ If the number of no-bids for a task is equal to the number of robots,
@@ -134,7 +138,7 @@ class Round(object):
                 task = self.tasks_to_allocate.get(task_id)
                 task.hard_constraints = False
                 self.tasks_to_allocate.update({task_id: task})
-                logging.debug("Setting soft constraints for task %s", task_id)
+                self.logger.debug("Setting soft constraints for task %s", task_id)
 
     def elect_winner(self):
         """ Elects the winner of the round
@@ -144,7 +148,7 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = BidMsg()
+        lowest_bid = Bid()
 
         for task_id, bid in self.received_bids.items():
             if bid < lowest_bid:
