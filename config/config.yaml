@@ -2,6 +2,9 @@ version: 2
 ccu_store:
   db_name: ropod_ccu_store
   port: 27017
+robot_store:
+  db_name: ropod_store
+  port: 27017
 resources:
   fleet:
     - ropod_001
@@ -10,21 +13,27 @@ resources:
 
 plugins:
   task_allocation:
-    bidding_rule:
-      robustness: srea
-      temporal: completion_time
+    # Assuming we can have different types of tasks,
+    # specify from where to import the Task and TaskStatus classes
+    task_type:
+      class: 'mrs.structs.task'
     allocation_method: tessi
-    round_time: 15 # seconds
     robot_proxies: true
-    auctioneer: fms_zyre_api # This is completely Zyre dependent
+    stp_solver: srea
+  auctioneer:
+    round_time: 15 # seconds
     alternative_timeslots: True
-    task_type: generic_task
-    corrective_measure: re-allocate
+  dispatcher:
     freeze_window: 300 # seconds
-  task_monitor:
-    task_type: ropod_task
 
 robot_proxy:
+  bidder:
+    bidding_rule:
+      robustness: srea  # has to be the same as the stp_solver
+      temporal: completion_time
+    auctioneer_name: fms_zyre_api # This is completely Zyre dependent
+  schedule_monitor:
+    corrective_measure: re-allocate
   api:
     version: 0.1.0
     middleware:
@@ -39,43 +48,54 @@ robot_proxy:
         message_types: # Types of messages the node will listen to. Messages not listed will be ignored
           - TASK-ANNOUNCEMENT
           - ALLOCATION
+          - TIMETABLE
+          - DELETE-TASK
+        debug_msgs: false
       acknowledge: false
       publish:
         task:
-          msg_type: 'TASK'
           groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
+          msg_type: 'TASK'
           method: shout
         bid:
-          msg_type: 'BID'
           groups: ['TASK-ALLOCATION']
+          msg_type: 'BID'
           method: whisper
         finish-round:
-          msg_type: 'FINISH-ROUND'
           groups: ['TASK-ALLOCATION']
+          msg_type: 'FINISH-ROUND'
           method: shout
       callbacks:
         - msg_type: 'TASK-ANNOUNCEMENT'
           component: 'bidder.task_announcement_cb'
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
-
+        - msg_type: 'TIMETABLE'
+          component: '.timetable_cb'
+        - msg_type: 'DELETE-TASK'
+          component: '.delete_task_cb'
 
 api:
   version: 0.1.0
   middleware:
     - zyre
+    #- rest
+    #- ros
   zyre:
     zyre_node:
       node_name: fms_zyre_api
       interface: null
       groups:
+        - ROPOD
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-        - TASK
         - TASK-PROGRESS
         - BID
         - FINISH-ROUND
+        - ALLOCATE-TASK
     acknowledge: false
+    debug_messages:
+      - 'TASK-REQUEST'
     publish:
       task-announcement:
         msg_type: 'TASK-ANNOUNCEMENT'
@@ -86,20 +106,37 @@ api:
         groups: ['TASK-ALLOCATION']
         method: shout
     callbacks:
-      - msg_type: 'TASK'
-        component: 'auctioneer.task_cb'
+      - msg_type: 'ALLOCATE-TASK'
+        component: 'auctioneer.allocate_task_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
         component: 'auctioneer.finish_round_cb'
-      - msg_type: 'TASK-PROGRESS'
-        component: 'task_monitor.task_progress_cb'
+  rest:
+    server:
+      ip: 127.0.0.1
+      port: 8081
+    routes:
+      - path: '/number'
+        resource:
+          module: 'fleet_management.api.rest.resources'
+          class: 'RandomGenerator'
+  ros:
+    publishers:
+      - topic: '/fms/task'
+        msg_type: Task
+        msg_module: ropod_ros_msgs.msg
+    subscribers:
+      - topic: '/fms/task_request'
+        msg_type: TaskRequest
+        msg_module: ropod_ros_msgs.msg
+        callback: task_cb
 
 logger:
   version: 1
   formatters:
     default:
-      format: '[%(levelname)-5.5s]  %(asctime)s [%(name)-25.25s] %(message)s'
+      format: '[%(levelname)-5.5s]  %(asctime)s [%(name)-35.35s] %(message)s'
       datefmt: '%Y-%m-%d %H:%M:%S'
   handlers:
     console:
@@ -134,6 +171,8 @@ logger:
       level: WARNING
       handlers: [console]
     fms:
+      level: DEBUG
+    mrs:
       level: DEBUG
   root:
     level: DEBUG

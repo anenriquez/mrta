@@ -1,31 +1,38 @@
 import logging
-import uuid
 import time
+import uuid
 
 from ropod.utils.timestamp import TimeStamp as ts
-from mrs.task_execution.dispatching.scheduler import Scheduler
 from stn.stp import STP
+from importlib import import_module
+
+from mrs.db_interface import DBInterface
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
 from mrs.structs.task import TaskStatus
-from mrs.db_interface import DBInterface
 from mrs.structs.timetable import Timetable
+from mrs.task_execution.scheduler import Scheduler
 
 
 class Dispatcher(object):
 
-    def __init__(self, robot_id, ccu_store, task_cls, stp_solver, corrective_measure, freeze_window, api, auctioneer):
+    def __init__(self, robot_id, api, robot_store, task_type,
+                 stp_solver, corrective_measure, freeze_window):
+
         self.id = robot_id
-        self.db_interface = DBInterface(ccu_store)
-        self.task_cls = task_cls
+        self.api = api
+        self.db_interface = DBInterface(robot_store)
+
+        task_class_path = task_type.get('class', 'mrs.structs.task')
+        self.task_cls = getattr(import_module(task_class_path), 'Task')
+
         self.stp = STP(stp_solver)
         self.stp_solver = stp_solver
+
         self.corrective_measure = corrective_measure
         self.freeze_window = freeze_window
-        self.api = api
-        self.auctioneer = auctioneer
 
-        self.scheduler = Scheduler(ccu_store, self.stp)
+        self.scheduler = Scheduler(robot_store, self.stp)
 
         timetable = self.db_interface.get_timetable(self.id, self.stp)
         if timetable is None:

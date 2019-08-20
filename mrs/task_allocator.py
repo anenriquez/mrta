@@ -13,20 +13,18 @@ class TaskAllocator(object):
         self.ccu_store = self.config.ccu_store
         self.api = self.config.api
 
-        self.auctioneer = self.config.configure_task_allocator(self.ccu_store)
-        self.task_monitor = self.config.configure_task_monitor(self.ccu_store)
-
+        self.auctioneer = self.config.configure_auctioneer(self.ccu_store)
         self.api.register_callbacks(self)
 
     def run(self):
         try:
             self.api.start()
             while True:
-                self.api.run()
                 self.auctioneer.run()
+                self.api.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
-            self.logger.info("Terminating %s auctioneer ...")
+            self.logger.info("Terminating task allocator ...")
             self.api.shutdown()
             logging.info("Exiting...")
 
