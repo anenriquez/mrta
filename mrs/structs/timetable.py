@@ -123,6 +123,12 @@ class Timetable(object):
 
         return timetable
 
+    @staticmethod
+    def get_timetable(db_interface, robot_id, stp):
+        timetable = db_interface.get_timetable(robot_id, stp)
+        if timetable is None:
+            timetable = Timetable(stp, robot_id)
+        return timetable
 
 
 

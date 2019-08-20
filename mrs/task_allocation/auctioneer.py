@@ -1,16 +1,17 @@
-import uuid
-import time
 import logging
-import logging.config
+import time
 from datetime import timedelta
-from mrs.task_allocation.round import Round
-from mrs.structs.timetable import Timetable
+from importlib import import_module
+
 from stn.stp import STP
-from mrs.exceptions.task_allocation import NoAllocation
-from mrs.exceptions.task_allocation import AlternativeTimeSlot
-from mrs.structs.task import TaskStatus
+
 from mrs.db_interface import DBInterface
+from mrs.exceptions.task_allocation import AlternativeTimeSlot
+from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
+from mrs.structs.task import TaskStatus
+from mrs.structs.timetable import Timetable
+from mrs.task_allocation.round import Round
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -19,29 +20,29 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, robot_ids, ccu_store, api, stp_solver, task_cls, allocation_method, round_time=5,
-                 **kwargs):
+    def __init__(self, robot_ids, ccu_store, api, stp_solver,
+                 task_type, allocation_method, round_time=5, **kwargs):
 
-        logging.debug("Starting Auctioneer")
+        self.logger = logging.getLogger("mrs.auctioneer")
 
         self.robot_ids = robot_ids
         self.db_interface = DBInterface(ccu_store)
         self.api = api
+        self.stp = STP(stp_solver)
+
         self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        self.stp = STP(stp_solver)
-        self.task_cls = task_cls
+        task_class_path = task_type.get('class', 'mrs.structs.task')
+        self.task_cls = getattr(import_module(task_class_path), 'Task')
+        self.logger.debug("Auctioneer started")
 
         # TODO: Inititalize the timetables in the loader? and read the timetables here
         self.timetables = dict()
         for robot_id in robot_ids:
-            timetable = self.db_interface.get_timetable(robot_id, self.stp)
-            if timetable is None:
-                timetable = Timetable(self.stp, robot_id)
-                self.db_interface.add_timetable(timetable)
-
+            timetable = Timetable.get_timetable(self.db_interface, robot_id, self.stp)
+            self.db_interface.add_timetable(timetable)
             self.timetables[robot_id] = timetable
 
         self.tasks_to_allocate = dict()
@@ -54,6 +55,13 @@ class Auctioneer(object):
         to_print += '\n'
         to_print += "Groups {}".format(self.api.interfaces[0].groups())
         return to_print
+
+    def check_db(self):
+        tasks_dict = self.db_interface.get_tasks()
+        for task_id, task_dict in tasks_dict.items():
+            task = self.task_cls.from_dict(task_dict)
+            if task.status == TaskStatus.UNALLOCATED:
+                self.add_task(task)
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -68,7 +76,7 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                logging.exception("No mrs made in round %s ", exception.round_id)
+                self.logger.exception("No mrs made in round %s ", exception.round_id)
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
@@ -83,9 +91,10 @@ class Auctioneer(object):
         self.allocations.append(allocation)
         self.tasks_to_allocate = tasks_to_allocate
 
-        logging.debug("Allocation: %s", allocation)
-        logging.debug("Tasks to allocate %s", self.tasks_to_allocate)
+        self.logger.debug("Allocation: %s", allocation)
+        self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
+        self.logger.debug("Updating task status to ALLOCATED")
         self.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
         self.update_timetable(robot_id, task, position)
 
@@ -104,14 +113,14 @@ class Auctioneer(object):
         self.timetables.update({robot_id: timetable})
         self.db_interface.update_timetable(timetable)
 
-        logging.debug("STN robot %s: %s", robot_id, timetable.stn)
-        logging.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
         robot_id = exception.robot_id
         alternative_start_time = exception.alternative_start_time
-        logging.exception("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
+        self.logger.exception("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
                           alternative_start_time)
 
         alternative_allocation = (task_id, [robot_id], alternative_start_time)
@@ -119,16 +128,16 @@ class Auctioneer(object):
 
     def add_task(self, task):
         self.tasks_to_allocate[task.id] = task
-        self.db_interface.add_task(task)
+        self.db_interface.update_task(task)
 
     def allocate(self, tasks):
         if isinstance(tasks, list):
             for task in tasks:
                 self.add_task(task)
-            logging.debug('Auctioneer received a list of tasks')
+            self.logger.debug('Auctioneer received a list of tasks')
         else:
             self.add_task(tasks)
-            logging.debug('Auctioneer received one task')
+            self.logger.debug('Auctioneer received one task')
 
     def announce_task(self):
 
@@ -139,21 +148,27 @@ class Auctioneer(object):
 
         self.round = Round(**round_)
 
-        logging.info("Starting round: %s", self.round.id)
-        logging.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
+        self.logger.info("Starting round: %s", self.round.id)
+        self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
         tasks = list(self.tasks_to_allocate.values())
         task_annoucement = TaskAnnouncement(tasks, self.round.id)
         msg = self.api.create_message(task_annoucement)
 
-        logging.debug('task annoucement msg: %s', msg)
+        self.logger.debug('task annoucement msg: %s', msg)
 
-        logging.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
+        self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def task_cb(self, msg):
+    def send_timetable(self, robot_id):
+        timetable = Timetable.get_timetable(self.db_interface, robot_id, self.stp)
+        msg = self.api.create_message(timetable)
+        self.api.publish(msg)
+
+    def allocate_task_cb(self, msg):
+        self.logger.debug("Task received")
         task_dict = msg['payload']['task']
         task = self.task_cls.from_dict(task_dict)
         self.add_task(task)
@@ -179,7 +194,7 @@ class Auctioneer(object):
 
         start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task_id)
 
-        logging.debug("Start time of task %s: %s", task_id, start_time)
+        self.logger.debug("Start time of task %s: %s", task_id, start_time)
 
         task_schedule['start_time'] = start_time
         task_schedule['finish_time'] = -1  # This info is not available here.
@@ -189,23 +204,22 @@ class Auctioneer(object):
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config, register_api_callbacks
+    from fleet_management.config.loader import Config
     config_file_path = '../../config/config.yaml'
     config = Config(config_file_path, initialize=True)
-    auctioneer = config.configure_task_allocator(config.ccu_store)
+    auctioneer = config.configure_auctioneer(config.ccu_store)
 
     time.sleep(5)
 
-    register_api_callbacks(auctioneer, auctioneer.api)
-
-    auctioneer.api.start()
+    auctioneer.api.register_callbacks(auctioneer)
 
     try:
+        auctioneer.api.start()
         while True:
-            auctioneer.api.run()
             auctioneer.run()
+            auctioneer.api.run()
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
-        logging.info("Terminating %s auctioneer ...")
+        print("Terminating auctioneer ...")
         auctioneer.api.shutdown()
-        logging.info("Exiting...")
+        print("Exiting...")

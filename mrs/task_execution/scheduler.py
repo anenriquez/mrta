@@ -1,13 +1,14 @@
 import logging
+
+from mrs.db_interface import DBInterface
 from mrs.exceptions.task_execution import InconsistentSchedule
 from mrs.structs.task import TaskStatus
-from mrs.db_interface import DBInterface
 
 
 class Scheduler(object):
 
-    def __init__(self, ccu_store, stp):
-        self.db_interface = DBInterface(ccu_store)
+    def __init__(self, robot_store, stp):
+        self.db_interface = DBInterface(robot_store)
         self.stp = stp
         self.navigation_start_time = -float('inf')  # of scheduled task
 

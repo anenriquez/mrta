@@ -1,5 +1,3 @@
-import logging
-from mrs.utils.uuid import generate_uuid
 from mrs.structs.task import Task
 
 
@@ -39,13 +37,10 @@ class Bid(object):
 
         else:  # soft constraints
             navigation_start_time = dispatchable_graph.get_task_navigation_start_time(self.task.id)
-            logging.debug("Navigation start time: %s", navigation_start_time)
             self.cost = abs(navigation_start_time - self.task.earliest_start_time)
             alternative_start_time = navigation_start_time
             self.hard_constraints = False
             self.alternative_start_time = alternative_start_time
-
-        logging.debug("Cost: %s", self.cost)
 
     def to_dict(self):
         bid_dict = dict()
