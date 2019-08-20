@@ -1,4 +1,3 @@
-import logging
 from importlib import import_module
 
 from stn.stp import STP
@@ -20,6 +19,4 @@ class RobotBase(object):
         self.timetable = Timetable.get_timetable(self.db_interface, self.id, self.stp)
         self.db_interface.update_timetable(self.timetable)
 
-        self.logger = logging.getLogger('mrs.robot_base.%s' % self.id)
-        self.logger.info("Robot base %s initialized", self.id)
 
