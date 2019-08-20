@@ -25,14 +25,6 @@ class Timetable(object):
         self.dispatchable_graph = stp.get_stn()
         self.schedule = stp.get_stn()
 
-    @staticmethod
-    def get_timetable(ccu_store, id, stp):
-        timetable_dict = ccu_store.get_timetable(id)
-        if timetable_dict is None:
-            return
-        timetable = Timetable.from_dict(timetable_dict, stp)
-        return timetable
-
     def solve_stp(self):
         """ Computes the dispatchable graph and robustness metric from the
          given stn
@@ -131,6 +123,12 @@ class Timetable(object):
 
         return timetable
 
+    @staticmethod
+    def get_timetable(db_interface, robot_id, stp):
+        timetable = db_interface.get_timetable(robot_id, stp)
+        if timetable is None:
+            timetable = Timetable(stp, robot_id)
+        return timetable
 
 
 

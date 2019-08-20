@@ -49,6 +49,8 @@ docker-compose build task_allocation_test
 
 docker-compose up -d robot
 
+docker-compose up -d task_allocator
+
 docker-compose up task_allocation_test
 
 
@@ -60,8 +62,6 @@ Install the repositories
 
 - [ropod_common](https://github.com/ropod-project/ropod_common)
 
-- [mrta_datasets](https://github.com/anenriquez/mrta_datasets.git )
-
 
 Get the requirements:
 ```
@@ -71,18 +71,24 @@ pip3 install -r requirements.txt
 Add the task_allocation to your `PYTHONPATH` by running:
 
 ```
-sudo pip3 install -e .
+pip3 install --user -e .
 ```
 
-Go to `/allocation` and run in a terminal
+Go to `/mrs` and run in a terminal
 
 ```
 python3 robot.py ropod_001
 ```
 
+Run in another terminal
+
+```
+python3 task_allocator.py
+```
+
 Go to `/tests` and run test in another terminal
 ```
-python3 task_allocator.py three_tasks.csv
+python3 allocation_test.py 
 ```
 
 ## References

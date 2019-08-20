@@ -1,12 +1,14 @@
 import logging
+
+from mrs.db_interface import DBInterface
 from mrs.exceptions.task_execution import InconsistentSchedule
-from dataset_lib.task import TaskStatus
+from mrs.structs.task import TaskStatus
 
 
 class Scheduler(object):
 
-    def __init__(self, ccu_store, stp):
-        self.ccu_store = ccu_store
+    def __init__(self, robot_store, stp):
+        self.db_interface = DBInterface(robot_store)
         self.stp = stp
         self.navigation_start_time = -float('inf')  # of scheduled task
 
@@ -32,8 +34,8 @@ class Scheduler(object):
 
             print("Schedule: ", timetable.schedule)
 
-            self.ccu_store.update_timetable(timetable)
-            self.update_task_status(task, TaskStatus.SCHEDULED)
+            self.db_interface.update_timetable(timetable)
+            self.db_interface.update_task_status(task, TaskStatus.SCHEDULED)
             self.navigation_start_time = navigation_start
 
         else:
@@ -42,11 +44,6 @@ class Scheduler(object):
     def reallocate(self):
         pass
 
-    def update_task_status(self, task, status):
-        task.status.status = status
-        logging.debug("Updating task status to %s", task.status.status)
-        self.ccu_store.update_task(task)
-
     def reset_schedule(self, timetable):
         timetable.remove_task()
-        self.ccu_store.update_timetable(timetable)
+        self.db_interface.update_timetable(timetable)
