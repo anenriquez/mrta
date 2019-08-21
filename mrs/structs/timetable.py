@@ -105,9 +105,9 @@ class Timetable(object):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
-        timetable_dict['stn'] = self.stn.to_json()
-        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_json()
-        timetable_dict['schedule'] = self.schedule.to_json()
+        timetable_dict['stn'] = self.stn.to_dict()
+        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
+        timetable_dict['schedule'] = self.schedule.to_dict()
 
         return timetable_dict
 
@@ -117,9 +117,9 @@ class Timetable(object):
         timetable = Timetable(stp, robot_id)
         stn_cls = stp.get_stn()
 
-        timetable.stn = stn_cls.from_json(timetable_dict['stn'])
-        timetable.dispatchable_graph = stn_cls.from_json(timetable_dict['dispatchable_graph'])
-        timetable.schedule = stn_cls.from_json(timetable_dict['schedule'])
+        timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
+        timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
+        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
 
         return timetable
 
