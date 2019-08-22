@@ -149,13 +149,13 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = Bid()
+        lowest_bid = None
 
         for task_id, bid in self.received_bids.items():
-            if bid < lowest_bid:
+            if lowest_bid is None or bid < lowest_bid:
                 lowest_bid = copy.deepcopy(bid)
 
-        if lowest_bid.cost == (np.inf, np.inf):
+        if lowest_bid is None:
             raise NoAllocation(self.id)
 
         return lowest_bid

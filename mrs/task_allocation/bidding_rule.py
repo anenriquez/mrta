@@ -18,15 +18,18 @@ class BiddingRule(object):
                           position=position,
                           risk_metric=timetable.risk_metric,
                           temporal_metric=timetable.temporal_metric)
+
             else:
                 navigation_start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task.id)
+                timetable.risk_metric = 1
+                timetable.temporal_metric = abs(navigation_start_time - task.earliest_start_time),
 
                 bid = Bid(robot_id, round_id, task.id, timetable,
                           position=position,
-                          risk_metric=1,
-                          temporal_metric=abs(navigation_start_time - task.earliest_start_time),
+                          risk_metric=timetable.risk_metric,
+                          temporal_metric=timetable.temporal_metric,
                           hard_constraints=False,
-                          alternative_start_time = navigation_start_time)
+                          alternative_start_time=navigation_start_time)
 
             return bid
 
