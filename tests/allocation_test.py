@@ -7,7 +7,7 @@ from fleet_management.db.ccu_store import CCUStore
 from ropod.pyre_communicator.base_class import RopodPyre
 from stn.stp import STP
 
-from ropod.utils.timestamp import TimeStamp as ts
+from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
 from mrs.db_interface import DBInterface
@@ -59,7 +59,7 @@ class TaskRequester(RopodPyre):
         timetable_msg['header']['type'] = 'TIMETABLE'
         timetable_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         timetable_msg['header']['msgId'] = generate_uuid()
-        timetable_msg['header']['timestamp'] = ts.get_time_stamp()
+        timetable_msg['header']['timestamp'] = TimeStamp().to_str()
 
         timetable_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         timetable_msg['payload']['timetable'] = timetable.to_dict()
@@ -78,7 +78,7 @@ class TaskRequester(RopodPyre):
         task_msg['header']['type'] = 'ALLOCATE-TASK'
         task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         task_msg['header']['msgId'] = generate_uuid()
-        task_msg['header']['timestamp'] = ts.get_time_stamp()
+        task_msg['header']['timestamp'] = TimeStamp().to_str()
 
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task.to_dict()
@@ -93,7 +93,7 @@ class TaskRequester(RopodPyre):
         task_msg['header']['type'] = 'DELETE-TASK'
         task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
         task_msg['header']['msgId'] = generate_uuid()
-        task_msg['header']['timestamp'] = ts.get_time_stamp()
+        task_msg['header']['timestamp'] = TimeStamp().to_str()
 
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task_dict
