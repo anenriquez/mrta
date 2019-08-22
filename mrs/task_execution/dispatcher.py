@@ -102,7 +102,7 @@ class Dispatcher(object):
             self.timetable.solve_stp()
 
             logging.debug("Dispatchable graph %s: ", self.timetable.dispatchable_graph)
-            logging.debug("Robustness Metric %s: ", self.timetable.robustness_metric)
+            logging.debug("Robustness Metric %s: ", self.timetable.risk_metric)
 
         except NoSTPSolution:
             logging.exception("The stp solver could not solve the problem")
