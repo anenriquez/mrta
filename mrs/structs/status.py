@@ -10,7 +10,7 @@ class TaskStatus(object):
     CANCELED = 9  # Canceled before execution starts
     PREEMPTED = 10  # Canceled during execution
 
-    def __init__(self, task_id=''):
+    def __init__(self, task_id):
         self.task_id = task_id
         self.status = self.UNALLOCATED
         self.delayed = False

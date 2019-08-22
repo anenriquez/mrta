@@ -7,6 +7,7 @@ from ropod.utils.uuid import generate_uuid
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.bid import Bid
+import numpy as np
 
 
 class Round(object):
@@ -56,7 +57,7 @@ class Round(object):
 
         self.logger.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
 
-        if bid.cost != float('inf'):
+        if bid.cost != (np.inf, np.inf):
             # Process a bid
             if bid.task_id not in self.received_bids or \
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
@@ -148,13 +149,13 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = Bid()
+        lowest_bid = None
 
         for task_id, bid in self.received_bids.items():
-            if bid < lowest_bid:
+            if lowest_bid is None or bid < lowest_bid:
                 lowest_bid = copy.deepcopy(bid)
 
-        if lowest_bid.cost == float('inf'):
+        if lowest_bid is None:
             raise NoAllocation(self.id)
 
         return lowest_bid
