@@ -2,7 +2,7 @@ from ropod.utils.uuid import generate_uuid
 
 
 class TaskAnnouncement(object):
-    def __init__(self, tasks=[], round_id=''):
+    def __init__(self, tasks, round_id):
         """
         Struct with a list of tasks
         :param tasks: list of tasks

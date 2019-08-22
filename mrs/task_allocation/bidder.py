@@ -3,10 +3,10 @@ import logging
 
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.structs.allocation import FinishRound
-from mrs.structs.bid import Bid
 from mrs.structs.task import TaskStatus
 from mrs.task_allocation.bidding_rule import BiddingRule
 from mrs.robot_base import RobotBase
+from mrs.structs.bid import Bid
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -22,8 +22,9 @@ class Bidder(RobotBase):
         robustness = bidder_config.get('bidding_rule').get('robustness')
         temporal = bidder_config.get('bidding_rule').get('temporal')
         self.bidding_rule = BiddingRule(robustness, temporal)
+
         self.auctioneer_name = bidder_config.get("auctioneer_name")
-        self.bid_placed = Bid()
+        self.bid_placed = None
 
         self.logger.debug("Bidder initialized %s", self.id)
 
@@ -56,14 +57,14 @@ class Bidder(RobotBase):
             # get the best_bid for each task
             best_bid = self.insert_task(task, round_id)
 
-            if best_bid.cost != float('inf'):
+            if best_bid:
                 bids.append(best_bid)
             else:
                 self.logger.debug("No bid for task %s", task.id)
-                no_bids.append(best_bid)
+                no_bid = Bid(self.id, round_id, task.id)
+                no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
-        self.bid_placed = copy.deepcopy(smallest_bid)
 
         self.send_bids(smallest_bid, no_bids)
 
@@ -75,16 +76,17 @@ class Bidder(RobotBase):
         :param no_bids: list of no bids
         """
         if bid:
+            self.bid_placed = bid
             self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
             self.send_bid(bid)
 
         if no_bids:
             for no_bid in no_bids:
-                self.logger.debug("Sending no bid for task %s", no_bid.task.id)
+                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
                 self.send_bid(no_bid)
 
     def insert_task(self, task, round_id):
-        best_bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
+        best_bid = None
 
         tasks = self.timetable.get_tasks()
         if tasks:
@@ -101,21 +103,17 @@ class Bidder(RobotBase):
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
-            self.logger.debug("Adding task %s in position %s", task.id, position)
-            self.timetable.add_task_to_stn(task, position)
+            self.logger.debug("Computing bid for task %s in position %s", task.id, position)
 
             try:
-                self.timetable.solve_stp()
+                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
 
-                self.logger.debug("STN %s: ", self.timetable.stn)
-                self.logger.debug("Dispatchable graph %s: ", self.timetable.dispatchable_graph)
-                self.logger.debug("Robustness Metric %s: ", self.timetable.robustness_metric)
+                self.logger.debug("Bid: (%s, %s)", bid.risk_metric, bid.temporal_metric)
 
-                bid = Bid(self.bidding_rule, self.id, round_id, task, self.timetable)
-                bid.compute_cost(position)
-                self.logger.debug("Cost: %s", bid.cost)
+                if best_bid is None or \
+                        bid < best_bid or\
+                        (bid == best_bid and bid.task_id < best_bid.task_id):
 
-                if bid < best_bid or (bid == best_bid and bid.task.id < best_bid.task.id):
                     best_bid = copy.deepcopy(bid)
 
             except NoSTPSolution:
@@ -136,13 +134,16 @@ class Bidder(RobotBase):
         :param bids: list of bids
         :return: the bid with the smallest cost
         """
-        smallest_bid = Bid()
+        smallest_bid = None
 
         for bid in bids:
-            if bid < smallest_bid or (bid == smallest_bid and bid.task.id < smallest_bid.task.id):
+            if smallest_bid is None or\
+                    bid < smallest_bid or\
+                    (bid == smallest_bid and bid.task_id < smallest_bid.task_id):
+
                 smallest_bid = copy.deepcopy(bid)
 
-        if smallest_bid.cost == float('inf'):
+        if smallest_bid is None:
             return None
 
         return smallest_bid
@@ -157,7 +158,7 @@ class Bidder(RobotBase):
         msg = self.api.create_message(bid)
         tasks = [task for task in bid.timetable.get_tasks()]
 
-        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task.id, tasks)
+        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
         self.api.publish(msg, peer=self.auctioneer_name)
 
     def allocate_to_robot(self, task_id):

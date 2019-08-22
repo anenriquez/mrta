@@ -1,4 +1,5 @@
 from mrs.exceptions.task_allocation import NoSTPSolution
+import numpy as np
 
 
 class Timetable(object):
@@ -16,9 +17,11 @@ class Timetable(object):
                 (the next task to be executed)
                 The start navigation time is instantiated to a float value (seconds after epoch)
     """
+
     def __init__(self, stp, robot_id):
         self.stp = stp  # Simple Temporal Problem
-        self.robustness_metric = None
+        self.risk_metric = np.inf
+        self.temporal_metric = np.inf
 
         self.robot_id = robot_id
         self.stn = stp.get_stn()
@@ -26,15 +29,18 @@ class Timetable(object):
         self.schedule = stp.get_stn()
 
     def solve_stp(self):
-        """ Computes the dispatchable graph and robustness metric from the
-         given stn
+        """ Computes the dispatchable graph, risk metric and temporal metric
+        from the given stn
         """
         result_stp = self.stp.compute_dispatchable_graph(self.stn)
 
         if result_stp is None:
             raise NoSTPSolution()
 
-        self.robustness_metric, self.dispatchable_graph = result_stp
+        self.risk_metric, self.dispatchable_graph = result_stp
+
+    def compute_temporal_metric(self, temporal_criterion):
+        self.temporal_metric = self.stp.compute_temporal_metric(self.dispatchable_graph, temporal_criterion)
 
     def add_task_to_stn(self, task, position):
         """
@@ -105,6 +111,8 @@ class Timetable(object):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
+        timetable_dict['risk_metric'] = self.risk_metric
+        timetable_dict['temporal_metric'] = self.temporal_metric
         timetable_dict['stn'] = self.stn.to_dict()
         timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
         timetable_dict['schedule'] = self.schedule.to_dict()
@@ -117,6 +125,8 @@ class Timetable(object):
         timetable = Timetable(stp, robot_id)
         stn_cls = stp.get_stn()
 
+        timetable.risk_metric = timetable_dict['risk_metric']
+        timetable.temporal_metric = timetable_dict['temporal_metric']
         timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
         timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
         timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
