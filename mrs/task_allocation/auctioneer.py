@@ -54,7 +54,8 @@ class Auctioneer(object):
 
         # TODO: Update ztp
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.ztp = TimeStamp(stamp_time=today_midnight)
+        self.ztp = TimeStamp()
+        self.ztp.timestamp = today_midnight
 
     def __str__(self):
         to_print = "Auctioneer"

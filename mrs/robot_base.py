@@ -22,6 +22,6 @@ class RobotBase(object):
         self.db_interface.update_timetable(self.timetable)
 
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.ztp = TimeStamp(stamp_time=today_midnight)
-
+        self.ztp = TimeStamp()
+        self.ztp.timestamp = today_midnight
 
