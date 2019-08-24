@@ -7,8 +7,9 @@ class BiddingRule(object):
         self.robustness_criterion = robustness_criterion
         self.temporal_criterion = temporal_criterion
 
-    def compute_bid(self, robot_id, round_id, task, position, timetable):
-        timetable.add_task_to_stn(task, position)
+    def compute_bid(self, robot_id, round_id, task, position, timetable, ztp):
+        timetable.add_task_to_stn(task, ztp, position)
+
         try:
             timetable.solve_stp()
             timetable.compute_temporal_metric(self.temporal_criterion)
@@ -20,7 +21,7 @@ class BiddingRule(object):
                           temporal_metric=timetable.temporal_metric)
 
             else:
-                navigation_start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task.id)
+                navigation_start_time = timetable.dispatchable_graph.get_task_time(task.id)
                 timetable.risk_metric = 1
                 timetable.temporal_metric = abs(navigation_start_time - task.earliest_start_time),
 

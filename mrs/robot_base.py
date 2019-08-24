@@ -1,5 +1,7 @@
+from datetime import datetime
 from importlib import import_module
 
+from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
 
 from mrs.db_interface import DBInterface
@@ -19,4 +21,7 @@ class RobotBase(object):
         self.timetable = Timetable.get_timetable(self.db_interface, self.id, self.stp)
         self.db_interface.update_timetable(self.timetable)
 
+        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        self.ztp = TimeStamp()
+        self.ztp.timestamp = today_midnight
 

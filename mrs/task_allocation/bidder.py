@@ -2,11 +2,12 @@ import copy
 import logging
 
 from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.robot_base import RobotBase
 from mrs.structs.allocation import FinishRound
+from mrs.structs.allocation import TaskAnnouncement
+from mrs.structs.bid import Bid
 from mrs.structs.task import TaskStatus
 from mrs.task_allocation.bidding_rule import BiddingRule
-from mrs.robot_base import RobotBase
-from mrs.structs.bid import Bid
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -30,10 +31,11 @@ class Bidder(RobotBase):
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
-        round_id = msg['payload']['round_id']
-        received_tasks = msg['payload']['tasks']
+        task_announcement_msg = msg['payload']
+        task_announcement = TaskAnnouncement.from_dict(task_announcement_msg, self.task_cls)
+        self.ztp = task_announcement.ztp
         self.timetable = self.db_interface.get_timetable(self.id, self.stp)
-        self.compute_bids(received_tasks, round_id)
+        self.compute_bids(task_announcement)
 
     def allocation_cb(self, msg):
         self.logger.debug("Robot %s received ALLOCATION", self.id)
@@ -44,12 +46,12 @@ class Bidder(RobotBase):
             self.allocate_to_robot(task_id)
             self.send_finish_round()
 
-    def compute_bids(self, received_tasks, round_id):
+    def compute_bids(self, task_announcement):
         bids = list()
         no_bids = list()
+        round_id = task_announcement.round_id
 
-        for task_id, task_info in received_tasks.items():
-            task = self.task_cls.from_dict(task_info)
+        for task in task_announcement.tasks:
             self.db_interface.update_task(task)
             self.logger.debug("Computing bid of task %s", task.id)
 
@@ -106,9 +108,9 @@ class Bidder(RobotBase):
             self.logger.debug("Computing bid for task %s in position %s", task.id, position)
 
             try:
-                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
+                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable, self.ztp)
 
-                self.logger.debug("Bid: (%s, %s)", bid.risk_metric, bid.temporal_metric)
+                self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
                 if best_bid is None or \
                         bid < best_bid or\
@@ -149,16 +151,10 @@ class Bidder(RobotBase):
         return smallest_bid
 
     def send_bid(self, bid):
-        """ Creates bid_msg and sends it to the auctioneer_name
-
-        :param bid:
-        :param round_id:
-        :return:
+        """ Creates bid_msg and sends it to the auctioneer
         """
         msg = self.api.create_message(bid)
-        tasks = [task for task in bid.timetable.get_tasks()]
 
-        self.logger.info("Round %s: robod_id %s bids %s for task %s and tasks %s", bid.round_id, self.id, bid.cost, bid.task_id, tasks)
         self.api.publish(msg, peer=self.auctioneer_name)
 
     def allocate_to_robot(self, task_id):

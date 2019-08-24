@@ -1,8 +1,10 @@
 import logging
 import time
+from datetime import datetime
 from datetime import timedelta
 from importlib import import_module
 
+from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
 
 from mrs.db_interface import DBInterface
@@ -49,6 +51,11 @@ class Auctioneer(object):
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round()
+
+        # TODO: Update ztp
+        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        self.ztp = TimeStamp()
+        self.ztp.timestamp = today_midnight
 
     def __str__(self):
         to_print = "Auctioneer"
@@ -102,7 +109,8 @@ class Auctioneer(object):
 
     def update_timetable(self, robot_id, task, position):
         timetable = self.db_interface.get_timetable(robot_id, self.stp)
-        timetable.add_task_to_stn(task, position)
+        timetable.add_task_to_stn(task, self.ztp, position)
+        print("STN: ", timetable.stn)
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
@@ -152,8 +160,8 @@ class Auctioneer(object):
         self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
         tasks = list(self.tasks_to_allocate.values())
-        task_annoucement = TaskAnnouncement(tasks, self.round.id)
-        msg = self.api.create_message(task_annoucement)
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.ztp)
+        msg = self.api.create_message(task_announcement)
 
         self.logger.debug('task annoucement msg: %s', msg)
 
@@ -192,12 +200,26 @@ class Auctioneer(object):
 
         timetable = self.timetables.get(robot_id)
 
-        start_time = timetable.dispatchable_graph.get_task_navigation_start_time(task_id)
+        relative_start_navigation_time = timetable.dispatchable_graph.get_task_time(task_id, "navigation")
+        relative_start_time = timetable.dispatchable_graph.get_task_time(task_id, "start")
+        relative_latest_finish_time = timetable.dispatchable_graph.get_task_time(task_id, "finish", False)
 
-        self.logger.debug("Start time of task %s: %s", task_id, start_time)
+        self.logger.debug("Current time %s: ", TimeStamp())
+        self.logger.debug("ztp %s: ", self.ztp)
+        self.logger.debug("Relative start navigation time: %s", relative_start_navigation_time)
+        self.logger.debug("Relative start time: %s", relative_start_time)
+        self.logger.debug("Relative latest finish time: %s", relative_latest_finish_time)
 
-        task_schedule['start_time'] = start_time
-        task_schedule['finish_time'] = -1  # This info is not available here.
+        start_navigation_time = self.ztp + timedelta(minutes=relative_start_navigation_time)
+        start_time = self.ztp + timedelta(minutes=relative_start_time)
+        finish_time = self.ztp + timedelta(minutes=relative_latest_finish_time)
+
+        self.logger.debug("Start navigation of task %s: %s", task_id, start_navigation_time)
+        self.logger.debug("Start of task %s: %s", task_id, start_time)
+        self.logger.debug("Latest finish of task %s: %s", task_id, finish_time)
+
+        task_schedule['start_time'] = start_navigation_time
+        task_schedule['finish_time'] = finish_time
 
         return task_schedule
 
