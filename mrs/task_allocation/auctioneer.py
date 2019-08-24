@@ -114,7 +114,7 @@ class Auctioneer(object):
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
-        if timetable.is_scheduled():
+        if timetable.schedule:
             # TODO: Request re-scheduling to the scheduler via pyre
             pass
 

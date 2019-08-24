@@ -1,39 +1,41 @@
+import logging
 from datetime import timedelta
 
-import numpy as np
 from ropod.structs.task import TaskConstraints
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
 
 from mrs.exceptions.task_allocation import NoSTPSolution
 
+logger = logging.getLogger("mrs.timetable")
+
 
 class Timetable(object):
     """
     Each robot has a timetable, which contains temporal information about the robot's
     allocated tasks:
-    - stn:  Simple Temporal Network.
-            Contains the allocated tasks along with the original temporal constraints
+    - stn (stn):    Simple Temporal Network.
+                    Contains the allocated tasks along with the original temporal constraints
 
-    - dispatchable graph:   Uses the same data structure as the stn and contains the same tasks, but
+    - dispatchable graph (stn): Uses the same data structure as the stn and contains the same tasks, but
                             shrinks the original temporal constraints to the times at which the robot
                             can allocate the task
 
-    - schedule: Uses the same data structure as the stn but contains only one task
+    - schedule (stn): Uses the same data structure as the stn but contains only one task
                 (the next task to be executed)
-                The start navigation time is instantiated to a float value (seconds after epoch)
+                The start navigation time is instantiated to a float value (minutes after ztp)
     """
 
     def __init__(self, stp, robot_id):
         self.stp = stp  # Simple Temporal Problem
         self.ztp = None
-        self.risk_metric = np.inf
-        self.temporal_metric = np.inf
+        self.risk_metric = None
+        self.temporal_metric = None
 
         self.robot_id = robot_id
         self.stn = stp.get_stn()
-        self.dispatchable_graph = stp.get_stn()
-        self.schedule = stp.get_stn()
+        self.dispatchable_graph = None
+        self.schedule = None
 
     def solve_stp(self):
         """ Computes the dispatchable graph, risk metric and temporal metric
@@ -47,13 +49,17 @@ class Timetable(object):
         self.risk_metric, self.dispatchable_graph = result_stp
 
     def compute_temporal_metric(self, temporal_criterion):
-        self.temporal_metric = self.stp.compute_temporal_metric(self.dispatchable_graph, temporal_criterion)
+        if self.dispatchable_graph:
+            self.temporal_metric = self.stp.compute_temporal_metric(self.dispatchable_graph, temporal_criterion)
+        else:
+            logger.error("The dispatchable graph is empty. Solve the stp first")
 
     def add_task_to_stn(self, task, ztp, position):
         """
         Adds tasks to the stn at the given position
-        :param task: task (obj) to add
-        :param position: position where the task will be added
+        Args:
+            task (obj): task object to add to the stn
+            position (int) : position in the STN where the task will be added
         """
         stn_task = self.to_stn_task(task, ztp)
         self.ztp = ztp
@@ -64,7 +70,7 @@ class Timetable(object):
         """ Converts a task to an stn task
 
         Args:
-            task (obj): task to be converted
+            task (obj): task object to be converted
             ztp (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
 
@@ -85,7 +91,8 @@ class Timetable(object):
 
     def remove_task_from_stn(self, position):
         """ Removes task from the stn at the given position
-        :param position: task at this position will be removed
+        Args:
+            position (int): the task at this position in the STN will be removed
         """
         self.stn.remove_task(position)
 
@@ -102,35 +109,29 @@ class Timetable(object):
         :param position: (int) position in the STN
         :return: (string) task id
         """
-        task_id = self.stn.get_task_id(position)
+        return self.stn.get_task_id(position)
 
     def get_earliest_task_id(self):
         """ Returns the id of the task with the earliest start time in the timetable
 
         :return: task_id (string)
         """
-        task_id = self.stn.get_earliest_task_id()
-        return task_id
+        return self.stn.get_earliest_task_id()
 
     def remove_task(self, position=1):
         self.stn.remove_task(position)
         self.dispatchable_graph.remove_task(position)
         # Reset schedule (there is only one task in the schedule)
-        self.schedule = self.stp.get_stn()
+        self.schedule = None
 
     def get_scheduled_task_id(self):
+        if self.schedule is None:
+            logger.error("No tasks scheduled")
+            return
+
         task_ids = self.schedule.get_tasks()
-        print("Task ids: ", task_ids)
-        if not task_ids:
-            return None
         task_id = task_ids.pop()
         return task_id
-
-    def is_scheduled(self):
-        task_id = self.get_scheduled_task_id()
-        if task_id:
-            return True
-        return False
 
     def get_schedule(self, task_id):
         """ Gets an schedule (stn) containing the nodes associated with the task_id
@@ -138,8 +139,11 @@ class Timetable(object):
         :param task_id: (string) id of the task
         :return: schedule (stn)
         """
-        node_ids = self.dispatchable_graph.get_task_node_ids(task_id)
-        self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
+        if self.dispatchable_graph:
+            node_ids = self.dispatchable_graph.get_task_node_ids(task_id)
+            self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
+        else:
+            logger.error("The dispatchable graph is empty")
 
     def to_dict(self):
         timetable_dict = dict()
@@ -153,8 +157,16 @@ class Timetable(object):
         timetable_dict['risk_metric'] = self.risk_metric
         timetable_dict['temporal_metric'] = self.temporal_metric
         timetable_dict['stn'] = self.stn.to_dict()
-        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
-        timetable_dict['schedule'] = self.schedule.to_dict()
+
+        if self.dispatchable_graph:
+            timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
+        else:
+            timetable_dict['dispatchable_graph'] = self.dispatchable_graph
+
+        if self.schedule:
+            timetable_dict['schedule'] = self.schedule.to_dict()
+        else:
+            timetable_dict['schedule'] = self.schedule
 
         return timetable_dict
 
@@ -172,9 +184,20 @@ class Timetable(object):
 
         timetable.risk_metric = timetable_dict['risk_metric']
         timetable.temporal_metric = timetable_dict['temporal_metric']
-        timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
-        timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
-        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
+        stn = timetable_dict.get('stn')
+        timetable.stn = stn_cls.from_dict(stn)
+
+        dispatchable_graph = timetable_dict.get('dispatchable_graph')
+        if dispatchable_graph:
+            timetable.dispatchable_graph = stn_cls.from_dict(dispatchable_graph)
+        else:
+            timetable.dispatchable_graph = dispatchable_graph
+
+        schedule = timetable_dict.get('schedule')
+        if schedule:
+            timetable.schedule = stn_cls.from_dict(schedule)
+        else:
+            timetable.schedule = schedule
 
         return timetable
 

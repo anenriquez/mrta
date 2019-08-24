@@ -90,18 +90,14 @@ class Bidder(RobotBase):
     def insert_task(self, task, round_id):
         best_bid = None
 
-        tasks = self.timetable.get_tasks()
-        if tasks:
-            n_tasks = len(tasks)
-        else:
-            n_tasks = 0
+        n_tasks = len(self.timetable.get_tasks())
 
         # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
         for position in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
             self.logger.debug("Schedule: %s", self.timetable.schedule)
-            if position == 1 and self.timetable.is_scheduled():
+            if position == 1 and self.timetable.schedule:
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
