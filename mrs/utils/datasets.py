@@ -1,6 +1,10 @@
-import yaml
-from mrs.config.task_factory import TaskFactory
 import collections
+from datetime import timedelta
+
+import yaml
+from ropod.utils.timestamp import TimeStamp
+
+from mrs.config.task_factory import TaskFactory
 
 
 def load_yaml(file):
@@ -26,10 +30,24 @@ def load_yaml_dataset(dataset_path):
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
 
     for task_id, task_info in ordered_tasks.items():
-        task = task_cls.from_dict(task_info)
+        task_dict = reference_to_current_time(task_info)
+        task = task_cls.from_dict(task_dict)
         tasks.append(task)
 
     return tasks
+
+
+def reference_to_current_time(task_dict):
+    est = task_dict['earliest_start_time']
+    delta = timedelta(minutes=est)
+    task_dict.update({'earliest_start_time': TimeStamp(delta).to_str()})
+
+    lst = task_dict['latest_start_time']
+    delta = timedelta(minutes=lst)
+    task_dict.update({'latest_start_time': TimeStamp(delta).to_str()})
+
+    return task_dict
+
 
 def flatten_dict(dict_input):
     """ Returns a dictionary without nested dictionaries

@@ -1,7 +1,7 @@
 import copy
 import logging
 
-from ropod.utils.timestamp import TimeStamp as ts
+from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
@@ -44,8 +44,8 @@ class Round(object):
                     (or an exception has been raised)
 
         """
-        open_time = ts.get_time_stamp()
-        self.closure_time = ts.get_time_stamp(self.round_time)
+        open_time = TimeStamp()
+        self.closure_time = TimeStamp(delta=self.round_time)
         self.logger.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
 
@@ -83,7 +83,7 @@ class Round(object):
         return False
 
     def time_to_close(self):
-        current_time = ts.get_time_stamp()
+        current_time = TimeStamp()
 
         if current_time < self.closure_time:
             return False
