@@ -1,11 +1,17 @@
-from mrs.exceptions.task_allocation import NoSTPSolution
+from datetime import timedelta
+
 import numpy as np
+from ropod.structs.task import TaskConstraints
+from ropod.utils.timestamp import TimeStamp
+from stn.task import STNTask
+
+from mrs.exceptions.task_allocation import NoSTPSolution
 
 
 class Timetable(object):
     """
     Each robot has a timetable, which contains temporal information about the robot's
-    mrs:
+    allocated tasks:
     - stn:  Simple Temporal Network.
             Contains the allocated tasks along with the original temporal constraints
 
@@ -20,6 +26,7 @@ class Timetable(object):
 
     def __init__(self, stp, robot_id):
         self.stp = stp  # Simple Temporal Problem
+        self.ztp = None
         self.risk_metric = np.inf
         self.temporal_metric = np.inf
 
@@ -42,13 +49,39 @@ class Timetable(object):
     def compute_temporal_metric(self, temporal_criterion):
         self.temporal_metric = self.stp.compute_temporal_metric(self.dispatchable_graph, temporal_criterion)
 
-    def add_task_to_stn(self, task, position):
+    def add_task_to_stn(self, task, ztp, position):
         """
         Adds tasks to the stn at the given position
         :param task: task (obj) to add
         :param position: position where the task will be added
         """
-        self.stn.add_task(task, position)
+        stn_task = self.to_stn_task(task, ztp)
+        self.ztp = ztp
+        self.stn.add_task(stn_task, position)
+
+    @staticmethod
+    def to_stn_task(task, ztp):
+        """ Converts a task to an stn task
+
+        Args:
+            task (obj): task to be converted
+            ztp (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
+        """
+
+        r_earliest_start_time, r_latest_start_time = TaskConstraints.relative_to_ztp(task, ztp, "minutes")
+        delta = timedelta(minutes=1)
+        earliest_navigation_start = TimeStamp(delta)
+
+        r_earliest_navigation_start = earliest_navigation_start.get_difference(ztp, "minutes")
+
+        stn_task = STNTask(task.id,
+                           r_earliest_navigation_start,
+                           r_earliest_start_time,
+                           r_latest_start_time,
+                           task.start_pose_name,
+                           task.finish_pose_name)
+
+        return stn_task
 
     def remove_task_from_stn(self, position):
         """ Removes task from the stn at the given position
@@ -111,6 +144,12 @@ class Timetable(object):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
+
+        if self.ztp:
+            timetable_dict['ztp'] = self.ztp.to_str()
+        else:
+            timetable_dict['ztp'] = self.ztp
+
         timetable_dict['risk_metric'] = self.risk_metric
         timetable_dict['temporal_metric'] = self.temporal_metric
         timetable_dict['stn'] = self.stn.to_dict()
@@ -124,6 +163,12 @@ class Timetable(object):
         robot_id = timetable_dict['robot_id']
         timetable = Timetable(stp, robot_id)
         stn_cls = stp.get_stn()
+
+        ztp = timetable_dict.get('ztp')
+        if ztp:
+            timetable.ztp = TimeStamp.from_str(ztp)
+        else:
+            timetable.ztp = ztp
 
         timetable.risk_metric = timetable_dict['risk_metric']
         timetable.temporal_metric = timetable_dict['temporal_metric']
