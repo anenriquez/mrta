@@ -33,8 +33,8 @@ class Bidder(RobotBase):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         task_announcement_msg = msg['payload']
         task_announcement = TaskAnnouncement.from_dict(task_announcement_msg, self.task_cls)
-        self.ztp = task_announcement.ztp
         self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
     def allocation_cb(self, msg):
@@ -104,7 +104,7 @@ class Bidder(RobotBase):
             self.logger.debug("Computing bid for task %s in position %s", task.id, position)
 
             try:
-                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable, self.ztp)
+                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 

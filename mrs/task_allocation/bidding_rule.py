@@ -7,8 +7,8 @@ class BiddingRule(object):
         self.robustness_criterion = robustness_criterion
         self.temporal_criterion = temporal_criterion
 
-    def compute_bid(self, robot_id, round_id, task, position, timetable, ztp):
-        timetable.add_task_to_stn(task, ztp, position)
+    def compute_bid(self, robot_id, round_id, task, position, timetable):
+        timetable.add_task_to_stn(task, position)
 
         try:
             timetable.solve_stp()

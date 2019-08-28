@@ -49,10 +49,10 @@ class Robot(RobotBase):
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config
+    from fleet_management.config.loader import Configurator
 
     config_file_path = '../config/config.yaml'
-    config = Config(config_file_path, initialize=False)
+    config = Configurator(config_file_path, initialize=False)
     config.configure_logger()
 
     parser = argparse.ArgumentParser()

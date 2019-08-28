@@ -5,11 +5,12 @@ ccu_store:
 robot_store:
   db_name: ropod_store
   port: 27017
-resources:
-  fleet:
-    - ropod_001
-    - ropod_002
-    - ropod_003
+resource_manager:
+  resources:
+    fleet:
+      - ropod_001
+      - ropod_002
+      - ropod_003
 
 plugins:
   task_allocation:
@@ -21,7 +22,7 @@ plugins:
     robot_proxies: true
     stp_solver: srea
   auctioneer:
-    round_time: 15 # seconds
+    round_time: 5 # seconds
     alternative_timeslots: True
   dispatcher:
     freeze_window: 300 # seconds
