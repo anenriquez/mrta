@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 
-from fleet_management.config.loader import Config
+from fleet_management.config.loader import Configurator
 from fleet_management.db.ccu_store import CCUStore
 from ropod.pyre_communicator.base_class import RopodPyre
 from stn.stp import STP
@@ -22,15 +22,15 @@ class TaskRequester(RopodPyre):
                        'message_types': ['TASK', 'ALLOCATION']}
         super().__init__(zyre_config, acknowledge=False)
 
-        config = Config(config_file, initialize=False)
+        config = Configurator(config_file, initialize=False)
         ccu_store = CCUStore('ropod_ccu_store')
         self.db_interface = DBInterface(ccu_store)
 
-        allocator_config = config.config_params.get("plugins").get("task_allocation")
-        robot_proxy = config.config_params.get("robot_proxy")
+        allocator_config = config._config_params.get("plugins").get("task_allocation")
+        robot_proxy = config._config_params.get("robot_proxy")
         stp_solver = allocator_config.get('stp_solver')
         self.stp = STP(stp_solver)
-        self.robot_ids = config.config_params.get('resources').get('fleet')
+        self.robot_ids = config._config_params.get('resource_manager').get('resources').get('fleet')
 
         self.auctioneer_name = robot_proxy.get("bidder").get("auctioneer_name")
         self.allocations = list()
@@ -40,7 +40,7 @@ class TaskRequester(RopodPyre):
     def reset_timetables(self):
         logging.info("Resetting timetables")
         for robot_id in self.robot_ids:
-            timetable = Timetable(self.stp, robot_id)
+            timetable = Timetable(robot_id, self.stp)
             self.db_interface.update_timetable(timetable)
             self.send_timetable(timetable, robot_id)
 
