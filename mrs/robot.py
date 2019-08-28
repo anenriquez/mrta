@@ -21,20 +21,6 @@ class Robot(RobotBase):
         self.logger = logging.getLogger('mrs.robot.%s' % self.id)
         self.logger.info("Robot %s initialized", self.id)
 
-    def timetable_cb(self, msg):
-        robot_id = msg['payload']['timetable']['robot_id']
-        if robot_id == self.id:
-            timetable_dict = msg['payload']['timetable']
-            self.logger.debug("Robot %s received timetable msg", self.id)
-            timetable = Timetable.from_dict(timetable_dict, self.stp)
-            self.db_interface.update_timetable(timetable)
-
-    def delete_task_cb(self, msg):
-        task_dict = msg['payload']['task']
-        task = self.task_cls.from_dict(task_dict)
-        self.logger.debug("Deleting task %s ", task.id)
-        self.db_interface.remove_task(task.id)
-
     def run(self):
         try:
             self.api.start()

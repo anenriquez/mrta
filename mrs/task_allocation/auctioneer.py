@@ -170,11 +170,6 @@ class Auctioneer(object):
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def send_timetable(self, robot_id):
-        timetable = Timetable.get_timetable(self.db_interface, robot_id, self.stp)
-        msg = self.api.create_message(timetable)
-        self.api.publish(msg)
-
     def allocate_task_cb(self, msg):
         self.logger.debug("Task received")
         task_dict = msg['payload']['task']
