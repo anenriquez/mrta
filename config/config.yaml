@@ -11,21 +11,21 @@ resource_manager:
       - ropod_001
       - ropod_002
       - ropod_003
+  plugins:
+    - auctioneer
 
 plugins:
-  task_allocation:
-    # Assuming we can have different types of tasks,
-    # specify from where to import the Task and TaskStatus classes
+  mrta:
+    # Assuming we can have different types of tasks, specify from where to import the Task and TaskStatus classes
     task_type:
       class: 'mrs.structs.task'
-    allocation_method: tessi
-    robot_proxies: true
+    allocation_method: mrta-srea
     stp_solver: srea
-  auctioneer:
-    round_time: 5 # seconds
-    alternative_timeslots: True
-  dispatcher:
-    freeze_window: 300 # seconds
+    robot_proxies: true
+    freeze_window: 3 # minutes
+    auctioneer:
+      round_time: 15 # seconds
+      alternative_timeslots: True
 
 robot_proxy:
   bidder:
@@ -102,30 +102,11 @@ api:
         method: shout
     callbacks:
       - msg_type: 'ALLOCATE-TASK'
-        component: 'auctioneer.allocate_task_cb'
+        component: 'resource_manager.auctioneer.allocate_task_cb'
       - msg_type: 'BID'
-        component: 'auctioneer.bid_cb'
+        component: 'resource_manager.auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
-        component: 'auctioneer.finish_round_cb'
-  rest:
-    server:
-      ip: 127.0.0.1
-      port: 8081
-    routes:
-      - path: '/number'
-        resource:
-          module: 'fleet_management.api.rest.resources'
-          class: 'RandomGenerator'
-  ros:
-    publishers:
-      - topic: '/fms/task'
-        msg_type: Task
-        msg_module: ropod_ros_msgs.msg
-    subscribers:
-      - topic: '/fms/task_request'
-        msg_type: TaskRequest
-        msg_module: ropod_ros_msgs.msg
-        callback: task_cb
+        component: 'resource_manager.auctioneer.finish_round_cb'
 
 logger:
   version: 1

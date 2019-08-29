@@ -14,7 +14,7 @@ services:
     container_name: task-allocator
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "task_allocator.py"]
+    command: ["python3", "ccu.py"]
     network_mode: "host"
     tty: true
     stdin_open: true
