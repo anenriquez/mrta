@@ -11,7 +11,7 @@ from mrs.utils.datasets import load_yaml_dataset
 
 
 class TaskRequester(RopodPyre):
-    def __init__(self, robot_id, config_file):
+    def __init__(self, robot_id):
         zyre_config = {'node_name': 'task_request_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['TASK', 'ALLOCATION']}
@@ -75,12 +75,11 @@ class TaskRequester(RopodPyre):
 
 if __name__ == '__main__':
     tasks = load_yaml_dataset('data/non_overlapping.yaml')
-    config_file = '../config/config.yaml'
     robot_id = 'ropod_001'
 
     timeout_duration = 300  # 5 minutes
 
-    test = TaskRequester(robot_id, config_file)
+    test = TaskRequester(robot_id)
     test.start()
 
     try:
