@@ -78,10 +78,15 @@ class DBInterface(object):
 
     def get_timetable(self, robot_id, stp):
         collection = self.store.db['timetables']
+
         timetable_dict = collection.find_one({'robot_id': robot_id})
 
         if timetable_dict is None:
-            return
-        timetable = Timetable.from_dict(timetable_dict, stp)
+            timetable = Timetable(robot_id, stp)
+        else:
+            timetable = Timetable.from_dict(timetable_dict, stp)
         return timetable
+
+    def clean(self):
+        self.store.client.drop_database(self.store.db_name)
 

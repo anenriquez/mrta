@@ -1,69 +1,37 @@
 import logging
 import time
-import uuid
 
-from fleet_management.config.loader import Config
 from fleet_management.db.ccu_store import CCUStore
 from ropod.pyre_communicator.base_class import RopodPyre
-from stn.stp import STP
-
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
 from mrs.db_interface import DBInterface
-from mrs.structs.timetable import Timetable
 from mrs.utils.datasets import load_yaml_dataset
 
 
 class TaskRequester(RopodPyre):
-    def __init__(self, config_file):
+    def __init__(self, robot_id, config_file):
         zyre_config = {'node_name': 'task_request_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['TASK', 'ALLOCATION']}
         super().__init__(zyre_config, acknowledge=False)
 
-        config = Config(config_file, initialize=False)
         ccu_store = CCUStore('ropod_ccu_store')
-        self.db_interface = DBInterface(ccu_store)
+        self.ccu_store_interface = DBInterface(ccu_store)
 
-        allocator_config = config.config_params.get("plugins").get("task_allocation")
-        robot_proxy = config.config_params.get("robot_proxy")
-        stp_solver = allocator_config.get('stp_solver')
-        self.stp = STP(stp_solver)
-        self.robot_ids = config.config_params.get('resources').get('fleet')
+        robot_store = CCUStore('ropod_store_' + robot_id)
+        self.robot_store_interface = DBInterface(robot_store)
 
-        self.auctioneer_name = robot_proxy.get("bidder").get("auctioneer_name")
         self.allocations = list()
         self.n_tasks = 0
         self.terminated = False
 
-    def reset_timetables(self):
-        logging.info("Resetting timetables")
-        for robot_id in self.robot_ids:
-            timetable = Timetable(self.stp, robot_id)
-            self.db_interface.update_timetable(timetable)
-            self.send_timetable(timetable, robot_id)
-
-    def reset_tasks(self):
-        logging.info("Resetting tasks")
-        tasks_dict = self.db_interface.get_tasks()
-        for task_id, task_dict in tasks_dict.items():
-            self.db_interface.remove_task(task_id)
-            self.request_task_delete(task_dict)
-
-    def send_timetable(self, timetable, robot_id):
-        logging.debug("Sending timetable to %s", robot_id)
-        timetable_msg = dict()
-        timetable_msg['header'] = dict()
-        timetable_msg['payload'] = dict()
-        timetable_msg['header']['type'] = 'TIMETABLE'
-        timetable_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        timetable_msg['header']['msgId'] = generate_uuid()
-        timetable_msg['header']['timestamp'] = TimeStamp().to_str()
-
-        timetable_msg['payload']['metamodel'] = 'ropod-bid_round-sch(self.round_time)ema.json'
-        timetable_msg['payload']['timetable'] = timetable.to_dict()
-        self.shout(timetable_msg)
+    def tear_down(self):
+        self.logger.info("Resetting the ccu_store")
+        self.ccu_store_interface.clean()
+        self.logger.info("Resetting the robot_store")
+        self.robot_store_interface.clean()
 
     def allocate(self, tasks):
         self.n_tasks = len(tasks)
@@ -82,21 +50,6 @@ class TaskRequester(RopodPyre):
 
         task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
         task_msg['payload']['task'] = task.to_dict()
-
-        self.whisper(task_msg, peer=self.auctioneer_name)
-
-    def request_task_delete(self, task_dict):
-        logging.debug("Requesting delete of task %s", task_dict['id'])
-        task_msg = dict()
-        task_msg['header'] = dict()
-        task_msg['payload'] = dict()
-        task_msg['header']['type'] = 'DELETE-TASK'
-        task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        task_msg['header']['msgId'] = generate_uuid()
-        task_msg['header']['timestamp'] = TimeStamp().to_str()
-
-        task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        task_msg['payload']['task'] = task_dict
 
         self.shout(task_msg)
 
@@ -122,25 +75,22 @@ class TaskRequester(RopodPyre):
 
 if __name__ == '__main__':
     tasks = load_yaml_dataset('data/non_overlapping_3.yaml')
-    config_file_path = '../config/config.yaml'
-
-    for task in tasks:
-        print(task.to_dict())
+    config_file = '../config/config.yaml'
+    robot_id = 'ropod_001'
 
     timeout_duration = 300  # 5 minutes
 
-    test = TaskRequester(config_file_path)
+    test = TaskRequester(robot_id, config_file)
     test.start()
 
     try:
-        time.sleep(5)
-        test.reset_timetables()
-        test.reset_tasks()
+        test.tear_down()
         time.sleep(5)
         test.allocate(tasks)
         start_time = time.time()
         while not test.terminated and start_time + timeout_duration > time.time():
             time.sleep(0.5)
+        test.tear_down()
     except (KeyboardInterrupt, SystemExit):
         print('Task request test interrupted; exiting')
 

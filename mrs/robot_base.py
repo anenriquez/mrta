@@ -5,7 +5,6 @@ from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
 
 from mrs.db_interface import DBInterface
-from mrs.structs.timetable import Timetable
 
 
 class RobotBase(object):
@@ -18,10 +17,9 @@ class RobotBase(object):
         task_class_path = task_type.get('class', 'mrs.structs.task')
         self.task_cls = getattr(import_module(task_class_path), 'Task')
 
-        self.timetable = Timetable.get_timetable(self.db_interface, self.id, self.stp)
-        self.db_interface.update_timetable(self.timetable)
+        self.timetable = self.db_interface.get_timetable(robot_id, self.stp)
 
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.ztp = TimeStamp()
-        self.ztp.timestamp = today_midnight
+        self.timetable.zero_timepoint = TimeStamp()
+        self.timetable.zero_timepoint.timestamp = today_midnight
 

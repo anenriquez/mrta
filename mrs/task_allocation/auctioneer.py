@@ -43,8 +43,7 @@ class Auctioneer(object):
         # TODO: Inititalize the timetables in the loader? and read the timetables here
         self.timetables = dict()
         for robot_id in robot_ids:
-            timetable = Timetable.get_timetable(self.db_interface, robot_id, self.stp)
-            self.db_interface.add_timetable(timetable)
+            timetable = self.db_interface.get_timetable(robot_id, self.stp)
             self.timetables[robot_id] = timetable
 
         self.tasks_to_allocate = dict()
@@ -52,10 +51,10 @@ class Auctioneer(object):
         self.waiting_for_user_confirmation = list()
         self.round = Round()
 
-        # TODO: Update ztp
+        # TODO: Update zero_timepoint
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.ztp = TimeStamp()
-        self.ztp.timestamp = today_midnight
+        self.zero_timepoint = TimeStamp()
+        self.zero_timepoint.timestamp = today_midnight
 
     def __str__(self):
         to_print = "Auctioneer"
@@ -109,12 +108,13 @@ class Auctioneer(object):
 
     def update_timetable(self, robot_id, task, position):
         timetable = self.db_interface.get_timetable(robot_id, self.stp)
-        timetable.add_task_to_stn(task, self.ztp, position)
+        timetable.zero_timepoint = self.zero_timepoint
+        timetable.add_task_to_stn(task, position)
         print("STN: ", timetable.stn)
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
-        if timetable.is_scheduled():
+        if timetable.schedule:
             # TODO: Request re-scheduling to the scheduler via pyre
             pass
 
@@ -160,7 +160,7 @@ class Auctioneer(object):
         self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
         tasks = list(self.tasks_to_allocate.values())
-        task_announcement = TaskAnnouncement(tasks, self.round.id, self.ztp)
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.zero_timepoint)
         msg = self.api.create_message(task_announcement)
 
         self.logger.debug('task annoucement msg: %s', msg)
@@ -169,11 +169,6 @@ class Auctioneer(object):
 
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
-
-    def send_timetable(self, robot_id):
-        timetable = Timetable.get_timetable(self.db_interface, robot_id, self.stp)
-        msg = self.api.create_message(timetable)
-        self.api.publish(msg)
 
     def allocate_task_cb(self, msg):
         self.logger.debug("Task received")
@@ -205,14 +200,14 @@ class Auctioneer(object):
         relative_latest_finish_time = timetable.dispatchable_graph.get_task_time(task_id, "finish", False)
 
         self.logger.debug("Current time %s: ", TimeStamp())
-        self.logger.debug("ztp %s: ", self.ztp)
+        self.logger.debug("zero_timepoint %s: ", self.zero_timepoint)
         self.logger.debug("Relative start navigation time: %s", relative_start_navigation_time)
         self.logger.debug("Relative start time: %s", relative_start_time)
         self.logger.debug("Relative latest finish time: %s", relative_latest_finish_time)
 
-        start_navigation_time = self.ztp + timedelta(minutes=relative_start_navigation_time)
-        start_time = self.ztp + timedelta(minutes=relative_start_time)
-        finish_time = self.ztp + timedelta(minutes=relative_latest_finish_time)
+        start_navigation_time = self.zero_timepoint + timedelta(minutes=relative_start_navigation_time)
+        start_time = self.zero_timepoint + timedelta(minutes=relative_start_time)
+        finish_time = self.zero_timepoint + timedelta(minutes=relative_latest_finish_time)
 
         self.logger.debug("Start navigation of task %s: %s", task_id, start_navigation_time)
         self.logger.debug("Start of task %s: %s", task_id, start_time)
@@ -226,9 +221,9 @@ class Auctioneer(object):
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Config
+    from fleet_management.config.loader import Configurator
     config_file_path = '../../config/config.yaml'
-    config = Config(config_file_path, initialize=True)
+    config = Configurator(config_file_path, initialize=True)
     auctioneer = config.configure_auctioneer(config.ccu_store)
 
     time.sleep(5)

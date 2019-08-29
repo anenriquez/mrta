@@ -1,19 +1,19 @@
 import logging
 import time
 
-from fleet_management.config.loader import Config
+from fleet_management.config.loader import Configurator
 
 
 class TaskAllocator(object):
     def __init__(self, config_file=None):
         self.logger = logging.getLogger('mrs')
         self.logger.info("Starting MRS...")
-        self.config = Config(config_file, initialize=True)
+        self.config = Configurator(config_file, initialize=True)
         self.config.configure_logger()
         self.ccu_store = self.config.ccu_store
         self.api = self.config.api
 
-        self.auctioneer = self.config.configure_auctioneer(self.ccu_store)
+        self.auctioneer = self.config.configure_auctioneer(self.ccu_store, self.api)
         self.api.register_callbacks(self)
 
     def run(self):

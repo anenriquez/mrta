@@ -5,11 +5,12 @@ ccu_store:
 robot_store:
   db_name: ropod_store
   port: 27017
-resources:
-  fleet:
-    - ropod_001
-    - ropod_002
-    - ropod_003
+resource_manager:
+  resources:
+    fleet:
+      - ropod_001
+      - ropod_002
+      - ropod_003
 
 plugins:
   task_allocation:
@@ -21,7 +22,7 @@ plugins:
     robot_proxies: true
     stp_solver: srea
   auctioneer:
-    round_time: 15 # seconds
+    round_time: 5 # seconds
     alternative_timeslots: True
   dispatcher:
     freeze_window: 300 # seconds
@@ -48,8 +49,6 @@ robot_proxy:
         message_types: # Types of messages the node will listen to. Messages not listed will be ignored
           - TASK-ANNOUNCEMENT
           - ALLOCATION
-          - TIMETABLE
-          - DELETE-TASK
         debug_msgs: false
       acknowledge: false
       publish:
@@ -70,10 +69,6 @@ robot_proxy:
           component: 'bidder.task_announcement_cb'
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
-        - msg_type: 'TIMETABLE'
-          component: '.timetable_cb'
-        - msg_type: 'DELETE-TASK'
-          component: '.delete_task_cb'
 
 api:
   version: 0.1.0

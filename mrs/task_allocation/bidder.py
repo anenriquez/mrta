@@ -33,8 +33,8 @@ class Bidder(RobotBase):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         task_announcement_msg = msg['payload']
         task_announcement = TaskAnnouncement.from_dict(task_announcement_msg, self.task_cls)
-        self.ztp = task_announcement.ztp
         self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
     def allocation_cb(self, msg):
@@ -90,25 +90,21 @@ class Bidder(RobotBase):
     def insert_task(self, task, round_id):
         best_bid = None
 
-        tasks = self.timetable.get_tasks()
-        if tasks:
-            n_tasks = len(tasks)
-        else:
-            n_tasks = 0
+        n_tasks = len(self.timetable.get_tasks())
 
         # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
         for position in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
             self.logger.debug("Schedule: %s", self.timetable.schedule)
-            if position == 1 and self.timetable.is_scheduled():
+            if position == 1 and self.timetable.schedule:
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
             self.logger.debug("Computing bid for task %s in position %s", task.id, position)
 
             try:
-                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable, self.ztp)
+                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
