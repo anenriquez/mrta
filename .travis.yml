@@ -11,7 +11,7 @@ before_install:
 
 script:
   - docker-compose up -d robot
-  - docker-compose up -d task_allocator
+  - docker-compose up -d ccu
   - docker-compose up --exit-code-from task_allocation_test
 after_script:
   - docker stop $(docker ps -aq)

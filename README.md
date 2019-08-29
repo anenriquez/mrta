@@ -83,7 +83,7 @@ python3 robot.py ropod_001
 Run in another terminal
 
 ```
-python3 task_allocator.py
+python3 ccu.py
 ```
 
 Go to `/tests` and run test in another terminal
