@@ -103,7 +103,7 @@ class TaskAllocator(RopodPyre):
 
 if __name__ == '__main__':
 
-    tasks = load_yaml_dataset('data/non_overlapping_1.yaml')
+    tasks = load_yaml_dataset('data/non_overlapping.yaml')
     config_file_path = '../config/config.yaml'
 
     for task in tasks:

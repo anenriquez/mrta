@@ -1,10 +1,9 @@
 import collections
 from datetime import timedelta
+from importlib import import_module
 
 import yaml
 from ropod.utils.timestamp import TimeStamp
-
-from mrs.config.task_factory import TaskFactory
 
 
 def load_yaml(file):
@@ -21,9 +20,7 @@ def load_yaml(file):
 def load_yaml_dataset(dataset_path):
     dataset_dict = load_yaml(dataset_path)
     task_type = dataset_dict.get('task_type')
-
-    task_factory = TaskFactory()
-    task_cls = task_factory.get_task_cls(task_type)
+    task_cls = getattr(import_module(task_type), 'Task')
 
     tasks = list()
     tasks_dict = dataset_dict.get('tasks')

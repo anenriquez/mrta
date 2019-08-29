@@ -74,7 +74,7 @@ class TaskRequester(RopodPyre):
 
 
 if __name__ == '__main__':
-    tasks = load_yaml_dataset('data/non_overlapping_3.yaml')
+    tasks = load_yaml_dataset('data/non_overlapping.yaml')
     config_file = '../config/config.yaml'
     robot_id = 'ropod_001'
 
