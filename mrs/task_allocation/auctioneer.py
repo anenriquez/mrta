@@ -1,5 +1,4 @@
 import logging
-import time
 from datetime import datetime
 from datetime import timedelta
 from importlib import import_module
@@ -12,7 +11,6 @@ from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.task import TaskStatus
-from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -22,12 +20,14 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, robot_ids, ccu_store, api, stp_solver,
-                 task_type, allocation_method, round_time=5, **kwargs):
+    def __init__(self, ccu_store, api, stp_solver, task_type, allocation_method,
+                 round_time=5, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
 
-        self.robot_ids = robot_ids
+        self.robot_ids = list()
+        self.timetables = dict()
+
         self.db_interface = DBInterface(ccu_store)
         self.api = api
         self.stp = STP(stp_solver)
@@ -40,12 +40,6 @@ class Auctioneer(object):
         self.task_cls = getattr(import_module(task_class_path), 'Task')
         self.logger.debug("Auctioneer started")
 
-        # TODO: Inititalize the timetables in the loader? and read the timetables here
-        self.timetables = dict()
-        for robot_id in robot_ids:
-            timetable = self.db_interface.get_timetable(robot_id, self.stp)
-            self.timetables[robot_id] = timetable
-
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
@@ -56,11 +50,13 @@ class Auctioneer(object):
         self.zero_timepoint = TimeStamp()
         self.zero_timepoint.timestamp = today_midnight
 
-    def __str__(self):
-        to_print = "Auctioneer"
-        to_print += '\n'
-        to_print += "Groups {}".format(self.api.interfaces[0].groups())
-        return to_print
+    def register_robot(self, robot_id):
+        self.robot_ids.append(robot_id)
+        self.get_timetable(robot_id)
+
+    def get_timetable(self, robot_id):
+        timetable = self.db_interface.get_timetable(robot_id, self.stp)
+        self.timetables[robot_id] = timetable
 
     def check_db(self):
         tasks_dict = self.db_interface.get_tasks()
@@ -219,24 +215,18 @@ class Auctioneer(object):
         return task_schedule
 
 
-if __name__ == '__main__':
+class AuctioneerBuilder:
+    def __init__(self):
+        self._instance = None
 
-    from fleet_management.config.loader import Configurator
-    config_file_path = '../../config/config.yaml'
-    config = Configurator(config_file_path, initialize=True)
-    auctioneer = config.configure_auctioneer(config.ccu_store)
+    def __call__(self, **kwargs):
+        if not self._instance:
+            self._instance = Auctioneer(**kwargs)
+        return self._instance
 
-    time.sleep(5)
 
-    auctioneer.api.register_callbacks(auctioneer)
+configure = AuctioneerBuilder()
 
-    try:
-        auctioneer.api.start()
-        while True:
-            auctioneer.run()
-            auctioneer.api.run()
-            time.sleep(0.5)
-    except (KeyboardInterrupt, SystemExit):
-        print("Terminating auctioneer ...")
-        auctioneer.api.shutdown()
-        print("Exiting...")
+
+
+
