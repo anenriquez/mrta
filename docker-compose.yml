@@ -10,8 +10,8 @@ services:
     tty: true
     stdin_open: true
 
-  task_allocator:
-    container_name: task-allocator
+  ccu:
+    container_name: ccu
     image: ropod-mrs
     working_dir: /mrta/mrs/
     command: ["python3", "ccu.py"]
@@ -30,6 +30,6 @@ services:
     stdin_open: true
     depends_on:
       - robot
-      - task_allocator
+      - ccu
 
 
