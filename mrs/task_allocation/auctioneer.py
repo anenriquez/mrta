@@ -95,7 +95,6 @@ class Auctioneer(object):
         timetable = self.timetables.get(robot_id)
         timetable.zero_timepoint = self.zero_timepoint
         timetable.add_task_to_stn(task, position)
-        print("STN: ", timetable.stn)
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
@@ -124,7 +123,6 @@ class Auctioneer(object):
         else:
             task_lot = task
         self.tasks_to_allocate[task_lot.task_id] = task_lot
-        print("task_lot: ", task_lot)
 
     def allocate(self, tasks):
         if isinstance(tasks, list):

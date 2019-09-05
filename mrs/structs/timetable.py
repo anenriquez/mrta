@@ -69,8 +69,6 @@ class Timetable(object):
         stn_task = self.to_stn_task(task)
         self.stn.add_task(stn_task, position)
 
-        print(self.stn)
-
     def to_stn_task(self, task):
         """ Converts a task to an stn task
 
