@@ -6,11 +6,11 @@ from importlib import import_module
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
 
-from mrs.db_interface import DBInterface
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
-from mrs.structs.task import TaskStatus
+from mrs.structs.allocation import TaskLot
+from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -28,7 +28,6 @@ class Auctioneer(object):
         self.robot_ids = list()
         self.timetables = dict()
 
-        self.db_interface = DBInterface(ccu_store)
         self.api = api
         self.stp = STP(stp_solver)
 
@@ -36,8 +35,6 @@ class Auctioneer(object):
         self.round_time = timedelta(seconds=round_time)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        task_class_path = task_type.get('class', 'mrs.structs.task')
-        self.task_cls = getattr(import_module(task_class_path), 'Task')
         self.logger.debug("Auctioneer started")
 
         self.tasks_to_allocate = dict()
@@ -55,15 +52,8 @@ class Auctioneer(object):
         self.get_timetable(robot_id)
 
     def get_timetable(self, robot_id):
-        timetable = self.db_interface.get_timetable(robot_id, self.stp)
+        timetable = Timetable(robot_id, self.stp)
         self.timetables[robot_id] = timetable
-
-    def check_db(self):
-        tasks_dict = self.db_interface.get_tasks()
-        for task_id, task_dict in tasks_dict.items():
-            task = self.task_cls.from_dict(task_dict)
-            if task.status == TaskStatus.UNALLOCATED:
-                self.add_task(task)
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -89,7 +79,7 @@ class Auctioneer(object):
 
         task, robot_id, position, tasks_to_allocate = round_result
 
-        allocation = (task.id, [robot_id])
+        allocation = (task.task_id, [robot_id])
         self.allocations.append(allocation)
         self.tasks_to_allocate = tasks_to_allocate
 
@@ -97,16 +87,14 @@ class Auctioneer(object):
         self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
         self.logger.debug("Updating task status to ALLOCATED")
-        self.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
         self.update_timetable(robot_id, task, position)
 
         return allocation
 
     def update_timetable(self, robot_id, task, position):
-        timetable = self.db_interface.get_timetable(robot_id, self.stp)
+        timetable = self.timetables.get(robot_id)
         timetable.zero_timepoint = self.zero_timepoint
         timetable.add_task_to_stn(task, position)
-        print("STN: ", timetable.stn)
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
@@ -115,7 +103,6 @@ class Auctioneer(object):
             pass
 
         self.timetables.update({robot_id: timetable})
-        self.db_interface.update_timetable(timetable)
 
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
@@ -131,8 +118,11 @@ class Auctioneer(object):
         self.waiting_for_user_confirmation.append(alternative_allocation)
 
     def add_task(self, task):
-        self.tasks_to_allocate[task.id] = task
-        self.db_interface.update_task(task)
+        if hasattr(task, 'request'):
+            task_lot = TaskLot.from_request(task.task_id, task.request)
+        else:
+            task_lot = task
+        self.tasks_to_allocate[task_lot.task_id] = task_lot
 
     def allocate(self, tasks):
         if isinstance(tasks, list):
@@ -155,11 +145,10 @@ class Auctioneer(object):
         self.logger.info("Starting round: %s", self.round.id)
         self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
-        tasks = list(self.tasks_to_allocate.values())
-        task_announcement = TaskAnnouncement(tasks, self.round.id, self.zero_timepoint)
-        msg = self.api.create_message(task_announcement)
+        tasks_lots = list(self.tasks_to_allocate.values())
 
-        self.logger.debug('task annoucement msg: %s', msg)
+        task_announcement = TaskAnnouncement(tasks_lots, self.round.id, self.zero_timepoint)
+        msg = self.api.create_message(task_announcement)
 
         self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
@@ -168,8 +157,9 @@ class Auctioneer(object):
 
     def allocate_task_cb(self, msg):
         self.logger.debug("Task received")
+        task_cls = getattr(import_module('mrs.structs.allocation'), 'TaskLot')
         task_dict = msg['payload']['task']
-        task = self.task_cls.from_dict(task_dict)
+        task = task_cls.from_dict(task_dict)
         self.add_task(task)
 
     def bid_cb(self, msg):
@@ -191,9 +181,9 @@ class Auctioneer(object):
 
         timetable = self.timetables.get(robot_id)
 
-        relative_start_navigation_time = timetable.dispatchable_graph.get_task_time(task_id, "navigation")
-        relative_start_time = timetable.dispatchable_graph.get_task_time(task_id, "start")
-        relative_latest_finish_time = timetable.dispatchable_graph.get_task_time(task_id, "finish", False)
+        relative_start_navigation_time = timetable.dispatchable_graph.get_time(task_id, "navigation")
+        relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
+        relative_latest_finish_time = timetable.dispatchable_graph.get_time(task_id, "finish", False)
 
         self.logger.debug("Current time %s: ", TimeStamp())
         self.logger.debug("zero_timepoint %s: ", self.zero_timepoint)
@@ -209,8 +199,8 @@ class Auctioneer(object):
         self.logger.debug("Start of task %s: %s", task_id, start_time)
         self.logger.debug("Latest finish of task %s: %s", task_id, finish_time)
 
-        task_schedule['start_time'] = start_navigation_time
-        task_schedule['finish_time'] = finish_time
+        task_schedule['start_time'] = start_navigation_time.to_datetime()
+        task_schedule['finish_time'] = finish_time.to_datetime()
 
         return task_schedule
 

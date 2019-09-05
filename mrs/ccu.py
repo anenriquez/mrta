@@ -20,6 +20,8 @@ class FMS(object):
 
         config.add_plugins('resource_manager')
 
+        config.configure_components('resource_manager')
+
         self.api.register_callbacks(self)
 
         self.logger.info("Initialized FMS")
@@ -30,7 +32,8 @@ class FMS(object):
 
             while True:
                 self.resource_manager.auctioneer.run()
-                self.resource_manager.get_allocation()
+                self.resource_manager._get_allocation()
+                # self.resource_manager.run()
                 self.api.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):

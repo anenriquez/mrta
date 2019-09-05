@@ -14,18 +14,18 @@ class BiddingRule(object):
             timetable.solve_stp()
             timetable.compute_temporal_metric(self.temporal_criterion)
 
-            if task.hard_constraints:
-                bid = Bid(robot_id, round_id, task.id, timetable,
+            if task.constraints.hard:
+                bid = Bid(robot_id, round_id, task.task_id, timetable,
                           position=position,
                           risk_metric=timetable.risk_metric,
                           temporal_metric=timetable.temporal_metric)
 
             else:
-                navigation_start_time = timetable.dispatchable_graph.get_task_time(task.id)
+                navigation_start_time = timetable.dispatchable_graph.get_task_time(task.task_id)
                 timetable.risk_metric = 1
                 timetable.temporal_metric = abs(navigation_start_time - task.earliest_start_time),
 
-                bid = Bid(robot_id, round_id, task.id, timetable,
+                bid = Bid(robot_id, round_id, task.task_id, timetable,
                           position=position,
                           risk_metric=timetable.risk_metric,
                           temporal_metric=timetable.temporal_metric,

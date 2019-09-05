@@ -6,7 +6,6 @@ from mrs.robot_base import RobotBase
 from mrs.structs.allocation import FinishRound
 from mrs.structs.allocation import TaskAnnouncement
 from mrs.structs.bid import Bid
-from mrs.structs.task import TaskStatus
 from mrs.task_allocation.bidding_rule import BiddingRule
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -32,8 +31,7 @@ class Bidder(RobotBase):
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
         task_announcement_msg = msg['payload']
-        task_announcement = TaskAnnouncement.from_dict(task_announcement_msg, self.task_cls)
-        self.timetable = self.db_interface.get_timetable(self.id, self.stp)
+        task_announcement = TaskAnnouncement.from_dict(task_announcement_msg)
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
@@ -51,9 +49,8 @@ class Bidder(RobotBase):
         no_bids = list()
         round_id = task_announcement.round_id
 
-        for task in task_announcement.tasks:
-            self.db_interface.update_task(task)
-            self.logger.debug("Computing bid of task %s", task.id)
+        for task in task_announcement.tasks_lots:
+            self.logger.debug("Computing bid of task %s", task.task_id)
 
             # Insert task in each possible position of the stn and
             # get the best_bid for each task
@@ -62,8 +59,8 @@ class Bidder(RobotBase):
             if best_bid:
                 bids.append(best_bid)
             else:
-                self.logger.debug("No bid for task %s", task.id)
-                no_bid = Bid(self.id, round_id, task.id)
+                self.logger.debug("No bid for task %s", task.task_id)
+                no_bid = Bid(self.id, round_id, task.task_id)
                 no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
@@ -101,7 +98,7 @@ class Bidder(RobotBase):
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
-            self.logger.debug("Computing bid for task %s in position %s", task.id, position)
+            self.logger.debug("Computing bid for task %s in position %s", task.task_id, position)
 
             try:
                 bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
@@ -116,12 +113,12 @@ class Bidder(RobotBase):
 
             except NoSTPSolution:
                 self.logger.exception("The stp solver could not solve the problem for"
-                                      " task %s in position %s", task.id, position)
+                                      " task %s in position %s", task.task_id, position)
 
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)
 
-        self.logger.debug("Best bid for task %s: %s", task.id, best_bid)
+        self.logger.debug("Best bid for task %s: %s", task.task_id, best_bid)
 
         return best_bid
 
@@ -156,10 +153,6 @@ class Bidder(RobotBase):
     def allocate_to_robot(self, task_id):
 
         self.timetable = copy.deepcopy(self.bid_placed.timetable)
-        self.db_interface.update_timetable(self.timetable)
-        task_dict = self.db_interface.get_task(task_id)
-        task = self.task_cls.from_dict(task_dict)
-        self.db_interface.update_task_status(task, TaskStatus.ALLOCATED)
 
         self.logger.info("Robot %s allocated task %s", self.id, task_id)
         self.logger.debug("STN %s", self.timetable.stn)
