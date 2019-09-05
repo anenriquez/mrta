@@ -1,20 +1,73 @@
-from datetime import timedelta
-
-from ropod.utils.uuid import generate_uuid
 from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
+from fleet_management.db.models.task import TaskConstraints, TimepointConstraints
+
+
+class TaskLot:
+    def __init__(self, task_id,
+                 start_location,
+                 finish_location,
+                 earliest_start_time,
+                 latest_start_time,
+                 hard_constraints):
+
+        self.task_id = str(task_id)
+        self.start_location = start_location
+        self.finish_location = finish_location
+
+        start_timepoint_constraints = TimepointConstraints(earliest_time=earliest_start_time,
+                                                           latest_time=latest_start_time)
+        time_point_constraints = [start_timepoint_constraints]
+        self.constraints = TaskConstraints(time_point_constraints=time_point_constraints,
+                                           hard=hard_constraints)
+
+    def to_dict(self):
+        dict_repr = dict()
+        dict_repr["task_id"] = self.task_id
+        dict_repr["start_location"] = self.start_location
+        dict_repr["finish_location"] = self.finish_location
+        dict_repr["constraints"] = self.constraints.to_dict()
+
+        return dict_repr
+
+    @classmethod
+    def from_dict(cls, task_dict):
+        task_id = task_dict["task_id"]
+        start_location = task_dict["start_location"]
+        finish_location = task_dict["finish_location"]
+        constraints = TaskConstraints.from_payload(task_dict["constraints"])
+
+        start_timepoint_constraints = constraints.time_point_constraints[0]
+
+        task = cls(task_id, start_location, finish_location, start_timepoint_constraints.earliest_time,
+                   start_timepoint_constraints.latest_time, constraints.hard)
+
+        return task
+
+    @classmethod
+    def from_request(cls, task_id, request):
+        start_location = request.pickup_location
+        finish_location = request.delivery_location
+        earliest_start_time = request.earliest_pickup_time
+        latest_start_time = request.latest_pickup_time
+        hard_constraints = request.hard_constraints
+        task = cls(task_id, start_location, finish_location, earliest_start_time,
+                   latest_start_time, hard_constraints)
+        return task
 
 
 class TaskAnnouncement(object):
-    def __init__(self, tasks, round_id, zero_timepoint):
+    def __init__(self, tasks_lots, round_id, zero_timepoint):
         """
         Constructor for the TaskAnnouncement object
 
         Args:
-             tasks (list): List of Task objects to be announced
+             tasks_lots (list): List of TaskLot objects to be announced
              round_id (str): A string of the format UUID that identifies the round
-             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information must be referenced to
+             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information must be
+                                        referenced to
         """
-        self.tasks = tasks
+        self.tasks_lots = tasks_lots
 
         if not round_id:
             self.round_id = generate_uuid()
@@ -23,34 +76,30 @@ class TaskAnnouncement(object):
 
         self.zero_timepoint = zero_timepoint
 
-        delta = timedelta(minutes=1)
-        self.earliest_navigation_start = TimeStamp(delta)
-
     def to_dict(self):
-        task_annoucement_dict = dict()
-        task_annoucement_dict['tasks'] = dict()
+        task_announcement_dict = dict()
+        task_announcement_dict['tasks_lots'] = dict()
 
-        for task in self.tasks:
-            task_annoucement_dict['tasks'][task.id] = task.to_dict()
+        for task_lot in self.tasks_lots:
+            task_announcement_dict['tasks_lots'][task_lot.task_id] = task_lot.to_dict()
 
-        task_annoucement_dict['round_id'] = self.round_id
-        task_annoucement_dict['zero_timepoint'] = self.zero_timepoint.to_str()
-        task_annoucement_dict['earliest_navigation_start'] = self.earliest_navigation_start
+        task_announcement_dict['round_id'] = self.round_id
+        task_announcement_dict['zero_timepoint'] = self.zero_timepoint.to_str()
 
-        return task_annoucement_dict
+        return task_announcement_dict
 
     @staticmethod
-    def from_dict(task_annoucement_dict, task_cls):
-        round_id = task_annoucement_dict['round_id']
-        zero_timepoint = TimeStamp.from_str(task_annoucement_dict['zero_timepoint'])
+    def from_dict(task_announcement_dict):
+        round_id = task_announcement_dict['round_id']
+        zero_timepoint = TimeStamp.from_str(task_announcement_dict['zero_timepoint'])
 
-        tasks_dict = task_annoucement_dict['tasks']
-        tasks = list()
+        tasks_dict = task_announcement_dict['tasks_lots']
+        tasks_lots = list()
+
         for task_id, task_dict in tasks_dict.items():
-            tasks.append(task_cls.from_dict(task_dict))
+            tasks_lots.append(TaskLot.from_dict(task_dict))
 
-        task_announcement = TaskAnnouncement(tasks, round_id, zero_timepoint)
-        task_announcement.earliest_navigation_start = task_annoucement_dict['earliest_navigation_start']
+        task_announcement = TaskAnnouncement(tasks_lots, round_id, zero_timepoint)
 
         return task_announcement
 

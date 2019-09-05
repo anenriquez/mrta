@@ -1,9 +1,10 @@
 import collections
 from datetime import timedelta
-from importlib import import_module
 
 import yaml
 from ropod.utils.timestamp import TimeStamp
+
+from mrs.structs.allocation import TaskLot
 
 
 def load_yaml(file):
@@ -19,31 +20,31 @@ def load_yaml(file):
 
 def load_yaml_dataset(dataset_path):
     dataset_dict = load_yaml(dataset_path)
-    task_type = dataset_dict.get('task_type')
-    task_cls = getattr(import_module(task_type), 'Task')
 
     tasks = list()
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
 
     for task_id, task_info in ordered_tasks.items():
-        task_dict = reference_to_current_time(task_info)
-        task = task_cls.from_dict(task_dict)
-        tasks.append(task)
+        start_location = task_info.get("start_location")
+        finish_location = task_info.get("finish_location")
 
+        earliest_start_time, latest_start_time = reference_to_current_time(task_info.get("earliest_start_time"),
+                                                                           task_info.get("latest_start_time"))
+        hard_constraints = task_info.get("hard_constraints")
+        tasks.append(TaskLot(task_id, start_location, finish_location,
+                             earliest_start_time, latest_start_time, hard_constraints))
     return tasks
 
 
-def reference_to_current_time(task_dict):
-    est = task_dict['earliest_start_time']
-    delta = timedelta(minutes=est)
-    task_dict.update({'earliest_start_time': TimeStamp(delta).to_str()})
+def reference_to_current_time(earliest_time, latest_time):
+    delta = timedelta(minutes=earliest_time)
+    r_earliest_time = TimeStamp(delta).to_str()
 
-    lst = task_dict['latest_start_time']
-    delta = timedelta(minutes=lst)
-    task_dict.update({'latest_start_time': TimeStamp(delta).to_str()})
+    delta = timedelta(minutes=latest_time)
+    r_latest_time = TimeStamp(delta).to_str()
 
-    return task_dict
+    return r_earliest_time, r_latest_time
 
 
 def flatten_dict(dict_input):
