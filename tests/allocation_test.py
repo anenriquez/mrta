@@ -39,7 +39,7 @@ class TaskRequester(RopodPyre):
             self.request_allocation(task)
 
     def request_allocation(self, task):
-        logging.debug("Requesting allocation of task %s", task.id)
+        logging.debug("Requesting allocation of task %s", task.task_id)
         task_msg = dict()
         task_msg['header'] = dict()
         task_msg['payload'] = dict()

@@ -1,9 +1,10 @@
 import logging
 from datetime import timedelta
 
-from ropod.structs.task import TaskConstraints
+from fleet_management.db.models.task import TimepointConstraints
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
+
 from mrs.exceptions.task_allocation import NoSTPSolution
 
 logger = logging.getLogger("mrs.timetable")
@@ -68,6 +69,8 @@ class Timetable(object):
         stn_task = self.to_stn_task(task)
         self.stn.add_task(stn_task, position)
 
+        print(self.stn)
+
     def to_stn_task(self, task):
         """ Converts a task to an stn task
 
@@ -75,19 +78,20 @@ class Timetable(object):
             task (obj): task object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
+        start_timepoint_constraints = task.constraints.time_point_constraints[0]
 
-        r_earliest_start_time, r_latest_start_time = TaskConstraints.relative_to_ztp(task, self.zero_timepoint, "minutes")
+        r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
+                                                                                          self.zero_timepoint)
         delta = timedelta(minutes=1)
         earliest_navigation_start = TimeStamp(delta)
-
         r_earliest_navigation_start = earliest_navigation_start.get_difference(self.zero_timepoint, "minutes")
 
-        stn_task = STNTask(task.id,
+        stn_task = STNTask(task.task_id,
                            r_earliest_navigation_start,
                            r_earliest_start_time,
                            r_latest_start_time,
-                           task.start_pose_name,
-                           task.finish_pose_name)
+                           task.start_location,
+                           task.finish_location)
 
         return stn_task
 
