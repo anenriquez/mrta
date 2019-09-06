@@ -155,12 +155,9 @@ class Auctioneer(object):
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def allocate_task_cb(self, msg):
-        self.logger.debug("Task received")
-        task_cls = getattr(import_module('mrs.structs.allocation'), 'TaskLot')
-        task_dict = msg['payload']['task']
-        task = task_cls.from_dict(task_dict)
-        self.add_task(task)
+    def start_test_cb(self, msg):
+        self.logger.debug("Start test msg received")
+        # TODO Read tasks from ccu_store
 
     def bid_cb(self, msg):
         bid = msg['payload']
@@ -176,7 +173,7 @@ class Auctioneer(object):
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph
-
+        task_id = str(task_id)
         task_schedule = dict()
 
         timetable = self.timetables.get(robot_id)
