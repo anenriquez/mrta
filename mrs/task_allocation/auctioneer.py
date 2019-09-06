@@ -12,6 +12,8 @@ from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.allocation import TaskLot
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
+from fleet_management.db.models.task import TaskStatus
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -87,6 +89,8 @@ class Auctioneer(object):
         self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
         self.logger.debug("Updating task status to ALLOCATED")
+        status = TaskStatus(task.task_id, TaskStatusConst.ALLOCATED)
+        status.save()
         self.update_timetable(robot_id, task, position)
 
         return allocation
