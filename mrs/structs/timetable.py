@@ -76,7 +76,7 @@ class Timetable(object):
             task (obj): task object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        start_timepoint_constraints = task.constraints.time_point_constraints[0]
+        start_timepoint_constraints = task.constraints.timepoint_constraints[0]
 
         r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                           self.zero_timepoint)

@@ -5,6 +5,7 @@ import yaml
 from ropod.utils.timestamp import TimeStamp
 
 from mrs.structs.allocation import TaskLot
+from mrs.structs.task import Task
 
 
 def load_yaml(file):
@@ -32,8 +33,12 @@ def load_yaml_dataset(dataset_path):
         earliest_start_time, latest_start_time = reference_to_current_time(task_info.get("earliest_start_time"),
                                                                            task_info.get("latest_start_time"))
         hard_constraints = task_info.get("hard_constraints")
-        tasks.append(TaskLot(task_id, start_location, finish_location,
-                             earliest_start_time, latest_start_time, hard_constraints))
+
+        TaskLot.create(task_id, start_location, finish_location, earliest_start_time, latest_start_time, hard_constraints)
+        task = Task.create(task_id)
+
+        tasks.append(task)
+
     return tasks
 
 
