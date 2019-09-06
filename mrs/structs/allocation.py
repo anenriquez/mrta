@@ -5,7 +5,7 @@ from fleet_management.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
+from ropod.utils.uuid import generate_uuid, from_str
 
 
 class TaskLot(MongoModel):
@@ -105,7 +105,7 @@ class TaskAnnouncement(object):
 
     @staticmethod
     def from_dict(task_announcement_dict):
-        round_id = task_announcement_dict['round_id']
+        round_id = from_str(task_announcement_dict['round_id'])
         zero_timepoint = TimeStamp.from_str(task_announcement_dict['zero_timepoint'])
 
         tasks_dict = task_announcement_dict['tasks_lots']

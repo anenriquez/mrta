@@ -8,7 +8,6 @@ from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.bid import Bid
 import numpy as np
-import uuid
 
 
 class Round(object):
@@ -112,7 +111,7 @@ class Round(object):
 
         try:
             winning_bid = self.elect_winner()
-            allocated_task = self.tasks_to_allocate.pop(uuid.UUID(winning_bid.task_id), None)
+            allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
             robot_id = winning_bid.robot_id
             position = winning_bid.position
             round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)

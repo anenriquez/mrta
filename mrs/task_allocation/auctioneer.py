@@ -174,7 +174,6 @@ class Auctioneer(object):
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph
-        task_id = str(task_id)
         task_schedule = dict()
 
         timetable = self.timetables.get(robot_id)
