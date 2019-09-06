@@ -103,6 +103,7 @@ class Auctioneer(object):
             pass
 
         self.timetables.update({robot_id: timetable})
+        timetable.store()
 
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)

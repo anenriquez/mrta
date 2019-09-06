@@ -4,6 +4,7 @@ from datetime import timedelta
 from fleet_management.db.models.task import TimepointConstraints
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
+from mrs.models.timetable import Timetable as TimetableMongo
 
 from mrs.exceptions.task_allocation import NoSTPSolution
 
@@ -212,4 +213,11 @@ class Timetable(object):
             timetable.schedule = schedule
 
         return timetable
+
+    def store(self):
+
+        timetable = TimetableMongo(self.robot_id, self.zero_timepoint.to_datetime(),
+                                   self.stn.to_dict(), self.dispatchable_graph.to_dict())
+        timetable.save()
+
 
