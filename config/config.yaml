@@ -1,9 +1,9 @@
 version: 2
 ccu_store:
-  db_name: ropod_ccu_store
+  db_name: ccu_store
   port: 27017
 robot_store:
-  db_name: ropod_store
+  db_name: robot_store
   port: 27017
 resource_manager:
   resources:
@@ -87,7 +87,7 @@ api:
         - TASK-PROGRESS
         - BID
         - FINISH-ROUND
-        - ALLOCATE-TASK
+        - START-TEST
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -101,8 +101,8 @@ api:
         groups: ['TASK-ALLOCATION']
         method: shout
     callbacks:
-      - msg_type: 'ALLOCATE-TASK'
-        component: 'resource_manager.auctioneer.allocate_task_cb'
+      - msg_type: 'START-TEST'
+        component: 'resource_manager.auctioneer.start_test_cb'
       - msg_type: 'BID'
         component: 'resource_manager.auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
