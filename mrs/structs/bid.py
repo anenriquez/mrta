@@ -1,4 +1,5 @@
 import numpy as np
+from ropod.utils.uuid import from_str
 
 
 class Bid(object):
@@ -47,8 +48,8 @@ class Bid(object):
     @classmethod
     def from_dict(cls, bid_dict):
         robot_id = bid_dict['robot_id']
-        round_id = bid_dict['round_id']
-        task_id = bid_dict['task_id']
+        round_id = from_str(bid_dict['round_id'])
+        task_id = from_str(bid_dict['task_id'])
         position = bid_dict['position']
         risk_metric = bid_dict['risk_metric']
         temporal_metric = bid_dict['temporal_metric']

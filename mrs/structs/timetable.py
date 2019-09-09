@@ -4,6 +4,7 @@ from datetime import timedelta
 from fleet_management.db.models.task import TimepointConstraints
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
+from mrs.models.timetable import Timetable as TimetableMongo
 
 from mrs.exceptions.task_allocation import NoSTPSolution
 
@@ -76,7 +77,7 @@ class Timetable(object):
             task (obj): task object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        start_timepoint_constraints = task.constraints.time_point_constraints[0]
+        start_timepoint_constraints = task.constraints.timepoint_constraints[0]
 
         r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                           self.zero_timepoint)
@@ -212,4 +213,11 @@ class Timetable(object):
             timetable.schedule = schedule
 
         return timetable
+
+    def store(self):
+
+        timetable = TimetableMongo(self.robot_id, self.zero_timepoint.to_datetime(),
+                                   self.stn.to_dict(), self.dispatchable_graph.to_dict())
+        timetable.save()
+
 
