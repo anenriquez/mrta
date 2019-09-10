@@ -1,6 +1,7 @@
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from fleet_management.utils.messages import Document
+from mrs.db.queries.timetable import TimetableManager
 import logging
 
 
@@ -9,6 +10,8 @@ class Timetable(MongoModel):
     zero_timepoint = fields.DateTimeField()
     stn = fields.DictField()
     dispatchable_graph = fields.DictField(default=dict())
+
+    objects = TimetableManager()
 
     class Meta:
         archive_collection = 'timetable_archive'

@@ -220,4 +220,9 @@ class Timetable(object):
                                    self.stn.to_dict(), self.dispatchable_graph.to_dict())
         timetable.save()
 
+    @staticmethod
+    def fetch(robot_id):
+        return TimetableMongo.objects.get_timetable(robot_id)
+
+
 
