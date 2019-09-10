@@ -7,6 +7,7 @@ from stn.task import STNTask
 from mrs.db.models.timetable import Timetable as TimetableMongo
 
 from mrs.exceptions.task_allocation import NoSTPSolution
+from pymodm.errors import DoesNotExist
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -221,8 +222,17 @@ class Timetable(object):
         timetable.save()
 
     @staticmethod
-    def fetch(robot_id):
-        return TimetableMongo.objects.get_timetable(robot_id)
+    def fetch(robot_id, stp):
+        timetable = Timetable(robot_id, stp)
+        try:
+            timetable_mongo = TimetableMongo.objects.get_timetable(robot_id)
+            # TODO: Add missing arguments to TimetableMongo
+            timetable.stn = timetable.stn.from_dict(timetable_mongo.stn)
+            timetable.dispatchable_graph = timetable.stn.from_dict(timetable_mongo.dispatchable_graph)
+            timetable.zero_timepoint = timetable_mongo.zero_timepoint
+        except DoesNotExist:
+            logging.exception("The timetable does not exist")
 
+        return timetable
 
 

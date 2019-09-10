@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 
-from mrs.db.models.task import TaskStatus
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
@@ -54,7 +53,7 @@ class Auctioneer(object):
         self.get_timetable(robot_id)
 
     def get_timetable(self, robot_id):
-        timetable = Timetable(robot_id, self.stp)
+        timetable = Timetable.fetch(robot_id, self.stp)
         self.timetables[robot_id] = timetable
 
     def run(self):
@@ -89,13 +88,13 @@ class Auctioneer(object):
         self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
         self.logger.debug("Updating task status to ALLOCATED")
-        status = TaskStatus(task.task_id, TaskStatusConst.ALLOCATED)
-        status.save()
+        task.update_status(TaskStatusConst.ALLOCATED)
         self.update_timetable(robot_id, task, position)
 
         return allocation
 
     def update_timetable(self, robot_id, task, position):
+        self.get_timetable(robot_id)
         timetable = self.timetables.get(robot_id)
         timetable.zero_timepoint = self.zero_timepoint
         timetable.add_task_to_stn(task, position)
