@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 
-from mrs.models.task import TaskStatus
+from mrs.db.models.task import TaskStatus
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
@@ -10,7 +10,7 @@ from stn.stp import STP
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
-from mrs.models.task import TaskLot
+from mrs.db.models.task import TaskLot
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 from fleet_management.db.queries.interfaces.tasks import get_tasks_by_status

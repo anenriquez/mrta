@@ -1,6 +1,6 @@
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
-from mrs.models.task import TaskLot
+from mrs.db.models.task import TaskLot
 
 
 class TaskAnnouncement(object):
