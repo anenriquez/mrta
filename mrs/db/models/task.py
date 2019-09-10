@@ -86,12 +86,11 @@ class TaskLot(MongoModel):
         return task_lot
 
     def update_status(self, status):
-        status = TaskStatus(self.task_id, status)
-        status.save()
+        task_status = TaskStatus(task=self.task_id, status=status)
+        task_status.save()
         if status in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED]:
             self.archive()
-            status.archive()
-            self.save()
+            task_status.archive()
 
     @classmethod
     def from_payload(cls, payload):
@@ -122,6 +121,5 @@ class TaskLot(MongoModel):
 
 class TaskStatus(RopodTaskStatus):
     task = fields.ReferenceField(TaskLot, primary_key=True, required=True)
-    status = fields.IntegerField(default=TaskStatusConst.UNALLOCATED)
-    delayed = fields.BooleanField(default=False)
+
 
