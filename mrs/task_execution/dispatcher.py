@@ -9,7 +9,7 @@ from importlib import import_module
 from mrs.db_interface import DBInterface
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.structs.task import TaskStatus
+from mrs.models.task import TaskStatus
 from mrs.structs.timetable import Timetable
 from mrs.task_execution.scheduler import Scheduler
 

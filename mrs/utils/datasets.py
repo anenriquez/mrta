@@ -4,8 +4,7 @@ from datetime import timedelta
 import yaml
 from ropod.utils.timestamp import TimeStamp
 
-from mrs.structs.allocation import TaskLot
-from mrs.structs.task import Task
+from mrs.models.task import Task, TaskLot
 
 
 def load_yaml(file):

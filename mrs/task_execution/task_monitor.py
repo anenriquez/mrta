@@ -1,7 +1,7 @@
 import logging
 
 from mrs.db_interface import DBInterface
-from mrs.structs.task import TaskStatus
+from mrs.models.task import TaskStatus
 
 
 class TaskMonitor(object):

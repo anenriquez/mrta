@@ -1,19 +1,19 @@
 import logging
 from datetime import datetime
 from datetime import timedelta
-from importlib import import_module
 
+from mrs.models.task import TaskStatus
+from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
 
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
-from mrs.structs.allocation import TaskLot
+from mrs.models.task import TaskLot
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
-from fleet_management.db.models.task import TaskStatus
-from ropod.structs.task import TaskStatus as TaskStatusConst
+from fleet_management.db.queries.interfaces.tasks import get_tasks_by_status
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -162,7 +162,9 @@ class Auctioneer(object):
 
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
-        # TODO Read tasks from ccu_store
+        tasks = get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        for task in tasks:
+            self.add_task(task)
 
     def bid_cb(self, msg):
         bid = msg['payload']
