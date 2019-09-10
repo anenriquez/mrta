@@ -3,7 +3,6 @@ import logging
 from ropod.utils.uuid import generate_uuid
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from pymodm.context_managers import switch_collection
-from fleet_management.db.queries.sets.tasks import TaskStatusManager
 from fleet_management.db.models.task import TaskStatus as RopodTaskStatus
 from fleet_management.db.models.task import TaskConstraints, TimepointConstraints
 from fleet_management.utils.messages import Document
@@ -125,6 +124,4 @@ class TaskStatus(RopodTaskStatus):
     task = fields.ReferenceField(TaskLot, primary_key=True, required=True)
     status = fields.IntegerField(default=TaskStatusConst.UNALLOCATED)
     delayed = fields.BooleanField(default=False)
-
-    objects = TaskStatusManager()
 
