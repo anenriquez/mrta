@@ -17,34 +17,23 @@ class DatasetPerformance(MongoModel):
                                 task
     makespan (float):   Finish time of the last allocated task
 
-    execution_time (float): Time taken to execute all allocated tasks.  Includes the idle
-                            times between tasks.
-                            idle time: time between the finish time of the last task and
-                            the start navigation time of the next task. The first task in
-                            a robot's schedule has no idle time.
+    fleet_work_time (float):  % of time taken to perform all allocated tasks.
 
+    fleet_travel_time (float): % of time taken to travel to task locations
 
-    work_time_percentage (float):  % of time from the execution_time taken to perform
-                                    all allocated tasks.
-
-    travel_time_percentage (float): % of time from the execution_time, taken to travel
-                                    to the task location
-
-    idle_time_percentage (float): % of time from the execution_time that the robot is
-                                    waiting (idle) to start its next allocated task
+    fleet_idle_time (float): % of time robots are idle (waiting) to start their next allocated task
 
     robot_usage (float): % of robots used out of all the available robots
 
-    usage_most_loaded_robot (float): % of tasks allocated tot the robot with most allocations
+    usage_most_loaded_robot (float): % of tasks allocated to the robot with most allocations
 
     """
     dataset_id = fields.UUIDField(primary_key=True, default=generate_uuid())
     completion_time = fields.FloatField()
     makespan = fields.FloatField()
-    execution_time = fields.FloatField()
-    work_time_percentage = fields.FloatField()
-    travel_time_percentage = fields.FloatField()
-    idle_time_percentage = fields.FloatField()
+    fleet_work_time = fields.FloatField()
+    fleet_travel_time = fields.FloatField()
+    fleet_idle_time = fields.FloatField()
     robot_usage = fields.FloatField()
     usage_most_loaded_robot = fields.FloatField()
     tasks = fields.ListField(fields.ReferenceField(TaskPerformance))
