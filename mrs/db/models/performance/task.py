@@ -1,16 +1,54 @@
 import logging
 
-from pymodm import fields, MongoModel
+from pymodm import fields, EmbeddedMongoModel, MongoModel
 from ropod.utils.uuid import generate_uuid
 from pymongo.errors import ServerSelectionTimeoutError
 from pymodm.context_managers import switch_collection
 from fleet_management.utils.messages import Document
 
 
-class TaskPerformance(MongoModel):
-    """ Stores task performance information:
+class TaskAllocationPerformance(EmbeddedMongoModel):
+    """ Task performance metrics related to allocation
 
-    task_id (UUID):     uniquely identifies the task
+    allocated (bool):   indicates whether a task was allocated or not
+
+    n_re_allocation_attempts (int): number of times the system attempted to re-allocate the task
+
+    allocation_time (list): List of floats. The first entry indicates the time
+                            taken to allocate the task for the first time. Successive
+                            entries indicate the re-allocation time for each re-allocation.
+    """
+    allocated = fields.BooleanField()
+    n_re_allocation_attempts = fields.IntegerField()
+    allocation_time = fields.ListField()
+
+
+class TaskSchedulingPerformance(EmbeddedMongoModel):
+    """ Task performance metrics related to scheduling
+
+    work_time (float):  scheduled time to perform the task.
+                        E.g.  For a transportation task, time to transport an object
+                        from the pickup to the delivery location
+
+    travel_time (float): scheduled time to reach the task location
+                        E.g. For a transportation task, time to go from current position
+                        to pickup location
+
+    n_re_scheduling_attempts (int): number of times the system attempted to re-schedule the task
+
+    scheduling_time (list): List of floats. The first entry indicates the time taken to
+                            schedule the task for the first time. Successive entries indicate
+                            the re-scheduling time for each re-schedule.
+
+    """
+    work_time = fields.FloatField()
+    travel_time = fields.FloatField()
+    n_re_scheduling_attempts = fields.IntegerField()
+    scheduling_time = fields.ListField()
+
+
+class TaskExecutionPerformance(EmbeddedMongoModel):
+    """ Task performance metrics related to execution
 
     work_time (float):  time taken to perform the task.
                         E.g.  For a transportation task, time to transport an object
@@ -20,36 +58,30 @@ class TaskPerformance(MongoModel):
                         E.g. For a transportation task, time to go from current position
                         to pickup location
 
-    allocated (bool):   indicates whether a task was allocated or not
-
-    n_re_allocation_attempts (int): number of times the system attempted to re-allocate the task
-
-    n_re_scheduling_attempts (int): number of times the system attempted to re-schedule the task
-
-    allocation_time (list): List of floats. The first entry indicates the time
-                            taken to allocate the task for the first time. Successive
-                            entries indicate the re-allocation time for each re-allocation.
-
-    scheduling_time (list): List of floats. The first entry indicates the time taken to
-                            schedule the task for the first time. Successive entries indicate
-                            the re-scheduling time for each re-schedule.
-
     executed (bool):    indicates whether a task was executed or not
 
     delayed (bool): false if the task was executed without violating its temporal constraints,
                     otherwise true
+    """
+    work_time = fields.FloatField()
+    travel_time = fields.FloatField()
+    executed = fields.BooleanField()
+    delayed = fields.BooleanField()
+
+
+class TaskPerformance(MongoModel):
+    """ Stores task performance information:
+
+    task_id (UUID):     uniquely identifies the task
+    allocation (TaskAllocationPerformance):  task performance metrics related to allocation
+    scheduling (TaskSchedulingPerformance):  task performance metrics related to scheduling
+    execution (TaskExecutionPerformance):  task performance metrics related to execution
 
     """
     task_id = fields.UUIDField(primary_key=True, default=generate_uuid())
-    work_time = fields.FloatField()
-    travel_time = fields.FloatField()
-    allocated = fields.BooleanField()
-    n_re_allocation_attempts = fields.IntegerField()
-    n_re_scheduling_attempts = fields.IntegerField()
-    allocation_time = fields.ListField()
-    scheduling_time = fields.ListField()
-    executed = fields.BooleanField()
-    delayed = fields.BooleanField()
+    allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
+    scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance)
+    execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
 
     class Meta:
         archive_collection = 'task_performance_archive'
@@ -84,3 +116,6 @@ class TaskPerformance(MongoModel):
         dict_repr.pop('_cls')
         dict_repr["task_id"] = str(dict_repr.pop('_id'))
         return dict_repr
+
+
+
