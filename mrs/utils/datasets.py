@@ -6,6 +6,7 @@ from ropod.utils.timestamp import TimeStamp
 
 from mrs.db.models.task import TaskLot
 from mrs.db.models.performance.task import TaskPerformance
+from mrs.db.models.performance.dataset import DatasetPerformance
 
 
 def load_yaml(file):
@@ -21,8 +22,9 @@ def load_yaml(file):
 
 def load_yaml_dataset(dataset_path):
     dataset_dict = load_yaml(dataset_path)
+    dataset_id = dataset_dict.get('dataset_id')
 
-    tasks = list()
+    task_ids = list()
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
 
@@ -35,12 +37,14 @@ def load_yaml_dataset(dataset_path):
         hard_constraints = task_info.get("hard_constraints")
 
         TaskPerformance.create(task_id)
-        task = TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
-                              latest_start_time, hard_constraints)
+        TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
+                       latest_start_time, hard_constraints)
 
-        tasks.append(task)
+        task_ids.append(task_id)
 
-    return tasks
+    DatasetPerformance.create(dataset_id, task_ids)
+
+    return task_ids
 
 
 def reference_to_current_time(earliest_time, latest_time):
