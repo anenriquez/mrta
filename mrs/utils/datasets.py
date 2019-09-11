@@ -4,7 +4,8 @@ from datetime import timedelta
 import yaml
 from ropod.utils.timestamp import TimeStamp
 
-from mrs.db.models.task import Task, TaskLot
+from mrs.db.models.task import TaskLot
+from mrs.db.models.performance.task import TaskPerformance
 
 
 def load_yaml(file):
@@ -33,8 +34,9 @@ def load_yaml_dataset(dataset_path):
                                                                            task_info.get("latest_start_time"))
         hard_constraints = task_info.get("hard_constraints")
 
-        TaskLot.create(task_id, start_location, finish_location, earliest_start_time, latest_start_time, hard_constraints)
-        task = Task.create(task_id)
+        TaskPerformance.create(task_id)
+        task = TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
+                              latest_start_time, hard_constraints)
 
         tasks.append(task)
 

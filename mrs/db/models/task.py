@@ -1,51 +1,12 @@
 import logging
 
-from ropod.utils.uuid import generate_uuid
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from pymodm.context_managers import switch_collection
-from fleet_management.db.models.task import TaskStatus as RopodTaskStatus
 from fleet_management.db.models.task import TaskConstraints, TimepointConstraints
+from fleet_management.db.models.task import TaskStatus as RopodTaskStatus
 from fleet_management.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
-
-
-class Task(MongoModel):
-    task_id = fields.UUIDField(primary_key=True, default=generate_uuid())
-
-    class Meta:
-        archive_collection = 'task_archive'
-        ignore_unknown_fields = True
-
-    def save(self):
-        try:
-            super().save(cascade=True)
-        except ServerSelectionTimeoutError:
-            logging.warning('Could not save models to MongoDB')
-
-    def archive(self):
-        with switch_collection(Task, Task.Meta.archive_collection):
-            super().save()
-        self.delete()
-
-    @classmethod
-    def create(cls, task_id):
-        task = cls(task_id)
-        task.save()
-        return task
-
-    @classmethod
-    def from_payload(cls, payload):
-        document = Document.from_msg(payload)
-        document['_id'] = document.pop('task_id')
-        task = Task.from_document(document)
-        return task
-
-    def to_dict(self):
-        dict_repr = self.to_son().to_dict()
-        dict_repr.pop('_cls')
-        dict_repr["task_id"] = str(dict_repr.pop('_id'))
-        return dict_repr
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from mrs.db.models.performance.task import TaskPerformance
 
 
 class TaskLot(MongoModel):
@@ -53,6 +14,7 @@ class TaskLot(MongoModel):
     start_location = fields.CharField()
     finish_location = fields.CharField()
     constraints = fields.EmbeddedDocumentField(TaskConstraints)
+    performance = fields.ReferenceField(TaskPerformance)
 
     class Meta:
         archive_collection = 'task_lot_archive'
@@ -79,7 +41,9 @@ class TaskLot(MongoModel):
         constraints = TaskConstraints(timepoint_constraints=timepoint_constraints,
                                       hard=hard_constraints)
 
-        task_lot = cls(task_id, start_location, finish_location, constraints)
+        task_lot = cls(task_id=task_id, start_location=start_location,
+                       finish_location=finish_location, constraints=constraints,
+                       performance=task_id)
         task_lot.save()
         task_lot.update_status(TaskStatusConst.UNALLOCATED)
 

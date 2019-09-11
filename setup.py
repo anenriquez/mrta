@@ -3,8 +3,8 @@
 from setuptools import setup
 
 setup(name='mrs',
-      packages=['mrs', 'mrs.config', 'mrs.db.models', 'mrs.db.queries', 'mrs.structs', 'mrs.utils', 'mrs.exceptions',
-                'mrs.task_allocation', 'mrs.task_execution'],
+      packages=['mrs', 'mrs.config', 'mrs.db.models', 'mrs.db.models.performance', 'mrs.db.queries', 'mrs.structs',
+                'mrs.utils', 'mrs.exceptions', 'mrs.task_allocation', 'mrs.task_execution'],
       version='0.1.0',
       install_requires=[
             'numpy'
