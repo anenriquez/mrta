@@ -6,17 +6,7 @@ from fleet_management.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.structs.status import TaskStatus as TaskStatusConst
-
-
-class Task(MongoModel):
-    task_id = fields.UUIDField(primary_key=True)
-    assigned_robots = fields.ListField()
-
-    @classmethod
-    def create(cls, task_id):
-        task = cls(task_id)
-        task.save()
-        return task
+from fleet_management.db.models.task import Task
 
 
 class TaskLot(MongoModel):
