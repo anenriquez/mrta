@@ -6,7 +6,17 @@ from fleet_management.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.structs.status import TaskStatus as TaskStatusConst
-from mrs.db.models.performance.task import TaskPerformance
+
+
+class Task(MongoModel):
+    task_id = fields.UUIDField(primary_key=True)
+    assigned_robots = fields.ListField()
+
+    @classmethod
+    def create(cls, task_id):
+        task = cls(task_id)
+        task.save()
+        return task
 
 
 class TaskLot(MongoModel):
@@ -14,7 +24,7 @@ class TaskLot(MongoModel):
     start_location = fields.CharField()
     finish_location = fields.CharField()
     constraints = fields.EmbeddedDocumentField(TaskConstraints)
-    performance = fields.ReferenceField(TaskPerformance)
+    task = fields.ReferenceField(Task)
 
     class Meta:
         archive_collection = 'task_lot_archive'
@@ -43,7 +53,7 @@ class TaskLot(MongoModel):
 
         task_lot = cls(task_id=task_id, start_location=start_location,
                        finish_location=finish_location, constraints=constraints,
-                       performance=task_id)
+                       task=task_id)
         task_lot.save()
         task_lot.update_status(TaskStatusConst.UNALLOCATED)
 
@@ -79,7 +89,7 @@ class TaskLot(MongoModel):
         latest_start_time = request.latest_pickup_time
         hard_constraints = request.hard_constraints
         task_lot = TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
-                       latest_start_time, hard_constraints)
+                                  latest_start_time, hard_constraints)
         return task_lot
 
 
