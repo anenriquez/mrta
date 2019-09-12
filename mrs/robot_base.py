@@ -13,7 +13,7 @@ class RobotBase(object):
 
         self.id = robot_id
         self.api = api
-        self.db_interface = DBInterface(robot_store)
+        # self.db_interface = DBInterface(robot_store)
         self.stp = STP(stp_solver)
 
         self.timetable = Timetable(robot_id, self.stp)

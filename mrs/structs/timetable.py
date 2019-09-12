@@ -61,24 +61,24 @@ class Timetable(object):
         else:
             logger.error("The dispatchable graph is empty. Solve the stp first")
 
-    def add_task_to_stn(self, task, position):
+    def add_task_to_stn(self, task_lot, position):
         """
         Adds a task to the stn at the given position
         Args:
             task (obj): task object to add to the stn
             position (int) : position in the STN where the task will be added
         """
-        stn_task = self.to_stn_task(task)
+        stn_task = self.to_stn_task(task_lot)
         self.stn.add_task(stn_task, position)
 
-    def to_stn_task(self, task):
+    def to_stn_task(self, task_lot):
         """ Converts a task to an stn task
 
         Args:
-            task (obj): task object to be converted
+            task_lot (obj): task_lot object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        start_timepoint_constraints = task.constraints.timepoint_constraints[0]
+        start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
 
         r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                           self.zero_timepoint)
@@ -86,12 +86,12 @@ class Timetable(object):
         earliest_navigation_start = TimeStamp(delta)
         r_earliest_navigation_start = earliest_navigation_start.get_difference(self.zero_timepoint, "minutes")
 
-        stn_task = STNTask(task.task_id,
+        stn_task = STNTask(task_lot.task.task_id,
                            r_earliest_navigation_start,
                            r_earliest_start_time,
                            r_latest_start_time,
-                           task.start_location,
-                           task.finish_location)
+                           task_lot.start_location,
+                           task_lot.finish_location)
 
         return stn_task
 

@@ -1,10 +1,10 @@
 import logging
 
-from pymodm import fields, EmbeddedMongoModel, MongoModel
-from ropod.utils.uuid import generate_uuid
-from pymongo.errors import ServerSelectionTimeoutError
-from pymodm.context_managers import switch_collection
+from fleet_management.db.models.task import Task
 from fleet_management.utils.messages import Document
+from pymodm import fields, EmbeddedMongoModel, MongoModel
+from pymodm.context_managers import switch_collection
+from pymongo.errors import ServerSelectionTimeoutError
 
 
 class TaskAllocationPerformance(EmbeddedMongoModel):
@@ -78,7 +78,7 @@ class TaskPerformance(MongoModel):
     execution (TaskExecutionPerformance):  task performance metrics related to execution
 
     """
-    task_id = fields.UUIDField(primary_key=True, default=generate_uuid())
+    task = fields.ReferenceField(Task, primary_key=True)
     allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
     scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance)
     execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
@@ -99,8 +99,8 @@ class TaskPerformance(MongoModel):
         self.delete()
 
     @classmethod
-    def create(cls, task_id):
-        performance = cls(task_id)
+    def create(cls, task):
+        performance = cls(task)
         performance.save()
         return performance
 

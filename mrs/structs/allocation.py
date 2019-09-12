@@ -1,6 +1,7 @@
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
 from mrs.db.models.task import TaskLot
+from fleet_management.db.models.task import Task
 
 
 class TaskAnnouncement(object):
@@ -28,7 +29,7 @@ class TaskAnnouncement(object):
         task_announcement_dict['tasks_lots'] = dict()
 
         for task_lot in self.tasks_lots:
-            task_announcement_dict['tasks_lots'][str(task_lot.task_id)] = task_lot.to_dict()
+            task_announcement_dict['tasks_lots'][str(task_lot.task.task_id)] = task_lot.to_dict()
 
         task_announcement_dict['round_id'] = self.round_id
         task_announcement_dict['zero_timepoint'] = self.zero_timepoint.to_str()
@@ -44,6 +45,7 @@ class TaskAnnouncement(object):
         tasks_lots = list()
 
         for task_id, task_dict in tasks_dict.items():
+            Task.create_new(task_id=task_id)
             tasks_lots.append(TaskLot.from_payload(task_dict))
 
         task_announcement = TaskAnnouncement(tasks_lots, round_id, zero_timepoint)
