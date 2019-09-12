@@ -1,19 +1,16 @@
 import logging
 from datetime import datetime
 from datetime import timedelta
-from importlib import import_module
 
-from ropod.utils.timestamp import TimeStamp
-from stn.stp import STP
-
+from mrs.db.models.task import TaskLot
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
-from mrs.structs.allocation import TaskLot
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
-from fleet_management.db.models.task import TaskStatus
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+from stn.stp import STP
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -54,7 +51,7 @@ class Auctioneer(object):
         self.get_timetable(robot_id)
 
     def get_timetable(self, robot_id):
-        timetable = Timetable(robot_id, self.stp)
+        timetable = Timetable.fetch(robot_id, self.stp)
         self.timetables[robot_id] = timetable
 
     def run(self):
@@ -79,9 +76,9 @@ class Auctioneer(object):
 
     def process_allocation(self, round_result):
 
-        task, robot_id, position, tasks_to_allocate = round_result
+        task_lot, robot_id, position, tasks_to_allocate = round_result
 
-        allocation = (task.task_id, [robot_id])
+        allocation = (task_lot.task.task_id, [robot_id])
         self.allocations.append(allocation)
         self.tasks_to_allocate = tasks_to_allocate
 
@@ -89,16 +86,16 @@ class Auctioneer(object):
         self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
 
         self.logger.debug("Updating task status to ALLOCATED")
-        status = TaskStatus(task.task_id, TaskStatusConst.ALLOCATED)
-        status.save()
-        self.update_timetable(robot_id, task, position)
+        task_lot.task.update_status(TaskStatusConst.ALLOCATED)
+        self.update_timetable(robot_id, task_lot, position)
 
         return allocation
 
-    def update_timetable(self, robot_id, task, position):
+    def update_timetable(self, robot_id, task_lot, position):
+        self.get_timetable(robot_id)
         timetable = self.timetables.get(robot_id)
         timetable.zero_timepoint = self.zero_timepoint
-        timetable.add_task_to_stn(task, position)
+        timetable.add_task_to_stn(task_lot, position)
         timetable.solve_stp()
 
         # Update schedule to reflect the changes in the dispatchable graph
@@ -123,11 +120,8 @@ class Auctioneer(object):
         self.waiting_for_user_confirmation.append(alternative_allocation)
 
     def add_task(self, task):
-        if hasattr(task, 'request'):
-            task_lot = TaskLot.from_request(task.task_id, task.request)
-        else:
-            task_lot = task
-        self.tasks_to_allocate[task_lot.task_id] = task_lot
+        task_lot = TaskLot.from_task(task)
+        self.tasks_to_allocate[task_lot.task.task_id] = task_lot
 
     def allocate(self, tasks):
         if isinstance(tasks, list):
@@ -159,10 +153,6 @@ class Auctioneer(object):
 
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
-
-    def start_test_cb(self, msg):
-        self.logger.debug("Start test msg received")
-        # TODO Read tasks from ccu_store
 
     def bid_cb(self, msg):
         bid = msg['payload']

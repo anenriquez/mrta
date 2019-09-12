@@ -3,9 +3,12 @@ from datetime import timedelta
 
 import yaml
 from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
 
-from mrs.structs.allocation import TaskLot
-from mrs.structs.task import Task
+from fleet_management.db.models.task import Task, TaskRequest
+from mrs.db.models.task import TaskLot
+from mrs.db.models.performance.task import TaskPerformance
+from mrs.db.models.performance.dataset import DatasetPerformance
 
 
 def load_yaml(file):
@@ -21,8 +24,9 @@ def load_yaml(file):
 
 def load_yaml_dataset(dataset_path):
     dataset_dict = load_yaml(dataset_path)
+    dataset_id = dataset_dict.get('dataset_id')
 
-    tasks = list()
+    tasks_performance = list()
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
 
@@ -34,12 +38,21 @@ def load_yaml_dataset(dataset_path):
                                                                            task_info.get("latest_start_time"))
         hard_constraints = task_info.get("hard_constraints")
 
-        TaskLot.create(task_id, start_location, finish_location, earliest_start_time, latest_start_time, hard_constraints)
-        task = Task.create(task_id)
+        request = TaskRequest(request_id=generate_uuid(), pickup_location=start_location,
+                              delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
+                              latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
 
-        tasks.append(task)
+        task = Task.create_new(task_id=task_id, request=request)
 
-    return tasks
+    #     TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
+    #                    latest_start_time, hard_constraints)
+        task_performance = TaskPerformance.create(task)
+
+        tasks_performance.append(task_performance)
+
+    DatasetPerformance.create(dataset_id, tasks_performance)
+
+    return tasks_performance
 
 
 def reference_to_current_time(earliest_time, latest_time):
