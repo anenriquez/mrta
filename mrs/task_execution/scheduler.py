@@ -1,49 +1,9 @@
 import logging
 
-from mrs.db_interface import DBInterface
-from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.db.models.task import TaskStatus
-
 
 class Scheduler(object):
-
-    def __init__(self, robot_store, stp):
-        self.db_interface = DBInterface(robot_store)
+    def __init__(self, stp):
         self.stp = stp
-        self.navigation_start_time = -float('inf')  # of scheduled task
+        self.n_tasks_sub_graphs = 2
+        self.logger = logging.getLogger("mrs.scheduler")
 
-    def schedule_task(self, task, navigation_start,  timetable):
-        print("Dispatchable graph:", timetable.dispatchable_graph)
-
-        try:
-            self.assign_timepoint(task, navigation_start, timetable)
-        except InconsistentSchedule as e:
-            logging.exception("Task %s could not be scheduled.", e.task)
-            raise InconsistentSchedule(e.task)
-
-    def assign_timepoint(self, task, navigation_start, timetable):
-
-        timetable.dispatchable_graph.assign_timepoint(navigation_start)
-        minimal_network = self.stp.propagate_constraints(timetable.dispatchable_graph)
-
-        if minimal_network:
-            print("The assignment is consistent")
-            print("Dispatchable graph:", timetable.dispatchable_graph)
-
-            timetable.get_schedule(task.id)
-
-            print("Schedule: ", timetable.schedule)
-
-            self.db_interface.update_timetable(timetable)
-            self.db_interface.update_task_status(task, TaskStatus.SCHEDULED)
-            self.navigation_start_time = navigation_start
-
-        else:
-            raise InconsistentSchedule(task)
-
-    def reallocate(self):
-        pass
-
-    def reset_schedule(self, timetable):
-        timetable.remove_task()
-        self.db_interface.update_timetable(timetable)
