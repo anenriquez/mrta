@@ -1,11 +1,8 @@
 from datetime import datetime
-from importlib import import_module
 
+from mrs.structs.timetable import Timetable
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
-from mrs.structs.timetable import Timetable
-
-from mrs.db_interface import DBInterface
 
 
 class RobotBase(object):
@@ -13,7 +10,6 @@ class RobotBase(object):
 
         self.id = robot_id
         self.api = api
-        # self.db_interface = DBInterface(robot_store)
         self.stp = STP(stp_solver)
 
         self.timetable = Timetable(robot_id, self.stp)
