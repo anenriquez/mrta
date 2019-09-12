@@ -2,7 +2,7 @@ import logging
 
 from mrs.db_interface import DBInterface
 from mrs.exceptions.task_execution import InconsistentSchedule
-from mrs.structs.task import TaskStatus
+from mrs.db.models.task import TaskStatus
 
 
 class Scheduler(object):

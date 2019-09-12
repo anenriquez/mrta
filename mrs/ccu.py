@@ -1,30 +1,32 @@
 import logging
 import time
 
+from fleet_management.api import API
 from fleet_management.config.loader import Configurator
+from fleet_management.db.mongo import Store
+from mrs.resource_manager import ResourceManager
+
+_component_modules = {'api': API,
+                      'ccu_store': Store,
+                      'resource_manager': ResourceManager,
+                      }
+
+_config_order = ['api', 'ccu_store', 'resource_manager']
 
 
 class FMS(object):
     def __init__(self, config_file=None):
         self.logger = logging.getLogger('mrs')
-        self.logger.info("------>Configuring MRS ...")
 
-        config = Configurator(config_file)
-        self.api = config.api
-        ccu_store = config.ccu_store
-
+        config = Configurator(config_file,
+                              component_modules=_component_modules,
+                              config_order=_config_order)
+        config.configure()
         self.resource_manager = config.resource_manager
 
-        config._configure_plugins(ccu_store=ccu_store,
-                                       api=self.api)
-
-        config.add_plugins('resource_manager')
-
-        config.configure_components('resource_manager')
-
+        self.api = config.api
         self.api.register_callbacks(self)
-
-        self.logger.info("Initialized FMS")
+        self.logger.info("Initialized MRS")
 
     def run(self):
         try:
@@ -33,7 +35,6 @@ class FMS(object):
             while True:
                 self.resource_manager.auctioneer.run()
                 self.resource_manager._get_allocation()
-                # self.resource_manager.run()
                 self.api.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):

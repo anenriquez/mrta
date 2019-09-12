@@ -7,6 +7,9 @@ from mrs.structs.allocation import FinishRound
 from mrs.structs.allocation import TaskAnnouncement
 from mrs.structs.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
+from fleet_management.db.queries.interfaces.tasks import get_task
+from ropod.structs.task import TaskStatus as TaskStatusConst
+
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -49,18 +52,18 @@ class Bidder(RobotBase):
         no_bids = list()
         round_id = task_announcement.round_id
 
-        for task in task_announcement.tasks_lots:
-            self.logger.debug("Computing bid of task %s", task.task_id)
+        for task_lot in task_announcement.tasks_lots:
+            self.logger.debug("Computing bid of task %s", task_lot.task.task_id)
 
             # Insert task in each possible position of the stn and
             # get the best_bid for each task
-            best_bid = self.insert_task(task, round_id)
+            best_bid = self.insert_task(task_lot, round_id)
 
             if best_bid:
                 bids.append(best_bid)
             else:
-                self.logger.debug("No bid for task %s", task.task_id)
-                no_bid = Bid(self.id, round_id, task.task_id)
+                self.logger.debug("No bid for task %s", task_lot.task_id)
+                no_bid = Bid(self.id, round_id, task_lot.task.task_id)
                 no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
@@ -84,7 +87,7 @@ class Bidder(RobotBase):
                 self.logger.debug("Sending no bid for task %s", no_bid.task_id)
                 self.send_bid(no_bid)
 
-    def insert_task(self, task, round_id):
+    def insert_task(self, task_lot, round_id):
         best_bid = None
 
         n_tasks = len(self.timetable.get_tasks())
@@ -98,10 +101,10 @@ class Bidder(RobotBase):
                 self.logger.debug("Not adding task in position %s", position)
                 continue
 
-            self.logger.debug("Computing bid for task %s in position %s", task.task_id, position)
+            self.logger.debug("Computing bid for task %s in position %s", task_lot.task.task_id, position)
 
             try:
-                bid = self.bidding_rule.compute_bid(self.id, round_id, task, position, self.timetable)
+                bid = self.bidding_rule.compute_bid(self.id, round_id, task_lot, position, self.timetable)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
@@ -113,12 +116,12 @@ class Bidder(RobotBase):
 
             except NoSTPSolution:
                 self.logger.exception("The stp solver could not solve the problem for"
-                                      " task %s in position %s", task.task_id, position)
+                                      " task %s in position %s", task_lot.task.task_id, position)
 
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)
 
-        self.logger.debug("Best bid for task %s: %s", task.task_id, best_bid)
+        self.logger.debug("Best bid for task %s: %s", task_lot.task.task_id, best_bid)
 
         return best_bid
 
@@ -161,6 +164,9 @@ class Bidder(RobotBase):
         tasks = [task for task in self.timetable.get_tasks()]
 
         self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
+        task = get_task(task_id)
+        task.update_status(TaskStatusConst.ALLOCATED)
+        task.assign_robots([self.id])
 
     def send_finish_round(self):
         finish_round = FinishRound(self.id)

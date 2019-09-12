@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fleet_management.db.mongo import MongoStore
+from fleet_management.db.mongo import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
@@ -10,7 +10,7 @@ from mrs.utils.datasets import load_yaml, load_yaml_dataset
 
 
 class AllocationTest(RopodPyre):
-    def __init__(self, fleet, dataset):
+    def __init__(self, config, dataset):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
@@ -19,10 +19,11 @@ class AllocationTest(RopodPyre):
 
         super().__init__(zyre_config, acknowledge=False)
 
-        robot_stores = self.get_fleet_db(fleet)
-        ccu_store = MongoStore('ccu_store')
-        stores = [ccu_store] + robot_stores
-        self.clean_stores(stores)
+        fleet = config.get('resource_manager').get('resources').get('fleet')
+        ccu_store_config = config.get("ccu_store")
+        robot_store_config = config.get("robot_store")
+
+        self.clean_stores(fleet, ccu_store_config, robot_store_config)
 
         self.tasks = load_yaml_dataset(dataset)
 
@@ -30,18 +31,16 @@ class AllocationTest(RopodPyre):
         self.terminated = False
 
     @staticmethod
-    def get_fleet_db(fleet):
-        robot_stores = list()
+    def clean_stores(fleet, ccu_store_config, robot_store_config):
         for robot_id in fleet:
-            robot_stores.append(MongoStore('robot_' + robot_id.split('_')[1] + '_store'))
+            store = MongoStoreBuilder()
+            robot_store_config.update({'db_name': 'robot_store' + robot_id.split('_')[1]})
+            robot_store = store(**robot_store_config)
+            robot_store.clean()
 
-        return robot_stores
-
-    @staticmethod
-    def clean_stores(stores):
-        for store in stores:
-            print("Cleaning", store.db_name)
-            # store.clean()
+        store = MongoStoreBuilder()
+        ccu_store = store(**ccu_store_config)
+        ccu_store.clean()
 
     def trigger(self):
         print("Test triggered")
@@ -83,7 +82,7 @@ if __name__ == '__main__':
 
     timeout_duration = 300  # 5 minutes
 
-    test = AllocationTest(fleet, dataset)
+    test = AllocationTest(config, dataset)
     test.start()
 
     try:

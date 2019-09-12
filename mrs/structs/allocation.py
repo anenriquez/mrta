@@ -1,74 +1,7 @@
-import logging
-
-from fleet_management.db.models.task import TaskConstraints, TimepointConstraints
-from fleet_management.utils.messages import Document
-from pymodm import fields, MongoModel
-from pymongo.errors import ServerSelectionTimeoutError
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
-
-
-class TaskLot(MongoModel):
-    task_id = fields.UUIDField(primary_key=True)
-    start_location = fields.CharField()
-    finish_location = fields.CharField()
-    constraints = fields.EmbeddedDocumentField(TaskConstraints)
-
-    class Meta:
-        archive_collection = 'task_lot_archive'
-        ignore_unknown_fields = True
-
-    def save(self):
-        try:
-            super().save(cascade=True)
-        except ServerSelectionTimeoutError:
-            logging.warning('Could not save models to MongoDB')
-
-    @classmethod
-    def create(cls, task_id,
-               start_location,
-               finish_location,
-               earliest_start_time,
-               latest_start_time,
-               hard_constraints):
-
-        start_timepoint_constraints = TimepointConstraints(earliest_time=earliest_start_time,
-                                                           latest_time=latest_start_time)
-        timepoint_constraints = [start_timepoint_constraints]
-
-        constraints = TaskConstraints(timepoint_constraints=timepoint_constraints,
-                                      hard=hard_constraints)
-
-        task_lot = cls(task_id, start_location, finish_location, constraints)
-        task_lot.save()
-
-        return task_lot
-
-    @classmethod
-    def from_payload(cls, payload):
-        document = Document.from_msg(payload)
-        document['_id'] = document.pop('task_id')
-        document["constraints"] = TaskConstraints.from_payload(document.pop("constraints"))
-        task_lot = TaskLot.from_document(document)
-        return task_lot
-
-    def to_dict(self):
-        dict_repr = self.to_son().to_dict()
-        dict_repr.pop('_cls')
-        dict_repr["task_id"] = str(dict_repr.pop('_id'))
-        dict_repr["constraints"] = self.constraints.to_dict()
-        return dict_repr
-
-    @classmethod
-    def from_request(cls, task_id, request):
-        start_location = request.pickup_location
-        finish_location = request.delivery_location
-        earliest_start_time = request.earliest_pickup_time
-        latest_start_time = request.latest_pickup_time
-        hard_constraints = request.hard_constraints
-        task_lot = TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
-                       latest_start_time, hard_constraints)
-        return task_lot
+from mrs.db.models.task import TaskLot
+from fleet_management.db.models.task import Task
 
 
 class TaskAnnouncement(object):
@@ -96,7 +29,7 @@ class TaskAnnouncement(object):
         task_announcement_dict['tasks_lots'] = dict()
 
         for task_lot in self.tasks_lots:
-            task_announcement_dict['tasks_lots'][str(task_lot.task_id)] = task_lot.to_dict()
+            task_announcement_dict['tasks_lots'][str(task_lot.task.task_id)] = task_lot.to_dict()
 
         task_announcement_dict['round_id'] = self.round_id
         task_announcement_dict['zero_timepoint'] = self.zero_timepoint.to_str()
@@ -112,6 +45,7 @@ class TaskAnnouncement(object):
         tasks_lots = list()
 
         for task_id, task_dict in tasks_dict.items():
+            Task.create_new(task_id=task_id)
             tasks_lots.append(TaskLot.from_payload(task_dict))
 
         task_announcement = TaskAnnouncement(tasks_lots, round_id, zero_timepoint)
