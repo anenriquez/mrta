@@ -83,7 +83,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = tasks_to_allocate
 
         self.logger.debug("Allocation: %s", allocation)
-        self.logger.debug("Tasks to allocate %s", self.tasks_to_allocate)
+        self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.logger.debug("Updating task status to ALLOCATED")
         task_lot.task.update_status(TaskStatusConst.ALLOCATED)
@@ -113,7 +113,7 @@ class Auctioneer(object):
         task_id = exception.task_id
         robot_id = exception.robot_id
         alternative_start_time = exception.alternative_start_time
-        self.logger.exception("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
+        self.logger.debug("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
                           alternative_start_time)
 
         alternative_allocation = (task_id, [robot_id], alternative_start_time)
@@ -141,8 +141,8 @@ class Auctioneer(object):
 
         self.round = Round(**round_)
 
-        self.logger.info("Starting round: %s", self.round.id)
-        self.logger.info("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
+        self.logger.debug("Starting round: %s", self.round.id)
+        self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
         tasks_lots = list(self.tasks_to_allocate.values())
 

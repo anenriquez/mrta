@@ -55,7 +55,8 @@ class Round(object):
     def process_bid(self, bid_msg):
         bid = Bid.from_dict(bid_msg)
 
-        self.logger.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
+        self.logger.debug("Processing bid from robot %s: (risk metric: %s, temporal metric: %s)",
+                          bid.robot_id, bid.risk_metric, bid.temporal_metric)
 
         if bid.cost != (np.inf, np.inf):
             # Process a bid
