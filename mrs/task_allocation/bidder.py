@@ -79,7 +79,8 @@ class Bidder(RobotBase):
         """
         if bid:
             self.bid_placed = bid
-            self.logger.debug("Robot %s placed bid %s", self.id, self.bid_placed)
+            self.logger.debug("Robot %s placed bid (risk metric: %s, temporal metric: %s)", self.id,
+                              self.bid_placed.risk_metric, self.bid_placed.temporal_metric)
             self.send_bid(bid)
 
         if no_bids:
@@ -115,13 +116,14 @@ class Bidder(RobotBase):
                     best_bid = copy.deepcopy(bid)
 
             except NoSTPSolution:
-                self.logger.error("The stp solver could not solve the problem for"
-                                  " task %s in position %s", task_lot.task.task_id, position)
+                self.logger.warning("The stp solver could not solve the problem for"
+                                    " task %s in position %s", task_lot.task.task_id, position)
 
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)
 
-        self.logger.debug("Best bid for task %s: %s", task_lot.task.task_id, best_bid)
+        self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task_lot.task.task_id,
+                          best_bid.risk_metric, best_bid.temporal_metric)
 
         return best_bid
 
@@ -157,7 +159,7 @@ class Bidder(RobotBase):
 
         self.timetable = copy.deepcopy(self.bid_placed.timetable)
 
-        self.logger.info("Robot %s allocated task %s", self.id, task_id)
+        self.logger.debug("Robot %s allocated task %s", self.id, task_id)
         self.logger.debug("STN %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph %s", self.timetable.dispatchable_graph)
 
@@ -172,6 +174,6 @@ class Bidder(RobotBase):
         finish_round = FinishRound(self.id)
         msg = self.api.create_message(finish_round)
 
-        self.logger.info("Robot %s sends close round msg ", self.id)
+        self.logger.debug("Robot %s sends close round msg ", self.id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
