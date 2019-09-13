@@ -115,8 +115,8 @@ class Bidder(RobotBase):
                     best_bid = copy.deepcopy(bid)
 
             except NoSTPSolution:
-                self.logger.exception("The stp solver could not solve the problem for"
-                                      " task %s in position %s", task_lot.task.task_id, position)
+                self.logger.error("The stp solver could not solve the problem for"
+                                  " task %s in position %s", task_lot.task.task_id, position)
 
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)

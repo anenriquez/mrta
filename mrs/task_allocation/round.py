@@ -122,7 +122,7 @@ class Round(object):
             return round_result
 
         except NoAllocation:
-            self.logger.exception("No mrs made in round %s ", self.id)
+            self.logger.error("No mrs made in round %s ", self.id)
             raise NoAllocation(self.id)
 
     def finish(self):
