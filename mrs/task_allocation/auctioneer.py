@@ -67,7 +67,7 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                self.logger.exception("No mrs made in round %s ", exception.round_id)
+                self.logger.error("No mrs made in round %s ", exception.round_id)
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:

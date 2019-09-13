@@ -91,7 +91,7 @@ class Dispatcher(object):
             try:
                 self.scheduler.schedule_task(task, navigation_start, self.timetable)
             except InconsistentSchedule as e:
-                logging.exception("Task %s could not be scheduled.", e.task)
+                logging.error("Task %s could not be scheduled.", e.task)
                 if self.corrective_measure == 're-allocate':
                     self.request_reallocation(task)
 

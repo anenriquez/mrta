@@ -230,8 +230,8 @@ class Timetable(object):
             timetable.stn = timetable.stn.from_dict(timetable_mongo.stn)
             timetable.dispatchable_graph = timetable.stn.from_dict(timetable_mongo.dispatchable_graph)
             timetable.zero_timepoint = timetable_mongo.zero_timepoint
-        except DoesNotExist:
-            logging.exception("The timetable does not exist")
+        except DoesNotExist as err:
+            logging.error("The timetable does not exist %s", err)
 
         return timetable
 
