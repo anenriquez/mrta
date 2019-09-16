@@ -19,7 +19,7 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, ccu_store, api, stp_solver, allocation_method,
+    def __init__(self, ccu_store, api, stp_solver, task_type, allocation_method,
                  round_time=5, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
