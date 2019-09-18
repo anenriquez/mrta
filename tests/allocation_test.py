@@ -21,7 +21,7 @@ class AllocationTest(RopodPyre):
 
         fleet = config.get('resource_manager').get('resources').get('fleet')
         ccu_store_config = config.get("ccu_store")
-        robot_store_config = config.get("robot_store")
+        robot_store_config = config.get('robot').get("robot_store")
 
         self.clean_stores(fleet, ccu_store_config, robot_store_config)
 
@@ -34,7 +34,7 @@ class AllocationTest(RopodPyre):
     def clean_stores(fleet, ccu_store_config, robot_store_config):
         for robot_id in fleet:
             store = MongoStoreBuilder()
-            robot_store_config.update({'db_name': 'robot_store' + robot_id.split('_')[1]})
+            robot_store_config.update({'db_name': 'robot_store_' + robot_id.split('_')[1]})
             robot_store = store(**robot_store_config)
             robot_store.clean()
 

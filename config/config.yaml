@@ -2,9 +2,6 @@ version: 2
 ccu_store:
   db_name: ccu_store
   port: 27017
-robot_store:
-  db_name: robot_store
-  port: 27017
 resource_manager:
   resources:
     fleet:
@@ -26,14 +23,20 @@ plugins:
     dispatcher:
       re-allocate: True
 
-robot_proxy:
-  bidder:
-    bidding_rule:
-      robustness: srea  # has to be the same as the stp_solver
-      temporal: completion_time
-    auctioneer_name: fms_zyre_api # This is completely Zyre dependent
-  schedule_monitor:
-    corrective_measure: re-allocate
+robot:
+  components:
+    stp_solver: srea
+    bidder:
+      bidding_rule:
+        robustness: srea  # has to be the same as the stp_solver
+        temporal: completion_time
+      auctioneer_name: fms_zyre_api # This is completely Zyre dependent
+    schedule_monitor:
+      corrective_measure: re-allocate
+
+  robot_store:
+    db_name: robot_store
+    port: 27017
   api:
     version: 0.1.0
     middleware:

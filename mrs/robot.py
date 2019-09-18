@@ -1,25 +1,54 @@
 import argparse
 import logging
 import time
+from mrs.utils.datasets import load_yaml
+from fleet_management.api import API
+from fleet_management.config.config import FMSBuilder
+from mrs.config.builder import RobotBuilder
+from fleet_management.db.mongo import Store
 
-from mrs.robot_base import RobotBase
-from mrs.structs.timetable import Timetable
-from mrs.task_allocation.bidder import Bidder
-from mrs.task_execution.schedule_monitor import ScheduleMonitor
+_component_modules = {'api': API,
+                      'robot_store': Store,
+                      }
+
+_config_order = ['api', 'robot_store']
 
 
-class Robot(RobotBase):
-    def __init__(self, robot_config, bidder_config, **kwargs):
-        super().__init__(**robot_config)
+def get_robot_config(robot_id, config_params):
+    robot_config = config_params.get('robot')
 
-        self.bidder = Bidder(robot_config, bidder_config)
+    api_config = robot_config.get('api')
+    api_config['zyre']['zyre_node']['node_name'] = robot_id
+    robot_config.update({'api': api_config})
 
-        schedule_monitor_config = kwargs.get("schedule_monitor_config")
-        if schedule_monitor_config:
-            self.schedule_monitor = ScheduleMonitor(robot_config, schedule_monitor_config)
+    db_config = robot_config.get('robot_store')
+    db_config['db_name'] = db_config['db_name'] + '_' + robot_id.split('_')[1]
+    robot_config.update({'robot_store': db_config})
 
-        self.logger = logging.getLogger('mrs.robot.%s' % self.id)
-        self.logger.info("Robot %s initialized", self.id)
+    return robot_config
+
+
+class Robot(object):
+    def __init__(self, robot_id, config_file=None):
+        self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
+        config_params = load_yaml(config_file)
+        robot_config = get_robot_config(robot_id, config_params)
+
+        logger_config = config_params.get('logger')
+        logging.config.dictConfig(logger_config)
+
+        fms_builder = FMSBuilder(component_modules=_component_modules,
+                                 config_order=_config_order)
+        fms_builder.configure(robot_config)
+
+        self.api = fms_builder.get_component('api')
+        self.robot_store = fms_builder.get_component('robot_store')
+
+        robot_builder = RobotBuilder.configure(robot_id, self.api, self.robot_store, robot_config)
+        self.bidder = robot_builder.get_component('bidder')
+
+        self.api.register_callbacks(self)
+        self.logger.info("Initialized Robot")
 
     def run(self):
         try:
@@ -28,28 +57,18 @@ class Robot(RobotBase):
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):
-            self.logger.info("Terminating %s robot ...", self.id)
+            self.logger.info("Terminating %s robot ...", self.bidder.id)
             self.api.shutdown()
             self.logger.info("Exiting...")
 
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Configurator
-
     config_file_path = '../config/config.yaml'
-    config = Configurator(config_file_path)
-    config.configure_logger()
-
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
     robot_id = args.robot_id
 
-    robot = config.configure_robot_proxy(robot_id)
-
-    robot.api.register_callbacks(robot)
-
+    robot = Robot(robot_id, config_file_path)
     robot.run()
-
-

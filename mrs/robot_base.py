@@ -6,7 +6,7 @@ from stn.stp import STP
 
 
 class RobotBase(object):
-    def __init__(self, robot_id, api, robot_store, stp_solver, task_type):
+    def __init__(self, robot_id, api, robot_store, stp_solver, **_):
 
         self.id = robot_id
         self.api = api

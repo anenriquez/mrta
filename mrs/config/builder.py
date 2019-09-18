@@ -1,6 +1,7 @@
 from fleet_management.exceptions.config import InvalidConfig
 from mrs.task_allocation import auctioneer
 from mrs.task_execution import dispatcher
+from mrs.task_allocation import bidder
 import logging
 
 
@@ -54,3 +55,42 @@ class MRTABuilder:
 
         mrta_builder(api=api, ccu_store=ccu_store, **mrta_config)
         return mrta_builder
+
+
+class RobotBuilder:
+    def __init__(self):
+        self._bidder = None
+
+    def __call__(self, **kwargs):
+        components = dict()
+        for component, config in kwargs.items():
+            if component == 'bidder':
+                bidder_config = kwargs.get('bidder')
+                self.bidder(bidder_config, **kwargs)
+                components.update(bidder=self._bidder)
+
+        return components
+
+    def bidder(self, bidder_config, **kwargs):
+        if not self._bidder:
+            try:
+                self._bidder = bidder.configure(bidder_config, **kwargs)
+            except InvalidConfig:
+                raise InvalidConfig('Robot requires a bidder configuration')
+            return self._bidder
+
+    def get_component(self, name):
+        if name == 'bidder':
+            return self._bidder
+
+    @classmethod
+    def configure(cls, robot_id, api, robot_store, robot_config):
+        robot_builder = cls()
+        logging.info("Configuring Robot...")
+        robot_components = robot_config.get('components')
+        if robot_components is None:
+            logging.debug("Found no robot components in the configuration file.")
+            return None
+
+        robot_builder(robot_id=robot_id, api=api, robot_store=robot_store, **robot_components)
+        return robot_builder
