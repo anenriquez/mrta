@@ -5,7 +5,6 @@ from fleet_management.api import API
 from fleet_management.config.loader import Configurator
 from fleet_management.db.mongo import Store
 from mrs.resource_manager import ResourceManager
-from mrs import config
 
 _component_modules = {'api': API,
                       'ccu_store': Store,
@@ -14,21 +13,18 @@ _component_modules = {'api': API,
 
 _config_order = ['api', 'ccu_store', 'resource_manager']
 
-_plugin_builders = {'mrta': config.configure}
-
 
 class FMS(object):
     def __init__(self, config_file=None):
         self.logger = logging.getLogger('mrs')
 
-        configurator = Configurator(config_file,
-                                    component_modules=_component_modules,
-                                    config_order=_config_order,
-                                    plugin_builders=_plugin_builders)
-        configurator.configure()
-        self.resource_manager = configurator.resource_manager
+        config = Configurator(config_file,
+                              component_modules=_component_modules,
+                              config_order=_config_order)
+        config.configure()
+        self.resource_manager = config.resource_manager
 
-        self.api = configurator.api
+        self.api = config.api
         self.api.register_callbacks(self)
         self.logger.info("Initialized MRS")
 
