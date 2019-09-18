@@ -7,7 +7,7 @@ from fmlib.db.mongo import Store
 from fmlib.db.queries import get_tasks_by_status
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
-from mrs.config.builder import MRTABuilder
+from mrs.config.builders import mrta
 from mrs.utils.datasets import load_yaml
 
 _component_modules = {'api': API,
@@ -33,9 +33,10 @@ class MRS(object):
         self.api = fms_builder.get_component('api')
         self.ccu_store = fms_builder.get_component('ccu_store')
 
-        mrta_builder = MRTABuilder.configure(self.api, self.ccu_store, config_params)
-        self.auctioneer = mrta_builder.get_component('auctioneer')
-        self.dispatcher = mrta_builder.get_component('dispatcher')
+        mrta_config = config_params.get('plugins').get('mrta')
+        components = mrta.configure(api=self.api, ccu_store=self.ccu_store, **mrta_config)
+        self.auctioneer = components.get('auctioneer')
+        self.dispatcher = components.get('dispatcher')
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized MRS")

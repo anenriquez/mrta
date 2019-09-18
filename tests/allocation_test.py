@@ -21,7 +21,7 @@ class AllocationTest(RopodPyre):
 
         fleet = config.get('resource_manager').get('resources').get('fleet')
         ccu_store_config = config.get("ccu_store")
-        robot_store_config = config.get('robot').get("robot_store")
+        robot_store_config = config.get('robot_proxy').get("robot_store")
 
         self.clean_stores(fleet, ccu_store_config, robot_store_config)
 
