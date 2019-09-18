@@ -54,5 +54,3 @@ class MRTABuilder:
 
         mrta_builder(api=api, ccu_store=ccu_store, **mrta_config)
         return mrta_builder
-
-

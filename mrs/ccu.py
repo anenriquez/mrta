@@ -25,7 +25,7 @@ class MRS(object):
 
         logger_config = config_params.get('logger')
         logging.config.dictConfig(logger_config)
-
+    
         fms_builder = FMSBuilder(component_modules=_component_modules,
                                  config_order=_config_order)
         fms_builder.configure(config_params)
