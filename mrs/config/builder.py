@@ -1,6 +1,7 @@
 from fleet_management.exceptions.config import InvalidConfig
 from mrs.task_allocation import auctioneer
 from mrs.task_execution import dispatcher
+import logging
 
 
 class MRTABuilder:
@@ -35,3 +36,23 @@ class MRTABuilder:
             except InvalidConfig:
                 raise InvalidConfig('MRTA plugin requires a dispatcher configuration')
         return self._dispatcher
+
+    def get_component(self, name):
+        if name == 'auctioneer':
+            return self._auctioneer
+        elif name == 'dispatcher':
+            return self.dispatcher
+
+    @classmethod
+    def configure(cls, api, ccu_store, config_params):
+        mrta_builder = cls()
+        logging.info("Configuring MRTA...")
+        mrta_config = config_params.get('plugins').get('mrta')
+        if mrta_config is None:
+            logging.debug("Found no mrta in the configuration file.")
+            return None
+
+        mrta_builder(api=api, ccu_store=ccu_store, **mrta_config)
+        return mrta_builder
+
+
