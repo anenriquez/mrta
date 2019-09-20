@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fleet_management.db.mongo import MongoStoreBuilder
+from fmlib.db.mongo import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
@@ -96,6 +96,3 @@ if __name__ == '__main__':
 
     print("Exiting test...")
     test.shutdown()
-
-
-

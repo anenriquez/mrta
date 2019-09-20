@@ -207,7 +207,3 @@ class AuctioneerBuilder:
 
 
 configure = AuctioneerBuilder()
-
-
-
-

@@ -1,7 +1,7 @@
 import logging
 
-from fleet_management.db.models.task import Task
-from fleet_management.utils.messages import Document
+from fmlib.models.tasks import Task
+from fmlib.utils.messages import Document
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 from pymodm.context_managers import switch_collection
 from pymongo.errors import ServerSelectionTimeoutError
@@ -106,7 +106,7 @@ class TaskPerformance(MongoModel):
 
     @classmethod
     def from_payload(cls, payload):
-        document = Document.from_msg(payload)
+        document = Document.from_payload(payload)
         document['_id'] = document.pop('task_id')
         performance = TaskPerformance.from_document(document)
         return performance
@@ -116,6 +116,3 @@ class TaskPerformance(MongoModel):
         dict_repr.pop('_cls')
         dict_repr["task_id"] = str(dict_repr.pop('_id'))
         return dict_repr
-
-
-
