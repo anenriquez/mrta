@@ -61,6 +61,15 @@ class Timetable(object):
         else:
             logger.error("The dispatchable graph is empty. Solve the stp first")
 
+    def compute_temporal_info(self):
+        if self.dispatchable_graph:
+            idle_time = self.dispatchable_graph.get_idle_time()
+            logger.debug("Idle time: %s", idle_time)
+            completion_time = self.dispatchable_graph.get_completion_time()
+            logger.debug("Completion time: %s", completion_time)
+            makespan = self.dispatchable_graph.get_makespan()
+            logger.debug("Makespan: %s", makespan)
+
     def add_task_to_stn(self, task_lot, position):
         """
         Adds a task to the stn at the given position
