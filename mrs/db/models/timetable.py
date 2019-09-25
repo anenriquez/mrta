@@ -1,7 +1,8 @@
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
-from fleet_management.utils.messages import Document
+from fmlib.utils.messages import Document
 from mrs.db.queries.timetable import TimetableManager
+
 import logging
 
 
@@ -25,7 +26,7 @@ class Timetable(MongoModel):
 
     @classmethod
     def from_payload(cls, payload):
-        document = Document.from_msg(payload)
+        document = Document.from_payload(payload)
         document['_id'] = document.pop('robot_id')
         timetable = Timetable.from_document(document)
         return timetable

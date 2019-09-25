@@ -1,7 +1,7 @@
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
 from mrs.db.models.task import TaskLot
-from fleet_management.db.models.task import Task
+from fmlib.models.tasks import Task
 
 
 class TaskAnnouncement(object):
@@ -52,6 +52,10 @@ class TaskAnnouncement(object):
 
         return task_announcement
 
+    @property
+    def meta_model(self):
+        return "task-announcement"
+
 
 class Allocation(object):
     def __init__(self, task_id, robot_id):
@@ -64,6 +68,10 @@ class Allocation(object):
         allocation_dict['robot_id'] = self.robot_id
         return allocation_dict
 
+    @property
+    def meta_model(self):
+        return "allocation"
+
 
 class FinishRound(object):
     def __init__(self, robot_id):
@@ -73,3 +81,7 @@ class FinishRound(object):
         finish_round = dict()
         finish_round['robot_id'] = self.robot_id
         return finish_round
+
+    @property
+    def meta_model(self):
+        return "finish-round"

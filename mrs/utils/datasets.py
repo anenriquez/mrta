@@ -5,7 +5,7 @@ import yaml
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
-from fleet_management.db.models.task import Task, TaskRequest
+from fmlib.models.tasks import Task, TaskRequest
 from mrs.db.models.task import TaskLot
 from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.performance.dataset import DatasetPerformance

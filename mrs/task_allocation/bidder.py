@@ -7,11 +7,11 @@ from mrs.structs.allocation import FinishRound
 from mrs.structs.allocation import TaskAnnouncement
 from mrs.structs.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
-from fleet_management.db.queries.interfaces.tasks import get_task
+from fmlib.db.queries import get_task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
-""" Implements a variation of the the TeSSI algorithm using the bidding_rule 
+""" Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
 """
 
@@ -176,4 +176,3 @@ class Bidder(RobotBase):
 
         self.logger.debug("Robot %s sends close round msg ", self.id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
-
