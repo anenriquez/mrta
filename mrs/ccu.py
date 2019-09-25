@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fleet_management.api import API
+from fmlib.api import API
 from fleet_management.config.config import FMSBuilder
 from fmlib.db.mongo import Store
 from fmlib.db.queries import get_tasks_by_status
