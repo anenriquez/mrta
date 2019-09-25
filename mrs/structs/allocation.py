@@ -1,7 +1,7 @@
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
 from mrs.db.models.task import TaskLot
-from fleet_management.db.models.task import Task
+from fmlib.models.tasks import Task
 
 
 class TaskAnnouncement(object):
@@ -25,23 +25,23 @@ class TaskAnnouncement(object):
         self.zero_timepoint = zero_timepoint
 
     def to_dict(self):
-        task_announcement_dict = dict()
-        task_announcement_dict['tasks_lots'] = dict()
+        dict_repr = dict()
+        dict_repr['tasks_lots'] = dict()
 
         for task_lot in self.tasks_lots:
-            task_announcement_dict['tasks_lots'][str(task_lot.task.task_id)] = task_lot.to_dict()
+            dict_repr['tasks_lots'][str(task_lot.task.task_id)] = task_lot.to_dict()
 
-        task_announcement_dict['round_id'] = self.round_id
-        task_announcement_dict['zero_timepoint'] = self.zero_timepoint.to_str()
+        dict_repr['round_id'] = self.round_id
+        dict_repr['zero_timepoint'] = self.zero_timepoint.to_str()
 
-        return task_announcement_dict
+        return dict_repr
 
     @staticmethod
-    def from_dict(task_announcement_dict):
-        round_id = from_str(task_announcement_dict['round_id'])
-        zero_timepoint = TimeStamp.from_str(task_announcement_dict['zero_timepoint'])
+    def from_payload(payload):
+        round_id = from_str(payload['roundId'])
+        zero_timepoint = TimeStamp.from_str(payload['zeroTimepoint'])
 
-        tasks_dict = task_announcement_dict['tasks_lots']
+        tasks_dict = payload['tasksLots']
         tasks_lots = list()
 
         for task_id, task_dict in tasks_dict.items():
@@ -52,6 +52,10 @@ class TaskAnnouncement(object):
 
         return task_announcement
 
+    @property
+    def meta_model(self):
+        return "task-announcement"
+
 
 class Allocation(object):
     def __init__(self, task_id, robot_id):
@@ -59,10 +63,23 @@ class Allocation(object):
         self.robot_id = robot_id
 
     def to_dict(self):
-        allocation_dict = dict()
-        allocation_dict['task_id'] = self.task_id
-        allocation_dict['robot_id'] = self.robot_id
-        return allocation_dict
+        dict_repr = dict()
+        dict_repr['task_id'] = self.task_id
+        dict_repr['robot_id'] = self.robot_id
+
+        return dict_repr
+
+    @staticmethod
+    def from_payload(payload):
+        allocation = Allocation
+        allocation.task_id = from_str(payload['taskId'])
+        allocation.robot_id = payload['robotId']
+
+        return allocation
+
+    @property
+    def meta_model(self):
+        return "allocation"
 
 
 class FinishRound(object):
@@ -70,6 +87,10 @@ class FinishRound(object):
         self.robot_id = robot_id
 
     def to_dict(self):
-        finish_round = dict()
-        finish_round['robot_id'] = self.robot_id
-        return finish_round
+        dict_repr = dict()
+        dict_repr['robot_id'] = self.robot_id
+        return dict_repr
+
+    @property
+    def meta_model(self):
+        return "finish-round"

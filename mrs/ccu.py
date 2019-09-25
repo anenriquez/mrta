@@ -3,8 +3,8 @@ import time
 
 from fleet_management.api import API
 from fleet_management.config.config import FMSBuilder
-from fleet_management.db.mongo import Store
-from fleet_management.db.queries.interfaces.tasks import get_tasks_by_status
+from fmlib.db.mongo import Store
+from fmlib.db.queries import get_tasks_by_status
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.config.builder import MRTABuilder
@@ -25,7 +25,7 @@ class MRS(object):
 
         logger_config = config_params.get('logger')
         logging.config.dictConfig(logger_config)
-    
+
         fms_builder = FMSBuilder(component_modules=_component_modules,
                                  config_order=_config_order)
         fms_builder.configure(config_params)

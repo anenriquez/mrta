@@ -155,8 +155,8 @@ class Auctioneer(object):
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def bid_cb(self, msg):
-        bid = msg['payload']
-        self.round.process_bid(bid)
+        payload = msg['payload']
+        self.round.process_bid(payload)
 
     def finish_round_cb(self, msg):
         self.round.finish()
@@ -207,7 +207,3 @@ class AuctioneerBuilder:
 
 
 configure = AuctioneerBuilder()
-
-
-
-

@@ -1,9 +1,9 @@
 import logging
 
-from fleet_management.db.models.task import Task
-from fleet_management.db.models.task import TaskConstraints, TimepointConstraints
-from fleet_management.db.models.task import TaskStatus
-from fleet_management.utils.messages import Document
+from fmlib.models.tasks import Task
+from fmlib.models.tasks import TaskConstraints, TimepointConstraints
+from fmlib.models.tasks import TaskStatus
+from fmlib.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.structs.status import TaskStatus as TaskStatusConst
@@ -56,7 +56,7 @@ class TaskLot(MongoModel):
 
     @classmethod
     def from_payload(cls, payload):
-        document = Document.from_msg(payload)
+        document = Document.from_payload(payload)
         document['_id'] = document.pop('task_id')
         document["constraints"] = TaskConstraints.from_payload(document.pop("constraints"))
         task_lot = TaskLot.from_document(document)
@@ -79,5 +79,3 @@ class TaskLot(MongoModel):
         task_lot = TaskLot.create(task, start_location, finish_location, earliest_start_time,
                                   latest_start_time, hard_constraints)
         return task_lot
-
-

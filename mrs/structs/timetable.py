@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 
-from fleet_management.db.models.task import TimepointConstraints
+from fmlib.models.tasks import TimepointConstraints
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
 from mrs.db.models.timetable import Timetable as TimetableMongo
@@ -243,5 +243,3 @@ class Timetable(object):
             logging.warning("The timetable does not exist %s", err)
 
         return timetable
-
-
