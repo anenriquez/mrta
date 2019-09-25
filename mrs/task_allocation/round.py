@@ -52,8 +52,8 @@ class Round(object):
         self.finished = False
         self.opened = True
 
-    def process_bid(self, bid_msg):
-        bid = Bid.from_dict(bid_msg)
+    def process_bid(self, payload):
+        bid = Bid.from_payload(payload)
 
         self.logger.debug("Processing bid from robot %s: (risk metric: %s, temporal metric: %s)",
                           bid.robot_id, bid.risk_metric, bid.temporal_metric)

@@ -46,15 +46,15 @@ class Bid(object):
         return bid_dict
 
     @classmethod
-    def from_dict(cls, bid_dict):
-        robot_id = bid_dict['robot_id']
-        round_id = from_str(bid_dict['round_id'])
-        task_id = from_str(bid_dict['task_id'])
+    def from_payload(cls, bid_dict):
+        robot_id = bid_dict['robotId']
+        round_id = from_str(bid_dict['roundId'])
+        task_id = from_str(bid_dict['taskId'])
         position = bid_dict['position']
-        risk_metric = bid_dict['risk_metric']
-        temporal_metric = bid_dict['temporal_metric']
-        hard_constraints = bid_dict['hard_constraints']
-        alternative_start_time = bid_dict['alternative_start_time']
+        risk_metric = bid_dict['riskMetric']
+        temporal_metric = bid_dict['temporalMetric']
+        hard_constraints = bid_dict['hardConstraints']
+        alternative_start_time = bid_dict['alternativeStartTime']
 
         bid = cls(robot_id, round_id, task_id,
                   position=position,
