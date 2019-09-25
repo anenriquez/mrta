@@ -64,5 +64,6 @@ class Bid(object):
                   alternative_start_time=alternative_start_time)
         return bid
 
-
-
+    @property
+    def meta_model(self):
+        return "bid"
