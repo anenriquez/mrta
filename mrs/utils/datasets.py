@@ -5,8 +5,8 @@ import yaml
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
-from fmlib.models.tasks import Task, TaskRequest
-from mrs.db.models.task import TaskLot
+from fmlib.models.tasks import Task
+from fmlib.models.requests import TransportationRequest
 from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.performance.dataset import DatasetPerformance
 
@@ -38,9 +38,9 @@ def load_yaml_dataset(dataset_path):
                                                                            task_info.get("latest_start_time"))
         hard_constraints = task_info.get("hard_constraints")
 
-        request = TaskRequest(request_id=generate_uuid(), pickup_location=start_location,
-                              delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
-                              latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
+        request = TransportationRequest(request_id=generate_uuid(), pickup_location=start_location,
+                                        delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
+                                        latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
 
         task = Task.create_new(task_id=task_id, request=request)
 
