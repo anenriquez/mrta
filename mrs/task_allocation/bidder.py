@@ -4,7 +4,7 @@ import logging
 from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.robot_base import RobotBase
 from mrs.structs.allocation import FinishRound
-from mrs.structs.allocation import TaskAnnouncement
+from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
 from fmlib.db.queries import get_task
@@ -33,18 +33,18 @@ class Bidder(RobotBase):
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
-        task_announcement_msg = msg['payload']
-        task_announcement = TaskAnnouncement.from_dict(task_announcement_msg)
+        payload = msg['payload']
+        task_announcement = TaskAnnouncement.from_payload(payload)
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
     def allocation_cb(self, msg):
         self.logger.debug("Robot %s received ALLOCATION", self.id)
-        task_id = msg['payload']['task_id']
-        winner_id = msg['payload']['robot_id']
+        payload = msg['payload']
+        allocation = Allocation.from_payload(payload)
 
-        if winner_id == self.id:
-            self.allocate_to_robot(task_id)
+        if allocation.robot_id == self.id:
+            self.allocate_to_robot(allocation.task_id)
             self.send_finish_round()
 
     def compute_bids(self, task_announcement):
