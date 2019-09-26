@@ -4,7 +4,7 @@ import time
 from fmlib.api import API
 from fleet_management.config.config import FMSBuilder
 from fmlib.db.mongo import Store
-from fmlib.db.queries import get_tasks_by_status
+from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.config.builders import mrta
@@ -43,7 +43,7 @@ class MRS(object):
 
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
-        tasks = get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         self.auctioneer.allocate(tasks)
 
     def run(self):
