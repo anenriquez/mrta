@@ -1,4 +1,3 @@
-from mrs.db_interface import DBInterface
 from mrs.robot_base import RobotBase
 
 

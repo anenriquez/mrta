@@ -16,9 +16,6 @@ resource_manager:
 
 plugins:
   mrta:
-    # Assuming we can have different types of tasks, specify from where to import the Task and TaskStatus classes
-    task_type:
-      class: 'mrs.structs.allocation'
     allocation_method: mrta-srea
     stp_solver: srea
     robot_proxies: true
@@ -26,6 +23,8 @@ plugins:
     auctioneer:
       round_time: 15 # seconds
       alternative_timeslots: True
+    dispatcher:
+      re-allocate: True
 
 robot_proxy:
   bidder:
