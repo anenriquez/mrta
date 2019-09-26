@@ -7,7 +7,7 @@ from mrs.structs.allocation import FinishRound
 from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.bid import Bid
 from mrs.task_allocation.bidding_rule import BiddingRule
-from fmlib.db.queries import get_task
+from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
@@ -166,7 +166,7 @@ class Bidder(RobotBase):
         tasks = [task for task in self.timetable.get_tasks()]
 
         self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
-        task = get_task(task_id)
+        task = Task.get_task(task_id)
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.id])
 
