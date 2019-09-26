@@ -1,144 +1,94 @@
 import logging
 import time
-import uuid
 
-from fleet_management.config.loader import Config
-from fleet_management.db.ccu_store import CCUStore
+from fmlib.db.mongo import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
-from stn.stp import STP
-
-from ropod.utils.timestamp import TimeStamp as ts
+from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
-from mrs.db_interface import DBInterface
-from mrs.structs.timetable import Timetable
-from mrs.utils.datasets import load_yaml_dataset
+from mrs.utils.datasets import load_yaml, load_yaml_dataset
 
 
-class TaskRequester(RopodPyre):
-    def __init__(self, config_file):
-        zyre_config = {'node_name': 'task_request_test',
+class AllocationTest(RopodPyre):
+    def __init__(self, config, dataset):
+        zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
-                       'message_types': ['TASK', 'ALLOCATION']}
+                       'message_types': ['START-TEST',
+                                         'ALLOCATION',
+                                         'NO-ALLOCATION']}
+
         super().__init__(zyre_config, acknowledge=False)
 
-        config = Config(config_file, initialize=False)
-        ccu_store = CCUStore('ropod_ccu_store')
-        self.db_interface = DBInterface(ccu_store)
+        fleet = config.get('resource_manager').get('resources').get('fleet')
+        ccu_store_config = config.get("ccu_store")
+        robot_store_config = config.get("robot_store")
 
-        allocator_config = config.config_params.get("plugins").get("task_allocation")
-        robot_proxy = config.config_params.get("robot_proxy")
-        stp_solver = allocator_config.get('stp_solver')
-        self.stp = STP(stp_solver)
-        self.robot_ids = config.config_params.get('resources').get('fleet')
+        self.clean_stores(fleet, ccu_store_config, robot_store_config)
 
-        self.auctioneer_name = robot_proxy.get("bidder").get("auctioneer_name")
-        self.allocations = list()
-        self.n_tasks = 0
+        self.tasks = load_yaml_dataset(dataset)
+
+        self.n_received_msgs = 0
         self.terminated = False
 
-    def reset_timetables(self):
-        logging.info("Resetting timetables")
-        for robot_id in self.robot_ids:
-            timetable = Timetable(self.stp, robot_id)
-            self.db_interface.update_timetable(timetable)
-            self.send_timetable(timetable, robot_id)
+    @staticmethod
+    def clean_stores(fleet, ccu_store_config, robot_store_config):
+        for robot_id in fleet:
+            store = MongoStoreBuilder()
+            robot_store_config.update({'db_name': 'robot_store' + robot_id.split('_')[1]})
+            robot_store = store(**robot_store_config)
+            robot_store.clean()
 
-    def reset_tasks(self):
-        logging.info("Resetting tasks")
-        tasks_dict = self.db_interface.get_tasks()
-        for task_id, task_dict in tasks_dict.items():
-            self.db_interface.remove_task(task_id)
-            self.request_task_delete(task_dict)
+        store = MongoStoreBuilder()
+        ccu_store = store(**ccu_store_config)
+        ccu_store.clean()
 
-    def send_timetable(self, timetable, robot_id):
-        logging.debug("Sending timetable to %s", robot_id)
-        timetable_msg = dict()
-        timetable_msg['header'] = dict()
-        timetable_msg['payload'] = dict()
-        timetable_msg['header']['type'] = 'TIMETABLE'
-        timetable_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        timetable_msg['header']['msgId'] = generate_uuid()
-        timetable_msg['header']['timestamp'] = ts.get_time_stamp()
+    def trigger(self):
+        print("Test triggered")
+        test_msg = dict()
+        test_msg['header'] = dict()
+        test_msg['payload'] = dict()
+        test_msg['header']['type'] = 'START-TEST'
+        test_msg['header']['metamodel'] = 'ropod-msg-schema.json'
+        test_msg['header']['msgId'] = generate_uuid()
+        test_msg['header']['timestamp'] = TimeStamp().to_str()
 
-        timetable_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        timetable_msg['payload']['timetable'] = timetable.to_dict()
-        self.shout(timetable_msg)
+        test_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
 
-    def allocate(self, tasks):
-        self.n_tasks = len(tasks)
-        for task in tasks:
-            self.request_allocation(task)
-
-    def request_allocation(self, task):
-        logging.debug("Requesting allocation of task %s", task.id)
-        task_msg = dict()
-        task_msg['header'] = dict()
-        task_msg['payload'] = dict()
-        task_msg['header']['type'] = 'ALLOCATE-TASK'
-        task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        task_msg['header']['msgId'] = generate_uuid()
-        task_msg['header']['timestamp'] = ts.get_time_stamp()
-
-        task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        task_msg['payload']['task'] = task.to_dict()
-
-        self.whisper(task_msg, peer=self.auctioneer_name)
-
-    def request_task_delete(self, task_dict):
-        logging.debug("Requesting delete of task %s", task_dict['id'])
-        task_msg = dict()
-        task_msg['header'] = dict()
-        task_msg['payload'] = dict()
-        task_msg['header']['type'] = 'DELETE-TASK'
-        task_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        task_msg['header']['msgId'] = generate_uuid()
-        task_msg['header']['timestamp'] = ts.get_time_stamp()
-
-        task_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-        task_msg['payload']['task'] = task_dict
-
-        self.shout(task_msg)
+        self.shout(test_msg)
 
     def receive_msg_cb(self, msg_content):
         msg = self.convert_zyre_msg_to_dict(msg_content)
         if msg is None:
             return
+        msg_type = msg['header']['type']
 
-        if msg['header']['type'] == 'ALLOCATION':
-            self.logger.debug("Received allocation message")
-            task_id = msg['payload']['task_id']
-            winner_id = msg['payload']['robot_id']
-            allocation = (task_id, [winner_id])
-            self.allocations.append(allocation)
-            logging.debug("Receiving allocation %s", allocation)
+        if msg_type == 'ALLOCATION' or msg_type == 'NO-ALLOCATION':
+            self.logger.debug("Received message")
+            self.n_received_msgs += 1
             self.check_termination_test()
 
     def check_termination_test(self):
-        if len(self.allocations) == self.n_tasks:
+        if self.n_received_msgs == len(self.tasks):
             logging.debug("Terminating test")
             self.terminated = True
 
 
 if __name__ == '__main__':
-    tasks = load_yaml_dataset('data/non_overlapping_1.yaml')
-    config_file_path = '../config/config.yaml'
+    config_file = '../config/config.yaml'
+    dataset = 'data/non_overlapping.yaml'
 
-    for task in tasks:
-        print(task.id)
+    config = load_yaml(config_file)
+    fleet = config.get('resource_manager').get('resources').get('fleet')
 
     timeout_duration = 300  # 5 minutes
 
-    test = TaskRequester(config_file_path)
+    test = AllocationTest(config, dataset)
     test.start()
 
     try:
         time.sleep(5)
-        test.reset_timetables()
-        test.reset_tasks()
-        time.sleep(5)
-        test.allocate(tasks)
         start_time = time.time()
+        test.trigger()
         while not test.terminated and start_time + timeout_duration > time.time():
             time.sleep(0.5)
     except (KeyboardInterrupt, SystemExit):
@@ -146,6 +96,3 @@ if __name__ == '__main__':
 
     print("Exiting test...")
     test.shutdown()
-
-
-

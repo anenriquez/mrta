@@ -1,12 +1,13 @@
 import copy
 import logging
 
-from ropod.utils.timestamp import TimeStamp as ts
+from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.bid import Bid
+import numpy as np
 
 
 class Round(object):
@@ -43,20 +44,21 @@ class Round(object):
                     (or an exception has been raised)
 
         """
-        open_time = ts.get_time_stamp()
-        self.closure_time = ts.get_time_stamp(self.round_time)
+        open_time = TimeStamp()
+        self.closure_time = TimeStamp(delta=self.round_time)
         self.logger.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
 
         self.finished = False
         self.opened = True
 
-    def process_bid(self, bid_msg):
-        bid = Bid.from_dict(bid_msg)
+    def process_bid(self, payload):
+        bid = Bid.from_payload(payload)
 
-        self.logger.debug("Processing bid from robot %s, cost: %s", bid.robot_id, bid.cost)
+        self.logger.debug("Processing bid from robot %s: (risk metric: %s, temporal metric: %s)",
+                          bid.robot_id, bid.risk_metric, bid.temporal_metric)
 
-        if bid.cost != float('inf'):
+        if bid.cost != (np.inf, np.inf):
             # Process a bid
             if bid.task_id not in self.received_bids or \
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
@@ -82,7 +84,7 @@ class Round(object):
         return False
 
     def time_to_close(self):
-        current_time = ts.get_time_stamp()
+        current_time = TimeStamp()
 
         if current_time < self.closure_time:
             return False
@@ -121,7 +123,7 @@ class Round(object):
             return round_result
 
         except NoAllocation:
-            self.logger.exception("No mrs made in round %s ", self.id)
+            self.logger.error("No mrs made in round %s ", self.id)
             raise NoAllocation(self.id)
 
     def finish(self):
@@ -148,13 +150,13 @@ class Round(object):
                           value - list of robots assigned to the task
 
         """
-        lowest_bid = Bid()
+        lowest_bid = None
 
         for task_id, bid in self.received_bids.items():
-            if bid < lowest_bid:
+            if lowest_bid is None or bid < lowest_bid:
                 lowest_bid = copy.deepcopy(bid)
 
-        if lowest_bid.cost == float('inf'):
+        if lowest_bid is None:
             raise NoAllocation(self.id)
 
         return lowest_bid

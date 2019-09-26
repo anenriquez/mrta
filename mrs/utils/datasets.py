@@ -1,6 +1,14 @@
-import yaml
-from mrs.config.task_factory import TaskFactory
 import collections
+from datetime import timedelta
+
+import yaml
+from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
+
+from fmlib.models.tasks import Task
+from fmlib.models.requests import TransportationRequest
+from mrs.db.models.performance.task import TaskPerformance
+from mrs.db.models.performance.dataset import DatasetPerformance
 
 
 def load_yaml(file):
@@ -16,20 +24,46 @@ def load_yaml(file):
 
 def load_yaml_dataset(dataset_path):
     dataset_dict = load_yaml(dataset_path)
-    task_type = dataset_dict.get('task_type')
+    dataset_id = dataset_dict.get('dataset_id')
 
-    task_factory = TaskFactory()
-    task_cls = task_factory.get_task_cls(task_type)
-
-    tasks = list()
+    tasks_performance = list()
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
 
     for task_id, task_info in ordered_tasks.items():
-        task = task_cls.from_dict(task_info)
-        tasks.append(task)
+        start_location = task_info.get("start_location")
+        finish_location = task_info.get("finish_location")
 
-    return tasks
+        earliest_start_time, latest_start_time = reference_to_current_time(task_info.get("earliest_start_time"),
+                                                                           task_info.get("latest_start_time"))
+        hard_constraints = task_info.get("hard_constraints")
+
+        request = TransportationRequest(request_id=generate_uuid(), pickup_location=start_location,
+                                        delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
+                                        latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
+
+        task = Task.create_new(task_id=task_id, request=request)
+
+    #     TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
+    #                    latest_start_time, hard_constraints)
+        task_performance = TaskPerformance.create(task)
+
+        tasks_performance.append(task_performance)
+
+    DatasetPerformance.create(dataset_id, tasks_performance)
+
+    return tasks_performance
+
+
+def reference_to_current_time(earliest_time, latest_time):
+    delta = timedelta(minutes=earliest_time)
+    r_earliest_time = TimeStamp(delta).to_str()
+
+    delta = timedelta(minutes=latest_time)
+    r_latest_time = TimeStamp(delta).to_str()
+
+    return r_earliest_time, r_latest_time
+
 
 def flatten_dict(dict_input):
     """ Returns a dictionary without nested dictionaries
