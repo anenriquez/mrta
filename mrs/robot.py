@@ -7,12 +7,13 @@ from mrs.utils.datasets import load_yaml
 
 
 class Robot(object):
-    def __init__(self, robot_id, components):
+    def __init__(self, robot_id, api, robot_store, bidder, **kwargs):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
-        self.bidder = components.get('bidder')
-        self.api = components.get('api')
+        self.api = api
+        self.robot_store = robot_store
+        self.bidder = bidder
         self.api.register_callbacks(self)
 
         self.logger.info("Initialized Robot %s", robot_id)
@@ -43,6 +44,6 @@ if __name__ == '__main__':
     logging.config.dictConfig(logger_config)
 
     robot_components = robot.configure(robot_id, config_params)
-    robot = Robot(robot_id, robot_components)
+    robot = Robot(robot_id, **robot_components)
     robot.run()
 
