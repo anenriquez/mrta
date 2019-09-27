@@ -18,8 +18,8 @@ specified in the config file
 
 class Bidder(RobotBase):
 
-    def __init__(self, robot_config, bidder_config):
-        super().__init__(**robot_config)
+    def __init__(self, bidder_config, **kwargs):
+        super().__init__(**kwargs)
         self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
 
         robustness = bidder_config.get('bidding_rule').get('robustness')
@@ -176,3 +176,4 @@ class Bidder(RobotBase):
 
         self.logger.debug("Robot %s sends close round msg ", self.id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
+

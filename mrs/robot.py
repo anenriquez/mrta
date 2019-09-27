@@ -2,24 +2,21 @@ import argparse
 import logging
 import time
 
-from mrs.robot_base import RobotBase
-from mrs.structs.timetable import Timetable
-from mrs.task_allocation.bidder import Bidder
-from mrs.task_execution.schedule_monitor import ScheduleMonitor
+from mrs.config.builders import robot
+from mrs.utils.datasets import load_yaml
 
 
-class Robot(RobotBase):
-    def __init__(self, robot_config, bidder_config, **kwargs):
-        super().__init__(**robot_config)
+class Robot(object):
+    def __init__(self, robot_id, api, robot_store, bidder, **kwargs):
+        self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
-        self.bidder = Bidder(robot_config, bidder_config)
+        self.robot_id = robot_id
+        self.api = api
+        self.robot_store = robot_store
+        self.bidder = bidder
+        self.api.register_callbacks(self)
 
-        schedule_monitor_config = kwargs.get("schedule_monitor_config")
-        if schedule_monitor_config:
-            self.schedule_monitor = ScheduleMonitor(robot_config, schedule_monitor_config)
-
-        self.logger = logging.getLogger('mrs.robot.%s' % self.id)
-        self.logger.info("Robot %s initialized", self.id)
+        self.logger.info("Initialized Robot %s", robot_id)
 
     def run(self):
         try:
@@ -28,28 +25,25 @@ class Robot(RobotBase):
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):
-            self.logger.info("Terminating %s robot ...", self.id)
+            self.logger.info("Terminating %s robot ...", self.bidder.id)
             self.api.shutdown()
             self.logger.info("Exiting...")
 
 
 if __name__ == '__main__':
 
-    from fleet_management.config.loader import Configurator
-
     config_file_path = '../config/config.yaml'
-    config = Configurator(config_file_path)
-    config.configure_logger()
-
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()
     robot_id = args.robot_id
 
-    robot = config.configure_robot_proxy(robot_id)
+    config_params = load_yaml(config_file_path)
 
-    robot.api.register_callbacks(robot)
+    logger_config = config_params.get('logger')
+    logging.config.dictConfig(logger_config)
 
+    robot_components = robot.configure(robot_id, config_params)
+    robot = Robot(robot_id, **robot_components)
     robot.run()
-
 

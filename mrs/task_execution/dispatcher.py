@@ -21,17 +21,5 @@ class Dispatcher(object):
         self.logger.debug("Dispatcher started")
 
 
-class DispatcherBuilder:
-    def __init__(self):
-        self._instance = None
-
-    def __call__(self, **kwargs):
-        if not self._instance:
-            self._instance = Dispatcher(**kwargs)
-        return self._instance
-
-
-configure = DispatcherBuilder()
-
 
 

@@ -195,15 +195,3 @@ class Auctioneer(object):
 
         return task_schedule
 
-
-class AuctioneerBuilder:
-    def __init__(self):
-        self._instance = None
-
-    def __call__(self, **kwargs):
-        if not self._instance:
-            self._instance = Auctioneer(**kwargs)
-        return self._instance
-
-
-configure = AuctioneerBuilder()
