@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fmlib.db.mongo import MongoStoreBuilder
+from fmlib.config.builders import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid

@@ -18,15 +18,15 @@ specified in the config file
 
 class Bidder(RobotBase):
 
-    def __init__(self, bidder_config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, robot_id, allocation_method, bidding_rule, auctioneer_name, **kwargs):
+        super().__init__(robot_id, allocation_method, **kwargs)
         self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
 
-        robustness = bidder_config.get('bidding_rule').get('robustness')
-        temporal = bidder_config.get('bidding_rule').get('temporal')
+        robustness = bidding_rule.get('robustness')
+        temporal = bidding_rule.get('temporal')
         self.bidding_rule = BiddingRule(robustness, temporal)
 
-        self.auctioneer_name = bidder_config.get("auctioneer_name")
+        self.auctioneer_name = auctioneer_name
         self.bid_placed = None
 
         self.logger.debug("Bidder initialized %s", self.id)

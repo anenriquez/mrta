@@ -1,7 +1,7 @@
-from mrs.config.builders import mrta
 from fmlib.api import API
-from fmlib.db.mongo import Store
-from fleet_management.config.config import FMSBuilder
+from fmlib.config.builders import Store
+from fleet_management.config.builder import FMSBuilder
+from mrs.config.mrta import mrta_factory
 
 
 _component_modules = {'api': API,
@@ -14,8 +14,6 @@ _config_order = ['api', 'robot_store']
 def get_robot_config(robot_id, config_params):
     robot_config = config_params.get('robot_proxy')
 
-    print("Robot config: ", robot_config)
-
     api_config = robot_config.get('api')
     api_config['zyre']['zyre_node']['node_name'] = robot_id
     robot_config.update({'api': api_config})
@@ -24,15 +22,18 @@ def get_robot_config(robot_id, config_params):
     db_config['db_name'] = db_config['db_name'] + '_' + robot_id.split('_')[1]
     robot_config.update({'robot_store': db_config})
 
+    for component_name, config in robot_config.items():
+        config.update({'robot_id': robot_id})
+
     return robot_config
 
 
 class RobotBuilder:
 
     def __call__(self, robot_id, config_params):
-        components = dict()
 
         robot_config = get_robot_config(robot_id, config_params)
+        allocation_method = config_params.get('allocation_method')
 
         fms_builder = FMSBuilder(component_modules=_component_modules,
                                  config_order=_config_order)
@@ -40,13 +41,16 @@ class RobotBuilder:
 
         api = fms_builder.get_component('api')
         robot_store = fms_builder.get_component('robot_store')
-        components.update(api=api)
-        components.update(robot_store=robot_store)
 
         robot_config.pop('api')
         robot_config.pop('robot_store')
 
-        components.update(**mrta.configure(robot_id=robot_id, api=api, robot_store=robot_store, **robot_config))
+        components = mrta_factory.get_components(allocation_method, **robot_config)
+        components.update({'api': api})
+
+        for component_name, component in components.items():
+            if hasattr(component, 'configure'):
+                component.configure(api, robot_store)
 
         return components
 

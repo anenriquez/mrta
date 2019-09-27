@@ -7,16 +7,19 @@ from mrs.utils.datasets import load_yaml
 
 
 class Robot(object):
-    def __init__(self, robot_id, api, robot_store, bidder, **kwargs):
+    def __init__(self, robot_id, bidder, **kwargs):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
-        self.api = api
-        self.robot_store = robot_store
+        self.api = None
+        self.robot_store = None
         self.bidder = bidder
-        self.api.register_callbacks(self)
 
         self.logger.info("Initialized Robot %s", robot_id)
+
+    def configure(self, api):
+        self.api = api
+        self.api.register_callbacks(self)
 
     def run(self):
         try:
@@ -44,6 +47,10 @@ if __name__ == '__main__':
     logging.config.dictConfig(logger_config)
 
     robot_components = robot.configure(robot_id, config_params)
+
     robot = Robot(robot_id, **robot_components)
+    api = robot_components.get('api')
+    robot.configure(api)
+
     robot.run()
 

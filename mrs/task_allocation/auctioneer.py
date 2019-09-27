@@ -11,6 +11,7 @@ from mrs.task_allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.stp import STP
+from mrs.task_allocation.allocation_method import allocation_method_factory
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -19,19 +20,20 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, ccu_store, api, stp_solver, allocation_method,
-                 round_time=5, **kwargs):
+    def __init__(self, allocation_method, round_time=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
-
+        self.api = None
+        self.ccu_store = None
         self.robot_ids = list()
         self.timetables = dict()
 
-        self.api = api
+        stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
         self.stp = STP(stp_solver)
 
         self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
+        self.freeze_window = timedelta(seconds=freeze_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         self.logger.debug("Auctioneer started")
@@ -45,6 +47,10 @@ class Auctioneer(object):
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         self.zero_timepoint = TimeStamp()
         self.zero_timepoint.timestamp = today_midnight
+
+    def configure(self, api, ccu_store):
+        self.api = api
+        self.ccu_store = ccu_store
 
     def register_robot(self, robot_id):
         self.robot_ids.append(robot_id)
