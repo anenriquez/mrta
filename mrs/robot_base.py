@@ -11,7 +11,7 @@ class RobotBase(object):
 
         self.id = robot_id
         self.api = None
-        self.ccu_store = None
+        self.robot_store = None
 
         stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
         self.stp = STP(stp_solver)
@@ -22,7 +22,7 @@ class RobotBase(object):
         self.timetable.zero_timepoint = TimeStamp()
         self.timetable.zero_timepoint.timestamp = today_midnight
 
-    def configure(self, api, ccu_store):
-        self.api = api
-        self.ccu_store = ccu_store
+    def configure(self, **kwargs):
+        self.api = kwargs.get('api')
+        self.robot_store = kwargs.get('robot_store')
 

@@ -33,7 +33,6 @@ class RobotBuilder:
     def __call__(self, robot_id, config_params):
 
         robot_config = get_robot_config(robot_id, config_params)
-        allocation_method = config_params.get('allocation_method')
 
         fms_builder = FMSBuilder(component_modules=_component_modules,
                                  config_order=_config_order)
@@ -45,12 +44,12 @@ class RobotBuilder:
         robot_config.pop('api')
         robot_config.pop('robot_store')
 
-        components = mrta_factory.get_components(allocation_method, **robot_config)
+        components = mrta_factory(**robot_config)
         components.update({'api': api})
 
         for component_name, component in components.items():
             if hasattr(component, 'configure'):
-                component.configure(api, robot_store)
+                component.configure(api=api, robot_store=robot_store)
 
         return components
 

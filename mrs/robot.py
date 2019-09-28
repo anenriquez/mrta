@@ -35,7 +35,7 @@ class Robot(object):
 
 if __name__ == '__main__':
 
-    config_file_path = '../config/config.yaml'
+    config_file_path = 'config/default/config.yaml'
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: ropod_001')
     args = parser.parse_args()

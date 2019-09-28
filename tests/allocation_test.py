@@ -74,7 +74,7 @@ class AllocationTest(RopodPyre):
 
 
 if __name__ == '__main__':
-    config_file = '../config/config.yaml'
+    config_file = '../mrs/config/default/config.yaml'
     dataset = 'data/non_overlapping.yaml'
 
     config = load_yaml(config_file)

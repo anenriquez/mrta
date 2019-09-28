@@ -48,9 +48,9 @@ class Auctioneer(object):
         self.zero_timepoint = TimeStamp()
         self.zero_timepoint.timestamp = today_midnight
 
-    def configure(self, api, ccu_store):
-        self.api = api
-        self.ccu_store = ccu_store
+    def configure(self, **kwargs):
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
 
     def register_robot(self, robot_id):
         self.robot_ids.append(robot_id)

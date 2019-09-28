@@ -24,9 +24,9 @@ class Dispatcher(object):
 
         self.logger.debug("Dispatcher started")
 
-    def configure(self, api, ccu_store):
-        self.api = api
-        self.ccu_store = ccu_store
+    def configure(self, **kwargs):
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
 
 
 
