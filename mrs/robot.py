@@ -11,15 +11,22 @@ class Robot(object):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
-        self.api = None
-        self.robot_store = None
+        self.api = kwargs.get('api')
+        if self.api:
+            self.api.register_callbacks(self)
+        self.robot_store = kwargs.get('robot_store')
         self.bidder = bidder
 
         self.logger.info("Initialized Robot %s", robot_id)
 
-    def configure(self, api):
-        self.api = api
-        self.api.register_callbacks(self)
+    def configure(self, **kwargs):
+        api = kwargs.get('api')
+        robot_store = kwargs.get('robot_store')
+        if api:
+            self.api = api
+            self.api.register_callbacks(self)
+        if robot_store:
+            self.robot_store = robot_store
 
     def run(self):
         try:
@@ -50,7 +57,7 @@ if __name__ == '__main__':
 
     robot = Robot(robot_id, **robot_components)
     api = robot_components.get('api')
-    robot.configure(api)
+    robot.configure(api=api)
 
     robot.run()
 

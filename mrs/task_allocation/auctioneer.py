@@ -23,8 +23,8 @@ class Auctioneer(object):
     def __init__(self, allocation_method, round_time=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
-        self.api = None
-        self.ccu_store = None
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
         self.robot_ids = list()
         self.timetables = dict()
 
@@ -49,8 +49,12 @@ class Auctioneer(object):
         self.zero_timepoint.timestamp = today_midnight
 
     def configure(self, **kwargs):
-        self.api = kwargs.get('api')
-        self.ccu_store = kwargs.get('ccu_store')
+        api = kwargs.get('api')
+        ccu_store = kwargs.get('ccu_store')
+        if api:
+            self.api = api
+        if ccu_store:
+            self.ccu_store = ccu_store
 
     def register_robot(self, robot_id):
         self.robot_ids.append(robot_id)

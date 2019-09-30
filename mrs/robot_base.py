@@ -7,11 +7,11 @@ from mrs.task_allocation.allocation_method import allocation_method_factory
 
 
 class RobotBase(object):
-    def __init__(self, robot_id, allocation_method, **_):
+    def __init__(self, robot_id, allocation_method, **kwargs):
 
         self.id = robot_id
-        self.api = None
-        self.robot_store = None
+        self.api = kwargs.get('api')
+        self.robot_store = kwargs.get('robot_store')
 
         stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
         self.stp = STP(stp_solver)
@@ -23,6 +23,9 @@ class RobotBase(object):
         self.timetable.zero_timepoint.timestamp = today_midnight
 
     def configure(self, **kwargs):
-        self.api = kwargs.get('api')
-        self.robot_store = kwargs.get('robot_store')
-
+        api = kwargs.get('api')
+        robot_store = kwargs.get('robot_store')
+        if api:
+            self.api = api
+        if robot_store:
+            self.robot_store = robot_store

@@ -11,8 +11,8 @@ class Dispatcher(object):
 
     def __init__(self, allocation_method, freeze_window, **kwargs):
         self.logger = logging.getLogger('mrs.dispatcher')
-        self.api = None
-        self.ccu_store = None
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
 
         stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
         self.stp = STP(stp_solver)
@@ -25,8 +25,12 @@ class Dispatcher(object):
         self.logger.debug("Dispatcher started")
 
     def configure(self, **kwargs):
-        self.api = kwargs.get('api')
-        self.ccu_store = kwargs.get('ccu_store')
+        api = kwargs.get('api')
+        ccu_store = kwargs.get('ccu_store')
+        if api:
+            self.api = api
+        if ccu_store:
+            self.ccu_store = ccu_store
 
 
 
