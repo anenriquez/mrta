@@ -10,8 +10,6 @@ from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
-from stn.stp import STP
-from mrs.task_allocation.allocation_method import allocation_method_factory
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -20,7 +18,7 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, allocation_method, round_time=5, freeze_window=300, **kwargs):
+    def __init__(self, stp_solver, round_time=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
         self.api = kwargs.get('api')
@@ -28,10 +26,8 @@ class Auctioneer(object):
         self.robot_ids = list()
         self.timetables = dict()
 
-        stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
-        self.stp = STP(stp_solver)
+        self.stp_solver = stp_solver
 
-        self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
         self.freeze_window = timedelta(seconds=freeze_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
@@ -61,7 +57,7 @@ class Auctioneer(object):
         self.get_timetable(robot_id)
 
     def get_timetable(self, robot_id):
-        timetable = Timetable.fetch(robot_id, self.stp)
+        timetable = Timetable.fetch(robot_id, self.stp_solver)
         self.timetables[robot_id] = timetable
 
     def run(self):

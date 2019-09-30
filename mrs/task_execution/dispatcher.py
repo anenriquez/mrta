@@ -3,24 +3,21 @@ import logging
 from datetime import timedelta
 
 from mrs.task_execution.scheduler import Scheduler
-from stn.stp import STP
-from mrs.task_allocation.allocation_method import allocation_method_factory
 
 
 class Dispatcher(object):
 
-    def __init__(self, allocation_method, freeze_window, **kwargs):
+    def __init__(self, stp_solver, freeze_window, **kwargs):
         self.logger = logging.getLogger('mrs.dispatcher')
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
 
-        stp_solver = allocation_method_factory.get_stp_solver(allocation_method)
-        self.stp = STP(stp_solver)
+        self.stp_solver = stp_solver
 
         self.freeze_window = timedelta(minutes=freeze_window)
         self.re_allocate = kwargs.get('re_allocate', False)
         self.robot_ids = list()
-        self.scheduler = Scheduler(self.stp)
+        self.scheduler = Scheduler(self.stp_solver)
 
         self.logger.debug("Dispatcher started")
 
