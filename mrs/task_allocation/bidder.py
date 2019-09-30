@@ -19,6 +19,21 @@ specified in the config file
 class Bidder(RobotBase):
 
     def __init__(self, robot_id, allocation_method, bidding_rule, auctioneer_name, **kwargs):
+        """
+        Includes bidder functionality for a robot in a multi-robot task-allocation auction-based
+        approach
+
+        Args:
+
+            robot_id (str): id of the robot, e.g. ropod_001
+            allocation_method (str): name of the allocation method
+            bidding_rule(dict): robustness and temporal criteria for the bidding rule
+            auctioneer_name (str): name of the auctioneer pyre node
+            kwargs:
+                api (API): object that provides middleware functionality
+                robot_store (robot_store): interface to interact with the db
+
+        """
         super().__init__(robot_id, allocation_method, **kwargs)
         self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
 

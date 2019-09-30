@@ -8,6 +8,17 @@ from mrs.task_allocation.allocation_method import allocation_method_factory
 
 class RobotBase(object):
     def __init__(self, robot_id, allocation_method, **kwargs):
+        """ Includes robot base attributes and methods
+
+        Args:
+
+            robot_id (str): id of the robot, e.g. ropod_001
+            allocation_method (str): name of the allocation method
+            kwargs:
+                api (API): object that provides middleware functionality
+                robot_store (robot_store): interface to interact with the db
+
+        """
 
         self.id = robot_id
         self.api = kwargs.get('api')
