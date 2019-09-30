@@ -1,7 +1,7 @@
 import logging
 import time
 
-from fmlib.db.mongo import MongoStoreBuilder
+from fmlib.config.builders import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
@@ -74,7 +74,7 @@ class AllocationTest(RopodPyre):
 
 
 if __name__ == '__main__':
-    config_file = '../config/config.yaml'
+    config_file = '../mrs/config/default/config.yaml'
     dataset = 'data/non_overlapping.yaml'
 
     config = load_yaml(config_file)

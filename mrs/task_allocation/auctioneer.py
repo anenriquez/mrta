@@ -10,7 +10,6 @@ from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
-from stn.stp import STP
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -19,19 +18,18 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, ccu_store, api, stp_solver, allocation_method,
-                 round_time=5, **kwargs):
+    def __init__(self, stp_solver, round_time=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
-
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
         self.robot_ids = list()
         self.timetables = dict()
 
-        self.api = api
-        self.stp = STP(stp_solver)
+        self.stp_solver = stp_solver
 
-        self.allocation_method = allocation_method
         self.round_time = timedelta(seconds=round_time)
+        self.freeze_window = timedelta(seconds=freeze_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         self.logger.debug("Auctioneer started")
@@ -46,12 +44,20 @@ class Auctioneer(object):
         self.zero_timepoint = TimeStamp()
         self.zero_timepoint.timestamp = today_midnight
 
+    def configure(self, **kwargs):
+        api = kwargs.get('api')
+        ccu_store = kwargs.get('ccu_store')
+        if api:
+            self.api = api
+        if ccu_store:
+            self.ccu_store = ccu_store
+
     def register_robot(self, robot_id):
         self.robot_ids.append(robot_id)
         self.get_timetable(robot_id)
 
     def get_timetable(self, robot_id):
-        timetable = Timetable.fetch(robot_id, self.stp)
+        timetable = Timetable.fetch(robot_id, self.stp_solver)
         self.timetables[robot_id] = timetable
 
     def run(self):

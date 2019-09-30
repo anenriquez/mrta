@@ -18,15 +18,30 @@ specified in the config file
 
 class Bidder(RobotBase):
 
-    def __init__(self, bidder_config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, robot_id, stp_solver, bidding_rule, auctioneer_name, **kwargs):
+        """
+        Includes bidder functionality for a robot in a multi-robot task-allocation auction-based
+        approach
+
+        Args:
+
+            robot_id (str): id of the robot, e.g. ropod_001
+            stp_solver (STP): Simple Temporal Problem object
+            bidding_rule(dict): robustness and temporal criteria for the bidding rule
+            auctioneer_name (str): name of the auctioneer pyre node
+            kwargs:
+                api (API): object that provides middleware functionality
+                robot_store (robot_store): interface to interact with the db
+
+        """
+        super().__init__(robot_id, stp_solver, **kwargs)
         self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
 
-        robustness = bidder_config.get('bidding_rule').get('robustness')
-        temporal = bidder_config.get('bidding_rule').get('temporal')
+        robustness = bidding_rule.get('robustness')
+        temporal = bidding_rule.get('temporal')
         self.bidding_rule = BiddingRule(robustness, temporal)
 
-        self.auctioneer_name = bidder_config.get("auctioneer_name")
+        self.auctioneer_name = auctioneer_name
         self.bid_placed = None
 
         self.logger.debug("Bidder initialized %s", self.id)
