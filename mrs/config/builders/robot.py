@@ -1,7 +1,7 @@
 from fmlib.api import API
 from fmlib.config.builders import Store
 from fleet_management.config.builder import FMSBuilder
-from mrs.config.mrta import mrta_factory
+from mrs.config.mrta import MRTAFactory
 
 
 _component_modules = {'api': API,
@@ -43,6 +43,9 @@ class RobotBuilder:
 
         robot_config.pop('api')
         robot_config.pop('robot_store')
+
+        allocation_method = config_params.get('allocation_method')
+        mrta_factory = MRTAFactory(allocation_method)
 
         components = mrta_factory(**robot_config)
         components.update({'api': api})
