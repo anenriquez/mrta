@@ -34,7 +34,7 @@ class ScheduleMonitor(RobotBase):
 
         """
         super().__init__(robot_id, stp_solver, **kwargs)
-        self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
+        self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
 
         self.freeze_window = timedelta(minutes=freeze_window)
 
@@ -49,7 +49,7 @@ class ScheduleMonitor(RobotBase):
         self.scheduler = Scheduler(self.stp_solver, self.robot_id)
         self.executor_interface = ExecutorInterface(self.robot_id)
 
-        self.logger.debug("Schedule Monitor initialized %s", self.robot_id)
+        self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
 
 
 

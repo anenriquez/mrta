@@ -1,6 +1,7 @@
 from mrs.task_allocation.auctioneer import Auctioneer
 from mrs.task_execution.dispatcher import Dispatcher
 from mrs.task_allocation.bidder import Bidder
+from mrs.task_execution.schedule_monitor import ScheduleMonitor
 import logging
 from stn.stp import STP
 
@@ -37,6 +38,7 @@ class MRTAFactory:
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)
         self.register_component('bidder', Bidder)
+        self.register_component('schedule_monitor', ScheduleMonitor)
 
     def register_component(self, component_name, component):
         self._components[component_name] = component
