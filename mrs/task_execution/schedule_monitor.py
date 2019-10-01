@@ -1,5 +1,7 @@
 import logging
 from datetime import timedelta
+from mrs.task_execution.scheduler import Scheduler
+from mrs.task_execution.executor_interface import ExecutorInterface
 
 from mrs.robot_base import RobotBase
 
@@ -26,10 +28,13 @@ class ScheduleMonitor(RobotBase):
                         start navigation time is within the next 2 minutes.
             allocation_method (str): Name of the allocation method
             corrective_measure (str): Name of the corrective measure
+            kwargs:
+                api (API): object that provides middleware functionality
+                robot_store (robot_store): interface to interact with the db
 
         """
         super().__init__(robot_id, stp_solver, **kwargs)
-        self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
+        self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
         self.freeze_window = timedelta(minutes=freeze_window)
 
@@ -40,5 +45,11 @@ class ScheduleMonitor(RobotBase):
             raise ValueError(corrective_measure)
 
         self.corrective_measure = corrective_measure
+
+        self.scheduler = Scheduler(self.stp_solver, self.robot_id)
+        self.executor_interface = ExecutorInterface(self.robot_id)
+
+        self.logger.debug("Schedule Monitor initialized %s", self.robot_id)
+
 
 

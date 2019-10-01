@@ -2,8 +2,6 @@
 import logging
 from datetime import timedelta
 
-from mrs.task_execution.scheduler import Scheduler
-
 
 class Dispatcher(object):
 
@@ -17,7 +15,6 @@ class Dispatcher(object):
         self.freeze_window = timedelta(minutes=freeze_window)
         self.re_allocate = kwargs.get('re_allocate', False)
         self.robot_ids = list()
-        self.scheduler = Scheduler(self.stp_solver)
 
         self.logger.debug("Dispatcher started")
 
