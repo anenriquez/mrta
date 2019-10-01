@@ -24,6 +24,7 @@ class MRTAFactory:
         """
 
         self.logger = logging.getLogger('mrta.config.components')
+        self.allocation_method = allocation_method
         self._components = {}
 
         stp_solver_name = self.allocation_methods.get(allocation_method)
@@ -48,7 +49,8 @@ class MRTAFactory:
             component = self._components.get(component_name)
 
             if component:
-                _instance = component(stp_solver=self.stp_solver,
+                _instance = component(allocation_method=self.allocation_method,
+                                      stp_solver=self.stp_solver,
                                       **configuration)
                 components[component_name] = _instance
 
