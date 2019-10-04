@@ -2,19 +2,12 @@ import logging
 import time
 
 from fmlib.api import API
-from fleet_management.config.builder import FMSBuilder
 from fmlib.config.builders import Store
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.config.mrta import MRTAFactory
 from mrs.utils.datasets import load_yaml
-
-_component_modules = {'api': API,
-                      'ccu_store': Store,
-                      }
-
-_config_order = ['api', 'ccu_store']
 
 
 class MRS(object):
@@ -26,12 +19,10 @@ class MRS(object):
         logger_config = config_params.get('logger')
         logging.config.dictConfig(logger_config)
 
-        fms_builder = FMSBuilder(component_modules=_component_modules,
-                                 config_order=_config_order)
-        fms_builder.configure(config_params)
-
-        self.api = fms_builder.get_component('api')
-        self.ccu_store = fms_builder.get_component('ccu_store')
+        api_config = config_params.get('api')
+        store_config = config_params.get('ccu_store')
+        self.api = API(**api_config)
+        self.ccu_store = Store(**store_config)
 
         config = config_params.get('plugins').get('mrta')
         allocation_method = config_params.get('allocation_method')

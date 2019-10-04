@@ -1,14 +1,6 @@
 from fmlib.api import API
 from fmlib.config.builders import Store
-from fleet_management.config.builder import FMSBuilder
 from mrs.config.mrta import MRTAFactory
-
-
-_component_modules = {'api': API,
-                      'robot_store': Store,
-                      }
-
-_config_order = ['api', 'robot_store']
 
 
 def get_robot_config(robot_id, config_params):
@@ -34,12 +26,10 @@ class RobotBuilder:
 
         robot_config = get_robot_config(robot_id, config_params)
 
-        fms_builder = FMSBuilder(component_modules=_component_modules,
-                                 config_order=_config_order)
-        fms_builder.configure(robot_config)
-
-        api = fms_builder.get_component('api')
-        robot_store = fms_builder.get_component('robot_store')
+        api_config = robot_config.get('api')
+        store_config = robot_config.get('robot_store')
+        api = API(**api_config)
+        robot_store = Store(**store_config)
 
         robot_config.pop('api')
         robot_config.pop('robot_store')
