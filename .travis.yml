@@ -7,7 +7,6 @@ services:
 before_install:
   - docker-compose build task_allocation_test
   - docker image ls
-  - docker ps -a
 
 script:
   - docker-compose up -d robot
