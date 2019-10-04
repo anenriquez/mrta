@@ -104,7 +104,7 @@ docker-compose build task_allocation_test
 
 docker-compose up -d robot
 
-docker-compose up -d task_allocator
+docker-compose up -d ccu 
 
 docker-compose up task_allocation_test
 
