@@ -8,6 +8,8 @@ before_install:
   - docker-compose build task_allocation_test
   - docker image ls
 
+install: skip
+
 script:
   - docker-compose up -d robot
   - docker-compose up -d ccu
