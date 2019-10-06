@@ -5,6 +5,7 @@ from fmlib.utils.messages import Document
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 from pymodm.context_managers import switch_collection
 from pymongo.errors import ServerSelectionTimeoutError
+from fmlib.models.tasks import TaskManager
 
 
 class TaskAllocationPerformance(EmbeddedMongoModel):
@@ -17,10 +18,14 @@ class TaskAllocationPerformance(EmbeddedMongoModel):
     allocation_time (list): List of floats. The first entry indicates the time
                             taken to allocate the task for the first time. Successive
                             entries indicate the re-allocation time for each re-allocation.
+
+    robot_id: robot id of the robot that allocated the task
+
     """
-    allocated = fields.BooleanField()
-    n_re_allocation_attempts = fields.IntegerField()
+    allocated = fields.BooleanField(default=False)
+    n_re_allocation_attempts = fields.IntegerField(default=0)
     allocation_time = fields.ListField()
+    robot_id = fields.CharField()
 
 
 class TaskSchedulingPerformance(EmbeddedMongoModel):
@@ -43,7 +48,7 @@ class TaskSchedulingPerformance(EmbeddedMongoModel):
     """
     work_time = fields.FloatField()
     travel_time = fields.FloatField()
-    n_re_scheduling_attempts = fields.IntegerField()
+    n_re_scheduling_attempts = fields.IntegerField(default=0)
     scheduling_time = fields.ListField()
 
 
@@ -65,8 +70,8 @@ class TaskExecutionPerformance(EmbeddedMongoModel):
     """
     work_time = fields.FloatField()
     travel_time = fields.FloatField()
-    executed = fields.BooleanField()
-    delayed = fields.BooleanField()
+    executed = fields.BooleanField(default=False)
+    delayed = fields.BooleanField(default=False)
 
 
 class TaskPerformance(MongoModel):
@@ -79,9 +84,11 @@ class TaskPerformance(MongoModel):
 
     """
     task = fields.ReferenceField(Task, primary_key=True)
-    allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
-    scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance)
-    execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
+    allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance, default=TaskAllocationPerformance())
+    scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance, default=TaskSchedulingPerformance())
+    execution = fields.EmbeddedDocumentField(TaskExecutionPerformance, default=TaskExecutionPerformance())
+
+    objects = TaskManager()
 
     class Meta:
         archive_collection = 'task_performance_archive'
@@ -103,6 +110,17 @@ class TaskPerformance(MongoModel):
         performance = cls(task)
         performance.save()
         return performance
+
+    @classmethod
+    def get_task(cls, task_id):
+        return cls.objects.get_task(task_id)
+
+    def update_allocation(self, allocation_time, robot_id, allocated=True):
+        self.allocation.allocated = allocated
+        self.allocation.n_re_allocation_attempts += 1
+        self.allocation.allocation_time = allocation_time
+        self.allocation.robot_id = robot_id
+        self.save()
 
     @classmethod
     def from_payload(cls, payload):

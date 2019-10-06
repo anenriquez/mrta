@@ -1,13 +1,13 @@
 import copy
 import logging
+import time
 
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
-
+import numpy as np
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.bid import Bid
-import numpy as np
+from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
 
 
 class Round(object):
@@ -27,6 +27,8 @@ class Round(object):
         self.opened = False
         self.received_bids = dict()
         self.received_no_bids = dict()
+        self.start_time = time.time()
+        self.time_to_allocate = None
 
     def start(self):
         """ Starts and auction round:
@@ -90,6 +92,7 @@ class Round(object):
             return False
 
         self.logger.debug("Closing round at %s", current_time)
+        self.time_to_allocate = time.time() - self.start_time
         self.opened = False
         return True
 
@@ -115,7 +118,8 @@ class Round(object):
             allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
             robot_id = winning_bid.robot_id
             position = winning_bid.position
-            round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
+            round_result = (allocated_task, robot_id, position, self.tasks_to_allocate,
+                            self.time_to_allocate)
 
             if winning_bid.hard_constraints is False:
                 raise AlternativeTimeSlot(winning_bid.task_id, winning_bid.robot_id, winning_bid.alternative_start_time)
