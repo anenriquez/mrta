@@ -11,6 +11,7 @@ from mrs.task_allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from mrs.db.models.performance.task import TaskPerformance
+from fmlib.models.tasks import Task
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -61,6 +62,12 @@ class Auctioneer(object):
         timetable = Timetable.fetch(robot_id, self.stp_solver)
         self.timetables[robot_id] = timetable
 
+    def update_tasks_to_allocate(self):
+        tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        for task in tasks:
+            task_lot = TaskLot.get_task(task.task_id)
+            self.tasks_to_allocate[task_lot.task.task_id] = task_lot
+
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
@@ -74,7 +81,8 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                self.logger.error("No mrs made in round %s ", exception.round_id)
+                self.logger.error("No allocation made in round %s ", exception.round_id)
+                self.update_tasks_to_allocate()
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
