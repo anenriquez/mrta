@@ -7,6 +7,7 @@ from fmlib.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.structs.status import TaskStatus as TaskStatusConst
+from fmlib.models.tasks import TaskManager
 
 
 class TaskLot(MongoModel):
@@ -14,6 +15,8 @@ class TaskLot(MongoModel):
     start_location = fields.CharField()
     finish_location = fields.CharField()
     constraints = fields.EmbeddedDocumentField(TaskConstraints)
+
+    objects = TaskManager()
 
     class Meta:
         archive_collection = 'task_lot_archive'
@@ -46,6 +49,10 @@ class TaskLot(MongoModel):
         task_lot.update_status(TaskStatusConst.UNALLOCATED)
 
         return task_lot
+
+    @classmethod
+    def get_task(cls, task_id):
+        return cls.objects.get_task(task_id)
 
     def update_status(self, status):
         task_status = TaskStatus(task=self.task, status=status)
