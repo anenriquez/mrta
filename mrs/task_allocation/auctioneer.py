@@ -10,6 +10,7 @@ from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
+from mrs.db.models.performance.task import TaskPerformance
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -82,11 +83,13 @@ class Auctioneer(object):
 
     def process_allocation(self, round_result):
 
-        task_lot, robot_id, position, tasks_to_allocate = round_result
+        task_lot, robot_id, position, tasks_to_allocate, time_to_allocate = round_result
 
         allocation = (task_lot.task.task_id, [robot_id])
         self.allocations.append(allocation)
         self.tasks_to_allocate = tasks_to_allocate
+        task_performance = TaskPerformance.get_task(task_lot.task.task_id)
+        task_performance.update_allocation(time_to_allocate, robot_id)
 
         self.logger.debug("Allocation: %s", allocation)
         self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
