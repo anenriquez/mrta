@@ -2,16 +2,17 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 
+from fmlib.models.tasks import Task
+from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
+from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
-from mrs.db.models.performance.task import TaskPerformance
-from fmlib.models.tasks import Task
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -97,8 +98,11 @@ class Auctioneer(object):
         task_lot = self.tasks_to_allocate.pop(task_id)
         self.allocations.append(allocation)
 
-        task_performance = TaskPerformance.get_task(task_id)
-        task_performance.update_allocation(time_to_allocate, robot_id)
+        try:
+            task_performance = TaskPerformance.get_task(task_id)
+            task_performance.update_allocation(time_to_allocate, robot_id)
+        except DoesNotExist as err:
+            logging.warning("Task Performance model does not exist %s", err)
 
         self.logger.debug("Allocation: %s", allocation)
         self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
