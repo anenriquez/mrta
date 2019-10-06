@@ -83,12 +83,13 @@ class Auctioneer(object):
 
     def process_allocation(self, round_result):
 
-        task_lot, robot_id, position, tasks_to_allocate, time_to_allocate = round_result
+        task_id, robot_id, position, time_to_allocate = round_result
 
-        allocation = (task_lot.task.task_id, [robot_id])
+        allocation = (task_id, [robot_id])
+        task_lot = self.tasks_to_allocate.pop(task_id)
         self.allocations.append(allocation)
-        self.tasks_to_allocate = tasks_to_allocate
-        task_performance = TaskPerformance.get_task(task_lot.task.task_id)
+
+        task_performance = TaskPerformance.get_task(task_id)
         task_performance.update_allocation(time_to_allocate, robot_id)
 
         self.logger.debug("Allocation: %s", allocation)
@@ -143,12 +144,9 @@ class Auctioneer(object):
 
     def announce_task(self):
 
-        round_ = {'tasks_to_allocate': self.tasks_to_allocate,
-                  'round_time': self.round_time,
-                  'n_robots': len(self.robot_ids),
-                  'alternative_timeslots': self.alternative_timeslots}
-
-        self.round = Round(**round_)
+        self.round = Round(n_robots=len(self.robot_ids),
+                           round_time=self.round_time,
+                           alternative_timeslots=self.alternative_timeslots)
 
         self.logger.debug("Starting round: %s", self.round.id)
         self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
