@@ -37,7 +37,7 @@ class Robot(object):
                 time.sleep(0.5)
 
         except (KeyboardInterrupt, SystemExit):
-            self.logger.info("Terminating %s robot ...", self.bidder.id)
+            self.logger.info("Terminating %s robot ...", self.bidder.robot_id)
             self.api.shutdown()
             self.logger.info("Exiting...")
 

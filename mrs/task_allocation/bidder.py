@@ -35,7 +35,7 @@ class Bidder(RobotBase):
 
         """
         super().__init__(robot_id, stp_solver, **kwargs)
-        self.logger = logging.getLogger('mrs.bidder.%s' % self.id)
+        self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
@@ -44,21 +44,21 @@ class Bidder(RobotBase):
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
 
-        self.logger.debug("Bidder initialized %s", self.id)
+        self.logger.debug("Bidder initialized %s", self.robot_id)
 
     def task_announcement_cb(self, msg):
-        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.id)
+        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.robot_id)
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
     def allocation_cb(self, msg):
-        self.logger.debug("Robot %s received ALLOCATION", self.id)
+        self.logger.debug("Robot %s received ALLOCATION", self.robot_id)
         payload = msg['payload']
         allocation = Allocation.from_payload(payload)
 
-        if allocation.robot_id == self.id:
+        if allocation.robot_id == self.robot_id:
             self.allocate_to_robot(allocation.task_id)
             self.send_finish_round()
 
@@ -78,7 +78,7 @@ class Bidder(RobotBase):
                 bids.append(best_bid)
             else:
                 self.logger.debug("No bid for task %s", task_lot.task_id)
-                no_bid = Bid(self.id, round_id, task_lot.task.task_id)
+                no_bid = Bid(self.robot_id, round_id, task_lot.task.task_id)
                 no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
@@ -94,7 +94,7 @@ class Bidder(RobotBase):
         """
         if bid:
             self.bid_placed = bid
-            self.logger.debug("Robot %s placed bid (risk metric: %s, temporal metric: %s)", self.id,
+            self.logger.debug("Robot %s placed bid (risk metric: %s, temporal metric: %s)", self.robot_id,
                               self.bid_placed.risk_metric, self.bid_placed.temporal_metric)
             self.send_bid(bid)
 
@@ -120,7 +120,7 @@ class Bidder(RobotBase):
             self.logger.debug("Computing bid for task %s in position %s", task_lot.task.task_id, position)
 
             try:
-                bid = self.bidding_rule.compute_bid(self.id, round_id, task_lot, position, self.timetable)
+                bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task_lot, position, self.timetable)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
@@ -174,21 +174,21 @@ class Bidder(RobotBase):
 
         self.timetable = copy.deepcopy(self.bid_placed.timetable)
 
-        self.logger.debug("Robot %s allocated task %s", self.id, task_id)
+        self.logger.debug("Robot %s allocated task %s", self.robot_id, task_id)
         self.logger.debug("STN %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph %s", self.timetable.dispatchable_graph)
 
         tasks = [task for task in self.timetable.get_tasks()]
 
-        self.logger.debug("Tasks allocated to robot %s:%s", self.id, tasks)
+        self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
         task = Task.get_task(task_id)
         task.update_status(TaskStatusConst.ALLOCATED)
-        task.assign_robots([self.id])
+        task.assign_robots([self.robot_id])
 
     def send_finish_round(self):
-        finish_round = FinishRound(self.id)
+        finish_round = FinishRound(self.robot_id)
         msg = self.api.create_message(finish_round)
 
-        self.logger.debug("Robot %s sends close round msg ", self.id)
+        self.logger.debug("Robot %s sends close round msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 

@@ -7,9 +7,6 @@ setup(name='mrs',
                 'mrs.db.queries', 'mrs.structs', 'mrs.utils', 'mrs.exceptions', 'mrs.task_allocation',
                 'mrs.task_execution'],
       version='0.2.0',
-      install_requires=[
-            'numpy'
-      ],
       description='Multi-Robot System (MRS) components for performing'
                   'Multi-Robot Task Allocation (MRTA) and executing'
                   'tasks with temporal constraints and uncertain '

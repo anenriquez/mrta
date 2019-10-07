@@ -19,15 +19,15 @@ plugins:
       freeze_window: 3 # seconds
     dispatcher:
       re-allocate: True
-      freeze_window: 3 # seconds
 robot_proxy:
   bidder:
     bidding_rule:
       robustness: srea  # has to be the same as the stp_solver
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
-#  schedule_monitor:
-#    corrective_measure: re-allocate
+  schedule_monitor:
+    freeze_window: 3 # seconds
+    corrective_measure: re-allocate
   robot_store:
     db_name: robot_store
     port: 27017

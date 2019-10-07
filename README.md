@@ -37,6 +37,61 @@ It can take the values:
 - completion_time
 - makespan
 
+## Component Diagram
+
+The system consists of a ccu (central control unit) and a robot instance per physical robot in the fleet.
+
+![component_diagram](https://github.com/anenriquez/mrta/blob/feature/schedule-monitor/documentation/component_diagram.png)
+
+Brief description of the components: 
+
+#### Auctioneer
+- Announces unallocated tasks to the robots in the local network, opening an allocation round.
+- Receives bids from the robot bidders.
+- Elects a winner per allocation round or throws an exception indicating that no allocation was possible in the current round.
+
+#### Dispatcher
+-  Receives requests for a DISPATCH-QUEUE-UPDATE.
+- Creates a dispatchable graph with two tasks and checks its consistency.
+-  If the graph is consistent, creates a DISPATCH-QUEUE-UPDATE message and sends it to the Schedule Monitor. 
+
+#### Bidder
+- Receives task announcements.
+- Computes a bid per task received in the task announcement. Bid calculation is dependant of the allocation method.
+- Sends its best bid to the auctioneer.
+
+#### Schedule Monitor
+- Requests DISPATCH-QUEUE-UPDATEs to the Dispatcher.
+- Gets the earliest task in the DISPATCH-QUEUE-UPDATE message and checks if it is schedulable.
+- Requests the Scheduler to schedule the task. 
+- Sends the the task to the Executor Interface.
+- Applies corrective measures (if included in the config file).
+ 
+#### Scheduler
+- Instantiates the pre-condition start time of a task in an STN and checks the consistency of the resulting temporal network.
+-  If the network is consistent, sets the pre-condition start time of the task. 
+
+#### Executor Interface
+- Receives a Task from the Schedule Monitor.
+- Once the current time is equal to the start time of the task, sends the task to the Executor.
+
+All of the above components make use of the API object. The ccu components make use of the ccu_store object and the robot components use the robot_store component
+
+#### API:
+- Provides middleware functionality
+
+#### ccu_store
+- interface to interact with the ccu db
+
+#### robot_store
+- interface to interact with the robot db
+
+
+
+
+
+
+
 
 
 ## Using Docker
@@ -49,7 +104,7 @@ docker-compose build task_allocation_test
 
 docker-compose up -d robot
 
-docker-compose up -d task_allocator
+docker-compose up -d ccu 
 
 docker-compose up task_allocation_test
 

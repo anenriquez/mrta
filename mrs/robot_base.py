@@ -18,7 +18,7 @@ class RobotBase(object):
 
         """
 
-        self.id = robot_id
+        self.robot_id = robot_id
         self.api = kwargs.get('api')
         self.robot_store = kwargs.get('robot_store')
 
