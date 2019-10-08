@@ -23,7 +23,7 @@ def load_yaml(file):
 
 
 def load_yaml_dataset(dataset_path):
-    dataset_dict = load_yaml(dataset_path)
+    dataset_dict = yaml.safe_load(dataset_path)
     dataset_id = dataset_dict.get('dataset_id')
 
     tasks_performance = list()
@@ -44,8 +44,6 @@ def load_yaml_dataset(dataset_path):
 
         task = Task.create_new(task_id=task_id, request=request)
 
-    #     TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
-    #                    latest_start_time, hard_constraints)
         task_performance = TaskPerformance.create(task)
 
         tasks_performance.append(task_performance)
