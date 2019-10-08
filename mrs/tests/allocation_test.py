@@ -5,12 +5,13 @@ from fmlib.config.builders import MongoStoreBuilder
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
+from fmlib.utils.utils import load_file_from_module
 
 from mrs.utils.datasets import load_yaml, load_yaml_dataset
 
 
 class AllocationTest(RopodPyre):
-    def __init__(self, config, dataset):
+    def __init__(self, dataset_module, dataset_file, **kwargs):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
@@ -19,12 +20,13 @@ class AllocationTest(RopodPyre):
 
         super().__init__(zyre_config, acknowledge=False)
 
-        fleet = config.get('resource_manager').get('resources').get('fleet')
-        ccu_store_config = config.get("ccu_store")
-        robot_store_config = config.get('robot_proxy').get("robot_store")
+        fleet = kwargs.get('fleet')
+        ccu_store_config = kwargs.get("ccu_store")
+        robot_store_config = kwargs.get("robot_store")
 
         self.clean_stores(fleet, ccu_store_config, robot_store_config)
 
+        dataset = load_file_from_module(dataset_module, dataset_file)
         self.tasks = load_yaml_dataset(dataset)
 
         self.n_received_msgs = 0
@@ -74,15 +76,21 @@ class AllocationTest(RopodPyre):
 
 
 if __name__ == '__main__':
-    config_file = '../mrs/config/default/config.yaml'
-    dataset = 'data/non_overlapping.yaml'
+    config_file = '../config/default/config.yaml'
+    dataset_module = 'mrs.tests.data'
+    dataset_file = 'non_overlapping.yaml'
 
     config = load_yaml(config_file)
     fleet = config.get('resource_manager').get('resources').get('fleet')
+    ccu_store = config.get("ccu_store")
+    robot_store = config.get('robot_proxy').get("robot_store")
 
     timeout_duration = 300  # 5 minutes
 
-    test = AllocationTest(config, dataset)
+    test = AllocationTest(dataset_module, dataset_file,
+                          fleet=fleet,
+                          ccu_store=ccu_store,
+                          robot_store=robot_store)
     test.start()
 
     try:
