@@ -23,7 +23,7 @@ services:
     build: .
     container_name: task-mrs-test
     image: ropod-mrs
-    working_dir: /mrta/tests/
+    working_dir: /mrta/mrs/tests/
     command: ["python3", "allocation_test.py"]
     network_mode: "host"
     tty: true

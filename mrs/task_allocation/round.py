@@ -1,24 +1,25 @@
 import copy
 import logging
+import time
+from datetime import timedelta
 
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
-
+import numpy as np
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.bid import Bid
-import numpy as np
+from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
+from mrs.db.models.task import TaskLot
 
 
 class Round(object):
 
-    def __init__(self, **kwargs):
+    def __init__(self, n_robots=1, round_time=timedelta(seconds=5), **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
 
-        self.tasks_to_allocate = kwargs.get('tasks_to_allocate', dict())
-        self.round_time = kwargs.get('round_time', 0)
-        self.n_robots = kwargs.get('n_robots', 0)
+        self.n_robots = n_robots
+        self.round_time = round_time
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         self.closure_time = 0
@@ -27,6 +28,8 @@ class Round(object):
         self.opened = False
         self.received_bids = dict()
         self.received_no_bids = dict()
+        self.start_time = time.time()
+        self.time_to_allocate = None
 
     def start(self):
         """ Starts and auction round:
@@ -90,6 +93,7 @@ class Round(object):
             return False
 
         self.logger.debug("Closing round at %s", current_time)
+        self.time_to_allocate = time.time() - self.start_time
         self.opened = False
         return True
 
@@ -112,10 +116,10 @@ class Round(object):
 
         try:
             winning_bid = self.elect_winner()
-            allocated_task = self.tasks_to_allocate.pop(winning_bid.task_id, None)
-            robot_id = winning_bid.robot_id
-            position = winning_bid.position
-            round_result = (allocated_task, robot_id, position, self.tasks_to_allocate)
+            round_result = (winning_bid.task_id,
+                            winning_bid.robot_id,
+                            winning_bid.position,
+                            self.time_to_allocate)
 
             if winning_bid.hard_constraints is False:
                 raise AlternativeTimeSlot(winning_bid.task_id, winning_bid.robot_id, winning_bid.alternative_start_time)
@@ -137,9 +141,9 @@ class Round(object):
 
         for task_id, n_no_bids in self.received_no_bids.items():
             if n_no_bids == self.n_robots:
-                task = self.tasks_to_allocate.get(task_id)
+                task = TaskLot.get_task(task_id)
                 task.hard_constraints = False
-                self.tasks_to_allocate.update({task_id: task})
+                task.save()
                 self.logger.debug("Setting soft constraints for task %s", task_id)
 
     def elect_winner(self):

@@ -2,12 +2,15 @@ import logging
 from datetime import datetime
 from datetime import timedelta
 
+from fmlib.models.tasks import Task
+from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
 from mrs.structs.allocation import TaskAnnouncement, Allocation
 from mrs.structs.timetable import Timetable
 from mrs.task_allocation.round import Round
+from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 
@@ -60,6 +63,12 @@ class Auctioneer(object):
         timetable = Timetable.fetch(robot_id, self.stp_solver)
         self.timetables[robot_id] = timetable
 
+    def update_tasks_to_allocate(self):
+        tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        for task in tasks:
+            task_lot = TaskLot.get_task(task.task_id)
+            self.tasks_to_allocate[task_lot.task.task_id] = task_lot
+
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
@@ -73,7 +82,8 @@ class Auctioneer(object):
                     self.announce_winner(allocated_task, robot_id)
 
             except NoAllocation as exception:
-                self.logger.error("No mrs made in round %s ", exception.round_id)
+                self.logger.error("No allocation made in round %s ", exception.round_id)
+                self.update_tasks_to_allocate()
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
@@ -82,11 +92,17 @@ class Auctioneer(object):
 
     def process_allocation(self, round_result):
 
-        task_lot, robot_id, position, tasks_to_allocate = round_result
+        task_id, robot_id, position, time_to_allocate = round_result
 
-        allocation = (task_lot.task.task_id, [robot_id])
+        allocation = (task_id, [robot_id])
+        task_lot = self.tasks_to_allocate.pop(task_id)
         self.allocations.append(allocation)
-        self.tasks_to_allocate = tasks_to_allocate
+
+        try:
+            task_performance = TaskPerformance.get_task(task_id)
+            task_performance.update_allocation(time_to_allocate, robot_id)
+        except DoesNotExist as err:
+            logging.warning("Task Performance model does not exist %s", err)
 
         self.logger.debug("Allocation: %s", allocation)
         self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
@@ -140,12 +156,9 @@ class Auctioneer(object):
 
     def announce_task(self):
 
-        round_ = {'tasks_to_allocate': self.tasks_to_allocate,
-                  'round_time': self.round_time,
-                  'n_robots': len(self.robot_ids),
-                  'alternative_timeslots': self.alternative_timeslots}
-
-        self.round = Round(**round_)
+        self.round = Round(n_robots=len(self.robot_ids),
+                           round_time=self.round_time,
+                           alternative_timeslots=self.alternative_timeslots)
 
         self.logger.debug("Starting round: %s", self.round.id)
         self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
