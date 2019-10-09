@@ -23,8 +23,7 @@ class RobotBase(object):
         self.robot_store = kwargs.get('robot_store')
 
         self.stp_solver = stp_solver
-
-        self.timetable = Timetable(robot_id, self.stp_solver)
+        self.timetable = self.get_timetable()
 
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         self.timetable.zero_timepoint = TimeStamp()
@@ -37,3 +36,6 @@ class RobotBase(object):
             self.api = api
         if robot_store:
             self.robot_store = robot_store
+
+    def get_timetable(self):
+        return Timetable.fetch(self.robot_id, self.stp_solver)
