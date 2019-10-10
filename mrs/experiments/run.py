@@ -1,72 +1,99 @@
+from fmlib.config.params import ConfigParams
+from importlib_resources import contents
+from fmlib.db.mongo import MongoStore
 import argparse
+from mrs.tests.allocation_test import AllocationTest
 import time
 
-from mrs.tests.allocation_test import AllocationTest
-from sacred import Experiment
-from sacred import SETTINGS
-from sacred.observers import MongoObserver
+ConfigParams.default_config_module = 'mrs.config.default'
 
-SETTINGS.CONFIG.READ_ONLY_CONFIG = False
-
-ex = Experiment()
-ex.observers.append(MongoObserver.create())
+experiment_names = ["non_intentional_delays",
+                    "intentional_delays",
+                    "task_scalability",
+                    "robot_scalability"]
 
 
-def process_arguments(args):
-    global ex
-    config_file = args.file
-    experiment_name = args.experiment_name
-    dataset_module, dataset_files = get_datasets(experiment_name)
+class MRTAExperiment:
+    def __init__(self, experiment_name, config_file=None):
 
-    ex.add_config(config_file)
-    ex.add_config(dataset_module=dataset_module)
+        if experiment_name not in experiment_names:
+            raise ValueError(experiment_name)
 
-    return dataset_module, dataset_files
+        self.experiment_name = experiment_name
 
+        if config_file is None:
+            self.config_params = ConfigParams.default()
+        else:
+            self.config_params = ConfigParams.from_file(config_file)
 
-def get_datasets(experiment_name):
-    # TODO: Get datasets based on experiment.
-    dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
-    dataset_files = list()
-    dataset_files.append('non_overlapping_1.yaml')
-    return dataset_module, dataset_files
+        self.db = MongoStore(db_name=experiment_name, alias=experiment_name)
 
+        # TODO: Keep track of number of runs for each experiment name
+        self.db_collection = experiment_name + '_1'
 
-@ex.main
-def run(dataset_module, dataset_file, resource_manager, ccu_store, robot_proxy):
-    timeout_duration = 300  # 5 minutes
+    def get_dataset_module(self):
+        """ Returns the dataset module for the experiment_name
+        """
+        if self.experiment_name == 'non_intentional_delays':
+            dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
 
-    fleet = resource_manager.get('resources').get('fleet')
-    robot_store = robot_proxy.get("robot_store")
+        return dataset_module
 
-    test = AllocationTest(dataset_module, dataset_file,
-                          fleet=fleet,
-                          ccu_store=ccu_store,
-                          robot_store=robot_store)
-    test.start()
-    try:
-        time.sleep(5)
-        start_time = time.time()
-        test.trigger()
-        while not test.terminated and start_time + timeout_duration > time.time():
-            time.sleep(0.5)
-    except (KeyboardInterrupt, SystemExit):
-        print('Task request test interrupted; exiting')
+    @staticmethod
+    def get_dataset_files(dataset_module):
+        dataset_files = list()
+        files = contents(dataset_module)
+        for file in files:
+            if file.endswith('.yaml'):
+                dataset_files.append(file)
 
-    print("Exiting test...")
-    test.shutdown()
+        return dataset_files
+
+    def run_all(self):
+        dataset_module = self.get_dataset_module()
+        dataset_files = self.get_dataset_files(dataset_module)
+        for dataset_file in dataset_files:
+            self.run(dataset_module, dataset_file)
+
+    def run(self, dataset_module, dataset_file):
+
+        fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
+        ccu_store = self.config_params.get("ccu_store")
+        robot_store = self.config_params.get('robot_proxy').get("robot_store")
+
+        print("Fleet: ", fleet)
+        print("ccu_store: ", ccu_store)
+        test = AllocationTest(dataset_module, dataset_file,
+                              fleet=fleet,
+                              ccu_store=ccu_store,
+                              robot_store=robot_store)
+        test.start()
+        timeout_duration = 300  # 5 minutes
+        try:
+            time.sleep(5)
+            start_time = time.time()
+            test.trigger()
+            while not test.terminated and start_time + timeout_duration > time.time():
+                time.sleep(0.5)
+        except (KeyboardInterrupt, SystemExit):
+            print('Task request test interrupted; exiting')
+
+        print("Exiting test...")
+        test.shutdown()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, action='store', help='Path to the config file',
-                        default='../config/default/config.yaml')
+    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
+
     parser.add_argument('experiment_name', type=str, action='store', help='Name of the experiment',
                         choices=['non_intentional_delays'])
+    args = parser.parse_args()
 
-    dataset_module, dataset_files = process_arguments(parser.parse_args())
+    experiment = MRTAExperiment(args.experiment_name, args.file)
 
-    for dataset_file in dataset_files:
-        r = ex.run(config_updates={'dataset_file': dataset_file})
+    experiment.run_all()
+
+
 
 

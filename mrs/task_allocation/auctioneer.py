@@ -19,6 +19,11 @@ specified in the config file
 """
 
 
+# def store_performance_metrics():
+#     print("Experiment: ", experiment)
+#     print("Experiment info: ", experiment.info)
+
+
 class Auctioneer(object):
 
     def __init__(self, stp_solver, round_time=5, freeze_window=300, **kwargs):
@@ -110,6 +115,8 @@ class Auctioneer(object):
         self.logger.debug("Updating task status to ALLOCATED")
         task_lot.task.update_status(TaskStatusConst.ALLOCATED)
         self.update_timetable(robot_id, task_lot, position)
+
+        # store_performance_metrics(round_result)
 
         return allocation
 

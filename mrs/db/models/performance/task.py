@@ -4,6 +4,7 @@ from fmlib.models.tasks import Task
 from fmlib.utils.messages import Document
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 from pymodm.context_managers import switch_collection
+from pymodm.context_managers import switch_connection
 from pymongo.errors import ServerSelectionTimeoutError
 from fmlib.models.tasks import TaskManager
 
@@ -92,11 +93,21 @@ class TaskPerformance(MongoModel):
 
     class Meta:
         archive_collection = 'task_performance_archive'
+        experiment_connection_alias = None
+        experiment_collection_run = None
         ignore_unknown_fields = True
 
     def save(self):
         try:
             super().save(cascade=True)
+
+            if TaskPerformance.Meta.experiment_connection_alias and\
+                    TaskPerformance.Meta.experiment_collection_run:
+                with switch_connection(TaskPerformance, TaskPerformance.Meta.experiment_connection_alias):
+                    with switch_collection(TaskPerformance, TaskPerformance.Meta.experiment_collection_run):
+                        print("Switching connection and saving")
+                        super().save(cascade=True)
+
         except ServerSelectionTimeoutError:
             logging.warning('Could not save models to MongoDB')
 
@@ -106,9 +117,14 @@ class TaskPerformance(MongoModel):
         self.delete()
 
     @classmethod
-    def create(cls, task):
+    def create(cls, task, experiment_connection_alias=None, experiment_collection_run=None):
         performance = cls(task)
+        if experiment_connection_alias:
+            cls.Meta.experiment_connection_alias = experiment_connection_alias
+        if experiment_collection_run:
+            cls.Meta.experiment_collection_run = experiment_collection_run
         performance.save()
+
         return performance
 
     @classmethod

@@ -44,7 +44,9 @@ def load_yaml_dataset(dataset_path):
 
         task = Task.create_new(task_id=task_id, request=request)
 
-        task_performance = TaskPerformance.create(task)
+        task_performance = TaskPerformance.create(task,
+                                                  experiment_connection_alias='non_intentional_delays',
+                                                  experiment_collection_run='non_intentional_delays_1',)
 
         tasks_performance.append(task_performance)
 
