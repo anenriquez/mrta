@@ -1,10 +1,12 @@
 import logging
 
-from mrs.db.models.performance.task import TaskPerformance
 from pymodm import fields, MongoModel
 from pymodm.context_managers import switch_collection
+from pymodm.context_managers import switch_connection
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.utils.uuid import generate_uuid
+
+from mrs.db.models.performance.task import TaskPerformance
 
 
 class DatasetPerformance(MongoModel):
@@ -42,19 +44,8 @@ class DatasetPerformance(MongoModel):
         archive_collection = 'dataset_performance_archive'
         ignore_unknown_fields = True
 
-    def save(self):
-        try:
-            super().save(cascade=True)
-        except ServerSelectionTimeoutError:
-            logging.warning('Could not save models to MongoDB')
-
     def archive(self):
         with switch_collection(DatasetPerformance, DatasetPerformance.Meta.archive_collection):
             super().save()
         self.delete()
 
-    @classmethod
-    def create(cls, dataset_id, task_ids):
-        performance = cls(dataset_id=dataset_id, tasks=task_ids)
-        performance.save()
-        return performance

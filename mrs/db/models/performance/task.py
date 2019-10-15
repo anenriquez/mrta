@@ -1,12 +1,8 @@
-import logging
-
 from fmlib.models.tasks import Task
+from fmlib.models.tasks import TaskManager
 from fmlib.utils.messages import Document
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 from pymodm.context_managers import switch_collection
-from pymodm.context_managers import switch_connection
-from pymongo.errors import ServerSelectionTimeoutError
-from fmlib.models.tasks import TaskManager
 
 
 class TaskAllocationPerformance(EmbeddedMongoModel):
@@ -93,50 +89,23 @@ class TaskPerformance(MongoModel):
 
     class Meta:
         archive_collection = 'task_performance_archive'
-        experiment_connection_alias = None
-        experiment_collection_run = None
         ignore_unknown_fields = True
 
-    def save(self):
-        try:
-            super().save(cascade=True)
+    @classmethod
+    def create(cls, task, connection_alias, collection_name):
+        cls.set_meta_info(connection_alias, collection_name)
+        performance = cls(task=task)
+        return performance
 
-            if TaskPerformance.Meta.experiment_connection_alias and\
-                    TaskPerformance.Meta.experiment_collection_run:
-                with switch_connection(TaskPerformance, TaskPerformance.Meta.experiment_connection_alias):
-                    with switch_collection(TaskPerformance, TaskPerformance.Meta.experiment_collection_run):
-                        print("Switching connection and saving")
-                        super().save(cascade=True)
-
-        except ServerSelectionTimeoutError:
-            logging.warning('Could not save models to MongoDB')
+    @classmethod
+    def set_meta_info(cls, connection_alias, collection_name):
+        cls.Meta.connection_alias = connection_alias
+        cls.Meta.collection_name = collection_name
 
     def archive(self):
         with switch_collection(TaskPerformance, TaskPerformance.Meta.archive_collection):
             super().save()
         self.delete()
-
-    @classmethod
-    def create(cls, task, experiment_connection_alias=None, experiment_collection_run=None):
-        performance = cls(task)
-        if experiment_connection_alias:
-            cls.Meta.experiment_connection_alias = experiment_connection_alias
-        if experiment_collection_run:
-            cls.Meta.experiment_collection_run = experiment_collection_run
-        performance.save()
-
-        return performance
-
-    @classmethod
-    def get_task(cls, task_id):
-        return cls.objects.get_task(task_id)
-
-    def update_allocation(self, allocation_time, robot_id, allocated=True):
-        self.allocation.allocated = allocated
-        self.allocation.n_re_allocation_attempts += 1
-        self.allocation.allocation_time = allocation_time
-        self.allocation.robot_id = robot_id
-        self.save()
 
     @classmethod
     def from_payload(cls, payload):

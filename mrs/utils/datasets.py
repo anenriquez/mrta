@@ -2,13 +2,11 @@ import collections
 from datetime import timedelta
 
 import yaml
+from fmlib.models.requests import TransportationRequest
+from fmlib.models.tasks import Task
+from fmlib.utils.utils import load_file_from_module
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
-
-from fmlib.models.tasks import Task
-from fmlib.models.requests import TransportationRequest
-from mrs.db.models.performance.task import TaskPerformance
-from mrs.db.models.performance.dataset import DatasetPerformance
 
 
 def load_yaml(file):
@@ -22,13 +20,14 @@ def load_yaml(file):
     return data
 
 
-def load_yaml_dataset(dataset_path):
-    dataset_dict = yaml.safe_load(dataset_path)
-    dataset_id = dataset_dict.get('dataset_id')
+def load_tasks_to_db(dataset_module, dataset_file):
+    file = load_file_from_module(dataset_module, dataset_file)
+    dataset = yaml.safe_load(file)
+    dataset_id = dataset.get('dataset_id')
 
-    tasks_performance = list()
-    tasks_dict = dataset_dict.get('tasks')
+    tasks_dict = dataset.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
+    tasks = list()
 
     for task_id, task_info in ordered_tasks.items():
         start_location = task_info.get("start_location")
@@ -44,15 +43,9 @@ def load_yaml_dataset(dataset_path):
 
         task = Task.create_new(task_id=task_id, request=request)
 
-        task_performance = TaskPerformance.create(task,
-                                                  experiment_connection_alias='non_intentional_delays',
-                                                  experiment_collection_run='non_intentional_delays_1',)
+        tasks.append(task)
 
-        tasks_performance.append(task_performance)
-
-    DatasetPerformance.create(dataset_id, tasks_performance)
-
-    return tasks_performance
+    return dataset_id, tasks
 
 
 def reference_to_current_time(earliest_time, latest_time):

@@ -3,7 +3,6 @@ from datetime import datetime
 from datetime import timedelta
 
 from fmlib.models.tasks import Task
-from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
@@ -17,11 +16,6 @@ from ropod.utils.timestamp import TimeStamp
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
 """
-
-
-# def store_performance_metrics():
-#     print("Experiment: ", experiment)
-#     print("Experiment info: ", experiment.info)
 
 
 class Auctioneer(object):
@@ -104,10 +98,10 @@ class Auctioneer(object):
         self.allocations.append(allocation)
 
         try:
-            task_performance = TaskPerformance.get_task(task_id)
-            task_performance.update_allocation(time_to_allocate, robot_id)
+            #TODO: Use experiment model to store performance metrics
+            pass
         except DoesNotExist as err:
-            logging.warning("Task Performance model does not exist %s", err)
+            logging.warning("Experiment model does not exist %s", err)
 
         self.logger.debug("Allocation: %s", allocation)
         self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
