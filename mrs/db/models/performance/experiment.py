@@ -37,8 +37,6 @@ class Experiment(MongoModel):
     objects = ExperimentManager()
 
     class Meta:
-        connection_alias = None
-        collection_name = None
         ignore_unknown_fields = True
 
     @staticmethod
@@ -50,39 +48,54 @@ class Experiment(MongoModel):
         try:
             with switch_connection(Experiment, Experiment.Meta.connection_alias):
                 with switch_collection(Experiment, Experiment.Meta.collection_name):
-                    super().save(cascade=True)
+                    super().save()
 
         except ServerSelectionTimeoutError:
             logging.warning('Could not save models to MongoDB')
 
     @classmethod
-    def create(cls, run_id, dataset_id, tasks, connection_alias, collection_name):
+    def create(cls, connection_alias, collection_name):
+        experiment = cls()
+        experiment.set_meta_info(connection_alias, collection_name)
+        return experiment
 
-        tasks_performance = list()
+    @staticmethod
+    def add_performance_models(experiment, tasks, dataset_id):
+        task_models = Experiment.add_task_performance_models(experiment, tasks)
+        Experiment.add_dataset_performance_model(experiment, task_models, dataset_id)
+
+    @staticmethod
+    def add_task_performance_models(experiment, tasks):
+        task_models = list()
         for task in tasks:
-            tasks_performance.append(TaskPerformance.create(task=task,
-                                                            connection_alias=connection_alias,
-                                                            collection_name=collection_name))
+            task_models.append(TaskPerformance.create(task=task,
+                                                      connection_alias=experiment.Meta.connection_alias,
+                                                      collection_name=experiment.Meta.collection_name))
+        experiment.tasks = task_models
+        experiment.save()
+        return task_models
 
-        dataset = DatasetPerformance(dataset_id=dataset_id, tasks=tasks)
+    @staticmethod
+    def add_dataset_performance_model(experiment, task_models, dataset_id):
+        dataset = DatasetPerformance(dataset_id=dataset_id, tasks=task_models)
+        experiment.dataset = dataset
+        experiment.save()
+        return dataset
 
-        performance = cls(run_id=run_id, tasks=tasks_performance, dataset=dataset)
+    @staticmethod
+    def set_run_id(experiment, run_id):
+        experiment.run_id = run_id
+        experiment.save()
 
-        Experiment.set_meta_info(connection_alias, collection_name)
-
-        performance.save()
-
-        return performance
-
-    @classmethod
-    def get_next_run_id(cls, experiment_name, dataset_id):
+    @staticmethod
+    def get_next_run_id(experiment, experiment_name, dataset_id):
         run_ids = list()
 
-        if cls.Meta.connection_alias == experiment_name and \
-                cls.Meta.collection_name == dataset_id:
+        if experiment.Meta.connection_alias == experiment_name and \
+                experiment.Meta.collection_name == dataset_id:
 
-            with switch_connection(cls, cls.Meta.connection_alias):
-                with switch_collection(cls, cls.Meta.collection_name):
+            with switch_connection(experiment, experiment.Meta.connection_alias):
+                with switch_collection(experiment, experiment.Meta.collection_name):
                     for run in Experiment.objects.all():
                         run_ids.append(run.run_id)
 

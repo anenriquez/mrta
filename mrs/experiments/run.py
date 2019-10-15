@@ -7,21 +7,18 @@ from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
 from importlib_resources import contents
 
-from mrs.db.models.performance.experiment import Experiment
 from mrs.tests.allocation_test import Allocate
 from mrs.utils.datasets import load_tasks_to_db
+from mrs.config.experiment import ExperimentFactory
 
 ConfigParams.default_config_module = 'mrs.config.default'
 
 
-class MRTAExperiment:
-
-    experiments = ['non_intentional_delays',
-                   'intentional_delays',
-                   'task_scalability',
-                   'robot_scalability']
+class Run:
 
     def __init__(self, experiment_name, config_file=None):
+
+        self.experiment_name = experiment_name
 
         self.logger = logging.getLogger('mrs.experiment')
 
@@ -37,15 +34,10 @@ class MRTAExperiment:
         ccu_store_config = self.config_params.get('ccu_store')
         self.ccu_store = MongoStore(**ccu_store_config)
 
-        if experiment_name not in MRTAExperiment.experiments:
-            self.logger.error("%s is not a valid experiment name", experiment_name)
-            raise ValueError(experiment_name)
-        self.experiment_name = experiment_name
-
         port = self.config_params.get('experiment_store').get('port')
         self.db = MongoStore(db_name=experiment_name, port=port, alias=experiment_name)
 
-        self.logger.info("Starting experiment % s", self.experiment_name)
+        self.logger.info("Running experiment % s", self.experiment_name)
 
     def get_robot_stores(self):
         robot_stores = list()
@@ -93,23 +85,16 @@ class MRTAExperiment:
 
             for robot_store in self.robot_stores:
                 self.clean_store(robot_store)
-
             self.clean_store(self.ccu_store)
 
             dataset_id, tasks = load_tasks_to_db(dataset_module, dataset_file)
+            self.run(dataset_id, tasks)
 
-            Experiment.set_meta_info(self.experiment_name, dataset_id)
-
-            run_id = Experiment.get_next_run_id(self.experiment_name, dataset_id)
-
-            Experiment.create(run_id=run_id,
-                              dataset_id=dataset_id, tasks=tasks,
-                              connection_alias=self.experiment_name,
-                              collection_name=dataset_id)
-            self.run(tasks)
-
-    def run(self, tasks):
+    def run(self, dataset_id, tasks):
         logger_config = self.config_params.get('logger')
+
+        experiment = ExperimentFactory(self.db.alias, dataset_id)
+        experiment(tasks=tasks)
 
         test = Allocate(tasks, logger_config)
         test.start()
@@ -135,10 +120,7 @@ if __name__ == '__main__':
                         choices=['non_intentional_delays',
                                  'intentional_delays'])
     args = parser.parse_args()
-
-    experiment = MRTAExperiment(args.experiment_name, args.file)
-
-    experiment.run_all()
-
+    run_experiment = Run(args.experiment_name, args.file)
+    run_experiment.run_all()
 
 
