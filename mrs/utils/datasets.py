@@ -53,7 +53,6 @@ def load_yaml(file):
 def load_tasks_to_db(dataset_module, dataset_file):
     file = load_file_from_module(dataset_module, dataset_file)
     dataset = yaml.safe_load(file)
-    dataset_id = dataset.get('dataset_id')
 
     tasks_dict = dataset.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
@@ -75,7 +74,13 @@ def load_tasks_to_db(dataset_module, dataset_file):
 
         tasks.append(task)
 
-    return dataset_id, tasks
+    return tasks
+
+
+def get_dataset_id(dataset_module, dataset_file):
+    file = load_file_from_module(dataset_module, dataset_file)
+    dataset = yaml.safe_load(file)
+    return dataset.get('dataset_id')
 
 
 def reference_to_current_time(earliest_time, latest_time):

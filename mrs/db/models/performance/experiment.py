@@ -13,15 +13,15 @@ from pymongo.errors import ServerSelectionTimeoutError
 
 class ExperimentQuerySet(QuerySet):
 
-    def get_task_performance(self, run_id, task_id):
+    def get_task_performance(self, experiment, task_id):
         """return a task performance object matching to a task_id.
         """
         if isinstance(task_id, str):
             task_id = uuid.UUID(task_id)
 
-        with switch_connection(Experiment, Experiment.Meta.connection_alias):
-            with switch_collection(Experiment, Experiment.Meta.collection_name):
-                run = self.get({'_id': run_id})
+        with switch_connection(experiment, experiment.Meta.connection_alias):
+            with switch_collection(experiment, experiment.Meta.collection_name):
+                run = self.get({'_id': experiment.run_id})
                 for task_performance in run.tasks:
                     if task_performance.task.task_id == task_id:
                         return task_performance
@@ -108,8 +108,8 @@ class Experiment(MongoModel):
         return next_run
 
     @staticmethod
-    def get_task_performance(run_id, task_id):
-        return Experiment.objects.get_task_performance(run_id, task_id)
+    def get_task_performance(experiment, task_id):
+        return Experiment.objects.get_task_performance(experiment, task_id)
 
     def update_allocation(self, task_performance, allocation_time, robot_id, allocated=True):
         task_performance.allocation.allocated = allocated

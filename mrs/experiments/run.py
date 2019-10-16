@@ -5,7 +5,6 @@ import time
 from fmlib.config.params import ConfigParams
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
-from mrs.config.experiment import ExperimentFactory
 from mrs.tests.allocation_test import Allocate
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.datasets import validate_dataset_file
@@ -32,7 +31,6 @@ class Run:
 
         self.robot_stores = self.get_robot_stores()
         self.ccu_store = self.get_ccu_store()
-        self.experiment_store = self.get_experiment_store()
 
         self.logger.info("Running experiment % s", self.experiment_name)
 
@@ -53,11 +51,6 @@ class Run:
         ccu_store = MongoStore(**ccu_store_config)
         return ccu_store
 
-    def get_experiment_store(self):
-        port = self.config_params.get('experiment_store').get('port')
-        experiment_store = MongoStore(db_name=self.experiment_name, port=port, alias=self.experiment_name)
-        return experiment_store
-
     def clean_store(self, store):
         store_interface = MongoStoreInterface(store)
         store_interface.clean()
@@ -68,10 +61,7 @@ class Run:
             self.clean_store(robot_store)
         self.clean_store(self.ccu_store)
 
-        dataset_id, tasks = load_tasks_to_db(self.dataset_module, self.dataset_file)
-
-        experiment = ExperimentFactory(self.experiment_store.alias, dataset_id)
-        experiment(tasks=tasks)
+        tasks = load_tasks_to_db(self.dataset_module, self.dataset_file)
 
         test = Allocate(tasks, self.logger_config)
         test.start()
