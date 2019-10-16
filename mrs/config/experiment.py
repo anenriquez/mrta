@@ -9,7 +9,7 @@ class ExperimentFactory:
                    'task_scalability',
                    'robot_scalability']
 
-    def __init__(self, experiment_name, dataset_id):
+    def __init__(self, experiment_name, dataset_id, new_run=True):
         self.experiment_name = experiment_name
         self.dataset_id = dataset_id
 
@@ -21,7 +21,11 @@ class ExperimentFactory:
         self.experiment = Experiment.create(connection_alias=experiment_name,
                                             collection_name=dataset_id)
 
-        run_id = Experiment.get_next_run_id(self.experiment, experiment_name, dataset_id)
+        if new_run:
+            run_id = Experiment.get_new_run(self.experiment)
+        else:
+            run_id = Experiment.get_current_run(self.experiment)
+
         Experiment.set_run_id(self.experiment, run_id)
 
     def __call__(self, **kwargs):

@@ -55,11 +55,11 @@ class MRTAFactory:
         self._components[component_name] = component
 
     @staticmethod
-    def configure_experiment(experiment_name, port, dataset_module, dataset_file):
+    def configure_experiment(experiment_name, port, dataset_module, dataset_file, new_run=True):
         experiment_store = MongoStore(db_name=experiment_name, port=port, alias=experiment_name)
         dataset_id = get_dataset_id(dataset_module, dataset_file)
         tasks = load_tasks_to_db(dataset_module, dataset_file)
-        experiment_factory = ExperimentFactory(experiment_store.alias, dataset_id)
+        experiment_factory = ExperimentFactory(experiment_store.alias, dataset_id, new_run)
         experiment_factory(tasks=tasks)
         return experiment_factory.experiment
 

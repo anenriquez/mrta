@@ -26,6 +26,17 @@ class ExperimentQuerySet(QuerySet):
                     if task_performance.task.task_id == task_id:
                         return task_performance
 
+    @staticmethod
+    def get_run_ids(experiment):
+        """return a list of run_ids for the experiment
+        """
+        run_ids = list()
+        with switch_connection(experiment, experiment.Meta.connection_alias):
+            with switch_collection(experiment, experiment.Meta.collection_name):
+                for run in Experiment.objects.all():
+                    run_ids.append(run.run_id)
+        return run_ids
+
 
 ExperimentManager = Manager.from_queryset(ExperimentQuerySet)
 
@@ -88,17 +99,8 @@ class Experiment(MongoModel):
         experiment.save()
 
     @staticmethod
-    def get_next_run_id(experiment, experiment_name, dataset_id):
-        run_ids = list()
-
-        if experiment.Meta.connection_alias == experiment_name and \
-                experiment.Meta.collection_name == dataset_id:
-
-            with switch_connection(experiment, experiment.Meta.connection_alias):
-                with switch_collection(experiment, experiment.Meta.collection_name):
-                    for run in Experiment.objects.all():
-                        run_ids.append(run.run_id)
-
+    def get_new_run(experiment):
+        run_ids = Experiment.objects.get_run_ids(experiment)
         if run_ids:
             previous_run = run_ids.pop()
             next_run = previous_run + 1
@@ -106,6 +108,17 @@ class Experiment(MongoModel):
             next_run = 1
 
         return next_run
+
+    @staticmethod
+    def get_current_run(experiment):
+        run_ids = Experiment.objects.get_run_ids(experiment)
+        if run_ids:
+            current_run = run_ids.pop()
+        else:
+            current_run = 1
+            # throw exception. CCU has to be intialiazed first
+        return current_run
+
 
     @staticmethod
     def get_task_performance(experiment, task_id):
