@@ -5,11 +5,11 @@ import time
 from fmlib.config.params import ConfigParams
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
-from importlib_resources import contents
-
-from mrs.tests.allocation_test import Allocate
-from mrs.utils.datasets import load_tasks_to_db
 from mrs.config.experiment import ExperimentFactory
+from mrs.tests.allocation_test import Allocate
+from mrs.utils.datasets import get_dataset_files
+from mrs.utils.datasets import get_dataset_module
+from mrs.utils.datasets import load_tasks_to_db
 
 ConfigParams.default_config_module = 'mrs.config.default'
 
@@ -56,29 +56,9 @@ class Run:
         store_interface.clean()
         self.logger.info("Store %s cleaned", store_interface._store.db_name)
 
-    def get_dataset_module(self):
-        """ Returns the dataset module for the experiment_name
-        """
-        if self.experiment_name == 'non_intentional_delays':
-            dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
-        elif self.experiment_name == 'intentional_delays':
-            dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
-
-        return dataset_module
-
-    @staticmethod
-    def get_dataset_files(dataset_module):
-        dataset_files = list()
-        files = contents(dataset_module)
-        for file in files:
-            if file.endswith('.yaml'):
-                dataset_files.append(file)
-
-        return dataset_files
-
     def run_all(self):
-        dataset_module = self.get_dataset_module()
-        dataset_files = self.get_dataset_files(dataset_module)
+        dataset_module = get_dataset_module(self.experiment_name)
+        dataset_files = get_dataset_files(dataset_module)
 
         for dataset_file in dataset_files:
             self.logger.info("Dataset file: %s", dataset_file)

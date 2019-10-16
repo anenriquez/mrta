@@ -7,6 +7,28 @@ from fmlib.models.tasks import Task
 from fmlib.utils.utils import load_file_from_module
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
+from importlib_resources import contents
+
+
+def get_dataset_module(experiment_name):
+    """ Returns the dataset module for the experiment_name
+    """
+    if experiment_name == 'non_intentional_delays':
+        dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
+    elif experiment_name == 'intentional_delays':
+        dataset_module = 'dataset_lib.datasets.non_overlapping_tw.generic_task.random'
+
+    return dataset_module
+
+
+def get_dataset_files(dataset_module):
+    dataset_files = list()
+    files = contents(dataset_module)
+    for file in files:
+        if file.endswith('.yaml'):
+            dataset_files.append(file)
+
+    return dataset_files
 
 
 def load_yaml(file):
