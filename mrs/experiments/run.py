@@ -5,7 +5,7 @@ import time
 from fmlib.config.params import ConfigParams
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
-from mrs.tests.allocation_test import Allocate
+from mrs.experiments.allocate import Allocate
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.datasets import validate_dataset_file
 
