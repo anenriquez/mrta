@@ -31,6 +31,14 @@ def get_dataset_files(dataset_module):
     return dataset_files
 
 
+def validate_dataset_file(experiment_name, dataset_file):
+    dataset_module = get_dataset_module(experiment_name)
+    dataset_files = get_dataset_files(dataset_module)
+    if dataset_file not in dataset_files:
+        raise ValueError(dataset_file)
+    return dataset_module, dataset_file
+
+
 def load_yaml(file):
     """ Reads a yaml file and returns a dictionary with its contents
 
