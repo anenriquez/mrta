@@ -1,4 +1,4 @@
-from mrs.structs.bid import Bid
+from mrs.bidding.bid import Bid
 from mrs.exceptions.task_allocation import NoSTPSolution
 
 

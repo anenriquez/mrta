@@ -5,8 +5,8 @@ from mrs.exceptions.task_allocation import NoSTPSolution
 from mrs.robot_base import RobotBase
 from mrs.allocation.allocation import FinishRound
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
-from mrs.structs.bid import Bid
-from mrs.allocation.bidding_rule import BiddingRule
+from mrs.bidding.bid import Bid
+from mrs.bidding.rule import BiddingRule
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
