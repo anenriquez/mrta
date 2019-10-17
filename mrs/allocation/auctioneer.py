@@ -7,9 +7,9 @@ from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.task_allocation import AlternativeTimeSlot
 from mrs.exceptions.task_allocation import NoAllocation
-from mrs.structs.allocation import TaskAnnouncement, Allocation
+from mrs.allocation.allocation import TaskAnnouncement, Allocation
 from mrs.structs.timetable import Timetable
-from mrs.task_allocation.round import Round
+from mrs.allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 
