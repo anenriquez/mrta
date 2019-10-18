@@ -57,7 +57,8 @@ class MRS(object):
 
     def get_mrta_components(self):
         allocation_method = self.config_params.get('allocation_method')
-        mrta_factory = MRTAFactory(allocation_method, experiment_config=self.experiment_config)
+        fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
+        mrta_factory = MRTAFactory(allocation_method, fleet, experiment_config=self.experiment_config)
 
         config = self.config_params.get('plugins').get('mrta')
         components = mrta_factory(**config)

@@ -1,13 +1,15 @@
-from mrs.allocation.auctioneer import Auctioneer
-from mrs.dispatching.dispatcher import Dispatcher
-from mrs.bidding.bidder import Bidder
-from mrs.scheduling.monitor import ScheduleMonitor
 import logging
-from stn.stp import STP
+
 from fmlib.db.mongo import MongoStore
+from mrs.allocation.auctioneer import Auctioneer
+from mrs.bidding.bidder import Bidder
+from mrs.config.experiment import ExperimentFactory
+from mrs.dispatching.dispatcher import Dispatcher
+from mrs.scheduling.monitor import ScheduleMonitor
+from mrs.timetable.manager import TimetableManager
 from mrs.utils.datasets import get_dataset_id
 from mrs.utils.datasets import load_tasks_to_db
-from mrs.config.experiment import ExperimentFactory
+from stn.stp import STP
 
 
 class MRTAFactory:
@@ -18,7 +20,7 @@ class MRTAFactory:
                           'tessi-dsc': 'dsc'
                           }
 
-    def __init__(self, allocation_method, **kwargs):
+    def __init__(self, allocation_method, fleet, **kwargs):
         """
             Registers and creates MRTA (multi-robot task allocation) components
 
@@ -45,6 +47,8 @@ class MRTAFactory:
             raise ValueError(allocation_method)
 
         self.stp_solver = STP(stp_solver_name)
+        self.timetable_manager = TimetableManager(self.stp_solver)
+        self.timetable_manager.register_fleet(fleet)
 
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)
@@ -74,6 +78,7 @@ class MRTAFactory:
                 _instance = component(allocation_method=self.allocation_method,
                                       stp_solver=self.stp_solver,
                                       experiment=self.experiment,
+                                      timetable_manager=self.timetable_manager,
                                       **configuration)
                 components[component_name] = _instance
 

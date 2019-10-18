@@ -1,15 +1,13 @@
 import logging
-from datetime import datetime
 from datetime import timedelta
 
 from fmlib.models.tasks import Task
+from mrs.allocation.allocation import TaskAnnouncement, Allocation
+from mrs.allocation.round import Round
 from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
-from mrs.allocation.allocation import TaskAnnouncement, Allocation
-from mrs.timetable.timetable import Timetable
-from mrs.allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 
@@ -20,13 +18,13 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, stp_solver, round_time=5, freeze_window=300, **kwargs):
+    def __init__(self, stp_solver, timetable_manager, round_time=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
         self.robot_ids = list()
-        self.timetables = dict()
+        self.timetable_manager = timetable_manager
 
         self.stp_solver = stp_solver
 
@@ -43,11 +41,6 @@ class Auctioneer(object):
         self.waiting_for_user_confirmation = list()
         self.round = Round()
 
-        # TODO: Update zero_timepoint
-        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        self.zero_timepoint = TimeStamp()
-        self.zero_timepoint.timestamp = today_midnight
-
     def configure(self, **kwargs):
         api = kwargs.get('api')
         ccu_store = kwargs.get('ccu_store')
@@ -58,11 +51,6 @@ class Auctioneer(object):
 
     def register_robot(self, robot_id):
         self.robot_ids.append(robot_id)
-        self.get_timetable(robot_id)
-
-    def get_timetable(self, robot_id):
-        timetable = Timetable.fetch(robot_id, self.stp_solver)
-        self.timetables[robot_id] = timetable
 
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
@@ -108,21 +96,9 @@ class Auctioneer(object):
 
         self.logger.debug("Updating task status to ALLOCATED")
         task_lot.task.update_status(TaskStatusConst.ALLOCATED)
-        self.update_timetable(bid, task_lot)
-
-        # store_performance_metrics(round_result)
+        self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
 
         return allocation
-
-    def update_timetable(self, bid, task_lot):
-        self.get_timetable(bid.robot_id)
-        timetable = self.timetables.get(bid.robot_id)
-        timetable.update(self.zero_timepoint, task_lot, bid.position, bid.temporal_metric)
-        self.timetables.update({bid.robot_id: timetable})
-        timetable.store()
-
-        self.logger.debug("STN robot %s: %s", bid.robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", bid.robot_id, timetable.dispatchable_graph)
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
@@ -148,6 +124,7 @@ class Auctioneer(object):
             self.logger.debug('Auctioneer received one task')
 
     def announce_task(self):
+        self.timetable_manager.fetch_timetables()
 
         self.round = Round(n_robots=len(self.robot_ids),
                            round_time=self.round_time,
@@ -158,7 +135,7 @@ class Auctioneer(object):
 
         tasks_lots = list(self.tasks_to_allocate.values())
 
-        task_announcement = TaskAnnouncement(tasks_lots, self.round.id, self.zero_timepoint)
+        task_announcement = TaskAnnouncement(tasks_lots, self.round.id, self.timetable_manager.zero_timepoint)
         msg = self.api.create_message(task_announcement)
 
         self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
@@ -182,21 +159,21 @@ class Auctioneer(object):
         # For now, returning the start navigation time from the dispatchable graph
         task_schedule = dict()
 
-        timetable = self.timetables.get(robot_id)
+        timetable = self.timetable_manager.timetables.get(robot_id)
 
         relative_start_navigation_time = timetable.dispatchable_graph.get_time(task_id, "navigation")
         relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
         relative_latest_finish_time = timetable.dispatchable_graph.get_time(task_id, "finish", False)
 
         self.logger.debug("Current time %s: ", TimeStamp())
-        self.logger.debug("zero_timepoint %s: ", self.zero_timepoint)
+        self.logger.debug("zero_timepoint %s: ", self.timetable_manager.zero_timepoint)
         self.logger.debug("Relative start navigation time: %s", relative_start_navigation_time)
         self.logger.debug("Relative start time: %s", relative_start_time)
         self.logger.debug("Relative latest finish time: %s", relative_latest_finish_time)
 
-        start_navigation_time = self.zero_timepoint + timedelta(minutes=relative_start_navigation_time)
-        start_time = self.zero_timepoint + timedelta(minutes=relative_start_time)
-        finish_time = self.zero_timepoint + timedelta(minutes=relative_latest_finish_time)
+        start_navigation_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_start_navigation_time)
+        start_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_start_time)
+        finish_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_latest_finish_time)
 
         self.logger.debug("Start navigation of task %s: %s", task_id, start_navigation_time)
         self.logger.debug("Start of task %s: %s", task_id, start_time)
