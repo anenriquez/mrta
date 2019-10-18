@@ -1,5 +1,5 @@
 from mrs.allocation.auctioneer import Auctioneer
-from mrs.task_execution.dispatcher import Dispatcher
+from mrs.dispatching.dispatcher import Dispatcher
 from mrs.bidding.bidder import Bidder
 from mrs.scheduling.monitor import ScheduleMonitor
 import logging
