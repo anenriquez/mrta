@@ -5,7 +5,7 @@ services:
     container_name: robot
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "ropod_001"]
+    command: ["python3", "robot.py", "ropod_001", "non_intentional_delays", "non_overlapping_1.yaml"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -14,7 +14,7 @@ services:
     container_name: ccu
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "ccu.py"]
+    command: ["python3", "ccu.py", "non_intentional_delays", "non_overlapping_1.yaml"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -23,8 +23,8 @@ services:
     build: .
     container_name: task-mrs-test
     image: ropod-mrs
-    working_dir: /mrta/mrs/tests/
-    command: ["python3", "allocation_test.py"]
+    working_dir: /mrta/mrs/experiments/
+    command: ["python3", "run.py", "non_intentional_delays", "non_overlapping_1.yaml"]
     network_mode: "host"
     tty: true
     stdin_open: true

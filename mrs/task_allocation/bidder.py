@@ -44,12 +44,15 @@ class Bidder(RobotBase):
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
 
+        self.experiment = kwargs.get('experiment')
+
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
     def task_announcement_cb(self, msg):
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.robot_id)
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
+        self.timetable = self.get_timetable()
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
@@ -173,6 +176,7 @@ class Bidder(RobotBase):
     def allocate_to_robot(self, task_id):
 
         self.timetable = copy.deepcopy(self.bid_placed.timetable)
+        self.timetable.store()
 
         self.logger.debug("Robot %s allocated task %s", self.robot_id, task_id)
         self.logger.debug("STN %s", self.timetable.stn)
