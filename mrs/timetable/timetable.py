@@ -240,6 +240,6 @@ class Timetable(object):
             timetable.dispatchable_graph = timetable.stn.from_dict(timetable_mongo.dispatchable_graph)
             timetable.zero_timepoint = timetable_mongo.zero_timepoint
         except DoesNotExist as err:
-            logging.warning("The timetable does not exist %s", err)
+            logging.warning("The timetable of robot %s does not exist %s", robot_id, err)
 
         return timetable
