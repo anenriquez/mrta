@@ -5,8 +5,8 @@ from datetime import timedelta
 from fmlib.models.tasks import Task
 from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
-from mrs.exceptions.task_allocation import AlternativeTimeSlot
-from mrs.exceptions.task_allocation import NoAllocation
+from mrs.exceptions.allocation import AlternativeTimeSlot
+from mrs.exceptions.allocation import NoAllocation
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
 from mrs.timetable.timetable import Timetable
 from mrs.allocation.round import Round

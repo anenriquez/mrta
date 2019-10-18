@@ -6,7 +6,7 @@ from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
 from mrs.db.models.timetable import Timetable as TimetableMongo
 
-from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.exceptions.allocation import NoSTPSolution
 from pymodm.errors import DoesNotExist
 
 logger = logging.getLogger("mrs.timetable")

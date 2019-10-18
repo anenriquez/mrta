@@ -1,7 +1,7 @@
 import copy
 import logging
 
-from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.exceptions.allocation import NoSTPSolution
 from mrs.robot_base import RobotBase
 from mrs.allocation.allocation import FinishRound
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
