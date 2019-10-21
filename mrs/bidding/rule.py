@@ -1,5 +1,5 @@
-from mrs.structs.bid import Bid
-from mrs.exceptions.task_allocation import NoSTPSolution
+from mrs.bidding.bid import Bid
+from mrs.exceptions.allocation import NoSTPSolution
 
 
 class BiddingRule(object):

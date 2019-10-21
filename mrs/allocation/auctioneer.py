@@ -5,11 +5,11 @@ from datetime import timedelta
 from fmlib.models.tasks import Task
 from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
-from mrs.exceptions.task_allocation import AlternativeTimeSlot
-from mrs.exceptions.task_allocation import NoAllocation
-from mrs.structs.allocation import TaskAnnouncement, Allocation
-from mrs.structs.timetable import Timetable
-from mrs.task_allocation.round import Round
+from mrs.exceptions.allocation import AlternativeTimeSlot
+from mrs.exceptions.allocation import NoAllocation
+from mrs.allocation.allocation import TaskAnnouncement, Allocation
+from mrs.timetable.timetable import Timetable
+from mrs.allocation.round import Round
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 

@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
-from mrs.task_execution.scheduler import Scheduler
-from mrs.task_execution.executor_interface import ExecutorInterface
+from mrs.scheduling.scheduler import Scheduler
+from mrs.execution.interface import ExecutorInterface
 
 from mrs.robot_base import RobotBase
 

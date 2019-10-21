@@ -1,9 +1,20 @@
-from pymodm import fields, MongoModel
-from pymongo.errors import ServerSelectionTimeoutError
-from fmlib.utils.messages import Document
-from mrs.db.queries.timetable import TimetableManager
-
 import logging
+
+from fmlib.utils.messages import Document
+from pymodm import fields, MongoModel
+from pymodm.manager import Manager
+from pymodm.queryset import QuerySet
+from pymongo.errors import ServerSelectionTimeoutError
+
+
+class TimetableQuerySet(QuerySet):
+    def get_timetable(self, robot_id):
+        """ Returns a timetable mongo model that matches to the robot_id
+        """
+        return self.get({'_id': robot_id})
+
+
+TimetableManager = Manager.from_queryset(TimetableQuerySet)
 
 
 class Timetable(MongoModel):

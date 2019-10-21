@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from mrs.structs.timetable import Timetable
+from mrs.timetable.timetable import Timetable
 from ropod.utils.timestamp import TimeStamp
 
 

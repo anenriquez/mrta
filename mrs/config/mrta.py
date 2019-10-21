@@ -1,7 +1,7 @@
-from mrs.task_allocation.auctioneer import Auctioneer
-from mrs.task_execution.dispatcher import Dispatcher
-from mrs.task_allocation.bidder import Bidder
-from mrs.task_execution.schedule_monitor import ScheduleMonitor
+from mrs.allocation.auctioneer import Auctioneer
+from mrs.dispatching.dispatcher import Dispatcher
+from mrs.bidding.bidder import Bidder
+from mrs.scheduling.monitor import ScheduleMonitor
 import logging
 from stn.stp import STP
 from fmlib.db.mongo import MongoStore
