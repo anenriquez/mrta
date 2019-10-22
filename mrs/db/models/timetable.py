@@ -20,6 +20,8 @@ TimetableManager = Manager.from_queryset(TimetableQuerySet)
 class Timetable(MongoModel):
     robot_id = fields.CharField(primary_key=True)
     zero_timepoint = fields.DateTimeField()
+    temporal_metric = fields.FloatField()
+    risk_metric = fields.FloatField()
     stn = fields.DictField()
     dispatchable_graph = fields.DictField(default=dict())
 

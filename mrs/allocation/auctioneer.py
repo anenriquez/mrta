@@ -93,44 +93,45 @@ class Auctioneer(object):
 
     def process_allocation(self, round_result):
 
-        task_id, robot_id, position, time_to_allocate = round_result
+        bid, time_to_allocate = round_result
 
-        allocation = (task_id, [robot_id])
-        task_lot = self.tasks_to_allocate.pop(task_id)
+        allocation = (bid.task_id, [bid.robot_id])
+        task_lot = self.tasks_to_allocate.pop(bid.task_id)
         self.allocations.append(allocation)
 
         if self.experiment:
-            task_performance = Experiment.get_task_performance(self.experiment, task_id)
-            self.experiment.update_allocation(task_performance, time_to_allocate, robot_id)
+            task_performance = Experiment.get_task_performance(self.experiment, bid.task_id)
+            self.experiment.update_allocation(task_performance, time_to_allocate, bid.robot_id)
 
         self.logger.debug("Allocation: %s", allocation)
         self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
         self.logger.debug("Updating task status to ALLOCATED")
         task_lot.task.update_status(TaskStatusConst.ALLOCATED)
-        self.update_timetable(robot_id, task_lot, position)
+        self.update_timetable(bid, task_lot)
 
         # store_performance_metrics(round_result)
 
         return allocation
 
-    def update_timetable(self, robot_id, task_lot, position):
-        self.get_timetable(robot_id)
-        timetable = self.timetables.get(robot_id)
+    def update_timetable(self, bid, task_lot):
+        self.get_timetable(bid.robot_id)
+        timetable = self.timetables.get(bid.robot_id)
         timetable.zero_timepoint = self.zero_timepoint
-        timetable.add_task_to_stn(task_lot, position)
+        timetable.add_task_to_stn(task_lot, bid.position)
         timetable.solve_stp()
+        timetable.temporal_metric = bid.temporal_metric
 
         # Update schedule to reflect the changes in the dispatchable graph
         if timetable.schedule:
             # TODO: Request re-scheduling to the scheduler via pyre
             pass
 
-        self.timetables.update({robot_id: timetable})
+        self.timetables.update({bid.robot_id: timetable})
         timetable.store()
 
-        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+        self.logger.debug("STN robot %s: %s", bid.robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", bid.robot_id, timetable.dispatchable_graph)
 
     def process_alternative_allocation(self, exception):
         task_id = exception.task_id
