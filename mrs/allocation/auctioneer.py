@@ -117,16 +117,7 @@ class Auctioneer(object):
     def update_timetable(self, bid, task_lot):
         self.get_timetable(bid.robot_id)
         timetable = self.timetables.get(bid.robot_id)
-        timetable.zero_timepoint = self.zero_timepoint
-        timetable.add_task_to_stn(task_lot, bid.position)
-        timetable.solve_stp()
-        timetable.temporal_metric = bid.temporal_metric
-
-        # Update schedule to reflect the changes in the dispatchable graph
-        if timetable.schedule:
-            # TODO: Request re-scheduling to the scheduler via pyre
-            pass
-
+        timetable.update(self.zero_timepoint, task_lot, bid.position, bid.temporal_metric)
         self.timetables.update({bid.robot_id: timetable})
         timetable.store()
 

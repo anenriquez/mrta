@@ -224,6 +224,12 @@ class Timetable(object):
 
         return timetable
 
+    def update(self, zero_timepoint, task_lot, position, temporal_metric):
+        self.zero_timepoint = zero_timepoint
+        self.add_task_to_stn(task_lot, position)
+        self.solve_stp()
+        self.temporal_metric = temporal_metric
+
     def store(self):
 
         timetable = TimetableMongo(self.robot_id,
