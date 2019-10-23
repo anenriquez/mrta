@@ -116,10 +116,7 @@ class Round(object):
 
         try:
             winning_bid = self.elect_winner()
-            round_result = (winning_bid.task_id,
-                            winning_bid.robot_id,
-                            winning_bid.position,
-                            self.time_to_allocate)
+            round_result = (winning_bid, self.time_to_allocate)
 
             if winning_bid.hard_constraints is False:
                 raise AlternativeTimeSlot(winning_bid.task_id, winning_bid.robot_id, winning_bid.alternative_start_time)

@@ -224,10 +224,20 @@ class Timetable(object):
 
         return timetable
 
+    def update(self, zero_timepoint, task_lot, position, temporal_metric):
+        self.zero_timepoint = zero_timepoint
+        self.add_task_to_stn(task_lot, position)
+        self.solve_stp()
+        self.temporal_metric = temporal_metric
+
     def store(self):
 
-        timetable = TimetableMongo(self.robot_id, self.zero_timepoint.to_datetime(),
-                                   self.stn.to_dict(), self.dispatchable_graph.to_dict())
+        timetable = TimetableMongo(self.robot_id,
+                                   self.zero_timepoint.to_datetime(),
+                                   self.temporal_metric,
+                                   self.risk_metric,
+                                   self.stn.to_dict(),
+                                   self.dispatchable_graph.to_dict())
         timetable.save()
 
     @staticmethod
@@ -235,11 +245,12 @@ class Timetable(object):
         timetable = Timetable(robot_id, stp)
         try:
             timetable_mongo = TimetableMongo.objects.get_timetable(robot_id)
-            # TODO: Add missing arguments to TimetableMongo
             timetable.stn = timetable.stn.from_dict(timetable_mongo.stn)
             timetable.dispatchable_graph = timetable.stn.from_dict(timetable_mongo.dispatchable_graph)
             timetable.zero_timepoint = timetable_mongo.zero_timepoint
+            timetable.temporal_metric = timetable_mongo.temporal_metric
+            timetable.risk_metric = timetable_mongo.risk_metric
         except DoesNotExist as err:
-            logging.warning("The timetable of robot %s does not exist %s", robot_id, err)
+            logging.debug("The timetable of robot %s is empty", robot_id)
 
         return timetable
