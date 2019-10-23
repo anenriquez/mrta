@@ -28,10 +28,10 @@ class TimetableManager(object):
     def update_zero_timepoint(self):
         pass
 
-    def register_fleet(self, fleet):
-        for robot_id in fleet:
-            self.robot_ids.append(robot_id)
-            self.fetch_timetable(robot_id)
+    def register_robot(self, robot_id):
+        self.logger.debug("Registering robot %s", robot_id)
+        self.robot_ids.append(robot_id)
+        self.fetch_timetable(robot_id)
 
     def fetch_timetables(self):
         for robot_id in self.robot_ids:

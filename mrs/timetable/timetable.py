@@ -251,6 +251,6 @@ class Timetable(object):
             timetable.temporal_metric = timetable_mongo.temporal_metric
             timetable.risk_metric = timetable_mongo.risk_metric
         except DoesNotExist as err:
-            logging.warning("The timetable of robot %s does not exist %s", robot_id, err)
+            logging.debug("The timetable of robot %s is empty", robot_id)
 
         return timetable

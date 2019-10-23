@@ -37,8 +37,7 @@ class RobotBuilder:
         robot_config.pop('robot_store')
 
         allocation_method = config_params.get('allocation_method')
-        fleet = [robot_id]
-        mrta_factory = MRTAFactory(allocation_method, fleet, experiment_config=experiment_config)
+        mrta_factory = MRTAFactory(allocation_method, experiment_config=experiment_config)
 
         components = mrta_factory(**robot_config)
         components.update({'api': api})

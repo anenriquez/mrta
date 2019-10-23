@@ -50,7 +50,9 @@ class Auctioneer(object):
             self.ccu_store = ccu_store
 
     def register_robot(self, robot_id):
+        self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
+        self.timetable_manager.register_robot(robot_id)
 
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)

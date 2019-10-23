@@ -58,7 +58,7 @@ class MRS(object):
     def get_mrta_components(self):
         allocation_method = self.config_params.get('allocation_method')
         fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
-        mrta_factory = MRTAFactory(allocation_method, fleet, experiment_config=self.experiment_config)
+        mrta_factory = MRTAFactory(allocation_method, experiment_config=self.experiment_config)
 
         config = self.config_params.get('plugins').get('mrta')
         components = mrta_factory(**config)
@@ -67,6 +67,9 @@ class MRS(object):
             if hasattr(component, 'configure'):
                 self.logger.debug("Configuring %s", component_name)
                 component.configure(api=self.api, ccu_store=self.ccu_store)
+            if hasattr(component, 'register_robot'):
+                for robot_id in fleet:
+                    component.register_robot(robot_id)
 
         return components
 

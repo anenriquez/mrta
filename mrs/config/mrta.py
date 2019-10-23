@@ -20,7 +20,7 @@ class MRTAFactory:
                           'tessi-dsc': 'dsc'
                           }
 
-    def __init__(self, allocation_method, fleet, **kwargs):
+    def __init__(self, allocation_method, **kwargs):
         """
             Registers and creates MRTA (multi-robot task allocation) components
 
@@ -48,7 +48,6 @@ class MRTAFactory:
 
         self.stp_solver = STP(stp_solver_name)
         self.timetable_manager = TimetableManager(self.stp_solver)
-        self.timetable_manager.register_fleet(fleet)
 
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)
