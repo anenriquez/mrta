@@ -134,8 +134,7 @@ class Bidder(RobotBase):
                     best_bid = copy.deepcopy(bid)
 
             except NoSTPSolution:
-                self.logger.warning("The stp solver could not solve the problem for"
-                                    " task %s in position %s", task_lot.task.task_id, position)
+                self.logger.debug("The STN is inconsistent with task %s in position %s", task_lot.task.task_id, position)
 
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)
