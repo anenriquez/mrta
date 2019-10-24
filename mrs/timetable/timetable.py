@@ -87,10 +87,6 @@ class Timetable(object):
             task_lot (obj): task_lot object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        delta = timedelta(minutes=1)
-        earliest_navigation_start = TimeStamp(delta)
-        r_earliest_navigation_start = earliest_navigation_start.get_difference(self.zero_timepoint, "minutes")
-
         if not task_lot.constraints.hard:
             # Get latest finish time of task in previous position
             if position > 1:
@@ -113,6 +109,8 @@ class Timetable(object):
 
         r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                           self.zero_timepoint)
+        r_earliest_navigation_start = r_earliest_start_time - 0.5
+
         stn_task = STNTask(task_lot.task.task_id,
                            r_earliest_navigation_start,
                            r_earliest_start_time,
