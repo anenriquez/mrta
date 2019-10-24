@@ -2,12 +2,12 @@ import logging
 from datetime import timedelta, datetime
 
 from fmlib.models.tasks import TimepointConstraints
-from ropod.utils.timestamp import TimeStamp
-from stn.task import STNTask
 from mrs.db.models.timetable import Timetable as TimetableMongo
-
+from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoSTPSolution
 from pymodm.errors import DoesNotExist
+from ropod.utils.timestamp import TimeStamp
+from stn.task import STNTask
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -242,11 +242,15 @@ class Timetable(object):
 
         return timetable
 
-    def update(self, zero_timepoint, task_lot, position, temporal_metric):
+    def update(self, zero_timepoint, robot_id, task_lot, position, temporal_metric):
         self.zero_timepoint = zero_timepoint
         self.add_task_to_stn(task_lot, position)
-        self.solve_stp()
-        self.temporal_metric = temporal_metric
+        try:
+            self.solve_stp()
+            self.temporal_metric = temporal_metric
+        except NoSTPSolution:
+            logging.warning("The STN is inconsistent with task %s in position %s", task_lot.task.task_id, position)
+            raise InvalidAllocation(task_lot.task.task_id, robot_id, position)
 
     def store(self):
 

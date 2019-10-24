@@ -28,3 +28,14 @@ class NoSTPSolution(Exception):
         """ Raised when the stp solver cannot produce a solution for the problem
         """
         Exception.__init__(self)
+
+
+class InvalidAllocation(Exception):
+
+    def __init__(self, task_id, robot_id, position):
+        """ Raised when a winning bid produces an invalid allocation
+
+        """
+        self.task_id = task_id
+        self.robot_id = robot_id
+        self.position = position
