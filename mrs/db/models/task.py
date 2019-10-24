@@ -53,6 +53,10 @@ class TaskLot(MongoModel):
     def get_task(cls, task_id):
         return cls.objects.get_task(task_id)
 
+    def set_soft_constraints(self):
+        self.constraints.hard = False
+        self.save()
+
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)

@@ -67,10 +67,8 @@ class Auctioneer(object):
         if self.round.opened and self.round.time_to_close():
             try:
                 round_result = self.round.get_result()
-                allocation = self.process_allocation(round_result)
-                allocated_task, winner_robot_ids = allocation
-                for robot_id in winner_robot_ids:
-                    self.announce_winner(allocated_task, robot_id)
+                allocation = self.process_round_result(round_result)
+                self.announce_winner(allocation)
 
             except NoAllocation as exception:
                 self.logger.error("No allocation made in round %s ", exception.round_id)
@@ -78,14 +76,34 @@ class Auctioneer(object):
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
-                self.process_alternative_allocation(exception)
-                self.round.finish()
+                allocation = self.process_alternative_timeslot(exception)
+                self.announce_winner(allocation)
 
-    def process_allocation(self, round_result):
-
+    def process_round_result(self, round_result):
         bid, time_to_allocate = round_result
-
         allocation = (bid.task_id, [bid.robot_id])
+        self.process_allocation(allocation, time_to_allocate, bid)
+        return allocation
+
+    def process_alternative_timeslot(self, exception):
+        bid = exception.bid
+        time_to_allocate = exception.time_to_allocate
+        alternative_start_time = bid.alternative_start_time
+        alternative_allocation = (bid.task_id, [bid.robot_id], alternative_start_time)
+        allocation = (bid.task_id, [bid.robot_id])
+
+        self.logger.debug("Alternative timeslot for task %s: robot %s, alternative start time: %s ", bid.task_id,
+                          bid.robot_id, bid.alternative_start_time)
+
+        self.waiting_for_user_confirmation.append(alternative_allocation)
+
+        # TODO: Prompt the user to accept the alternative timeslot
+        # For now, accept always
+        self.process_allocation(allocation, time_to_allocate, bid)
+
+        return allocation
+
+    def process_allocation(self, allocation, time_to_allocate,  bid):
         task_lot = self.tasks_to_allocate.pop(bid.task_id)
         self.allocations.append(allocation)
 
@@ -99,18 +117,6 @@ class Auctioneer(object):
         self.logger.debug("Updating task status to ALLOCATED")
         task_lot.task.update_status(TaskStatusConst.ALLOCATED)
         self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
-
-        return allocation
-
-    def process_alternative_allocation(self, exception):
-        task_id = exception.task_id
-        robot_id = exception.robot_id
-        alternative_start_time = exception.alternative_start_time
-        self.logger.debug("Alternative timeslot for task %s: robot %s, alternative start time: %s ", task_id, robot_id,
-                          alternative_start_time)
-
-        alternative_allocation = (task_id, [robot_id], alternative_start_time)
-        self.waiting_for_user_confirmation.append(alternative_allocation)
 
     def add_task(self, task):
         task_lot = TaskLot.from_task(task)
@@ -152,10 +158,12 @@ class Auctioneer(object):
     def finish_round_cb(self, msg):
         self.round.finish()
 
-    def announce_winner(self, task_id, robot_id):
-        allocation = Allocation(task_id, robot_id)
-        msg = self.api.create_message(allocation)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
+    def announce_winner(self, allocation):
+        allocated_task, winner_robot_ids = allocation
+        for robot_id in winner_robot_ids:
+            allocation = Allocation(allocated_task, robot_id)
+            msg = self.api.create_message(allocation)
+            self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

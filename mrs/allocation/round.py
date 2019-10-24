@@ -119,7 +119,7 @@ class Round(object):
             round_result = (winning_bid, self.time_to_allocate)
 
             if winning_bid.hard_constraints is False:
-                raise AlternativeTimeSlot(winning_bid.task_id, winning_bid.robot_id, winning_bid.alternative_start_time)
+                raise AlternativeTimeSlot(winning_bid, self.time_to_allocate)
 
             return round_result
 
@@ -132,15 +132,12 @@ class Round(object):
         self.logger.debug("Round finished")
 
     def set_soft_constraints(self):
-        """ If the number of no-bids for a task is equal to the number of robots,
-        set the temporal constraints to soft
+        """ If there are no bids for the task, set its temporal constraints to soft
         """
-
         for task_id, n_no_bids in self.received_no_bids.items():
-            if n_no_bids == self.n_robots:
+            if task_id not in self.received_bids:
                 task = TaskLot.get_task(task_id)
-                task.hard_constraints = False
-                task.save()
+                task.set_soft_constraints()
                 self.logger.debug("Setting soft constraints for task %s", task_id)
 
     def elect_winner(self):
@@ -154,7 +151,9 @@ class Round(object):
         lowest_bid = None
 
         for task_id, bid in self.received_bids.items():
-            if lowest_bid is None or bid < lowest_bid:
+            if lowest_bid is None \
+                    or bid < lowest_bid \
+                    or (bid == lowest_bid and bid.task_id < lowest_bid.task_id):
                 lowest_bid = copy.deepcopy(bid)
 
         if lowest_bid is None:

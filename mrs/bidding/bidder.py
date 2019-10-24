@@ -49,7 +49,6 @@ class Bidder(RobotBase):
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
     def task_announcement_cb(self, msg):
-        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT", self.robot_id)
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
         self.timetable = self.get_timetable()
@@ -78,9 +77,12 @@ class Bidder(RobotBase):
             best_bid = self.insert_task(task_lot, round_id)
 
             if best_bid:
+                self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task_lot.task.task_id,
+                                  best_bid.risk_metric, best_bid.temporal_metric)
+
                 bids.append(best_bid)
             else:
-                self.logger.debug("No bid for task %s", task_lot.task_id)
+                self.logger.warning("No bid for task %s", task_lot.task.task_id)
                 no_bid = Bid(self.robot_id, round_id, task_lot.task.task_id)
                 no_bids.append(no_bid)
 
@@ -139,9 +141,6 @@ class Bidder(RobotBase):
             # Restore schedule for the next iteration
             self.timetable.remove_task_from_stn(position)
 
-        self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task_lot.task.task_id,
-                          best_bid.risk_metric, best_bid.temporal_metric)
-
         return best_bid
 
     @staticmethod
@@ -159,9 +158,6 @@ class Bidder(RobotBase):
                     (bid == smallest_bid and bid.task_id < smallest_bid.task_id):
 
                 smallest_bid = copy.deepcopy(bid)
-
-        if smallest_bid is None:
-            return None
 
         return smallest_bid
 

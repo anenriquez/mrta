@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from fmlib.models.tasks import TimepointConstraints
 from ropod.utils.timestamp import TimeStamp
@@ -77,24 +77,42 @@ class Timetable(object):
             task (obj): task object to add to the stn
             position (int) : position in the STN where the task will be added
         """
-        stn_task = self.to_stn_task(task_lot)
+        stn_task = self.to_stn_task(task_lot, position)
         self.stn.add_task(stn_task, position)
 
-    def to_stn_task(self, task_lot):
+    def to_stn_task(self, task_lot, position):
         """ Converts a task to an stn task
 
         Args:
             task_lot (obj): task_lot object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
-
-        r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
-                                                                                          self.zero_timepoint)
         delta = timedelta(minutes=1)
         earliest_navigation_start = TimeStamp(delta)
         r_earliest_navigation_start = earliest_navigation_start.get_difference(self.zero_timepoint, "minutes")
 
+        if not task_lot.constraints.hard:
+            # Get latest finish time of task in previous position
+            if position > 1:
+                previous_task_id = self.dispatchable_graph.get_task_id(position-1)
+                r_latest_finish_time = self.dispatchable_graph.get_time(previous_task_id, "finish", False)
+
+                latest_finish_time = self.zero_timepoint + timedelta(minutes=r_latest_finish_time)
+                earliest_time = latest_finish_time + timedelta(minutes=5)
+                latest_time = earliest_time + timedelta(minutes=5)
+
+                start_timepoint_constraints = TimepointConstraints(earliest_time=earliest_time.to_datetime(),
+                                                                   latest_time=latest_time.to_datetime())
+            else:
+
+                start_time = datetime.now() + timedelta(minutes=1)
+                start_timepoint_constraints = TimepointConstraints(earliest_time=start_time,
+                                                                   latest_time=start_time)
+        else:
+            start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
+
+        r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
+                                                                                          self.zero_timepoint)
         stn_task = STNTask(task_lot.task.task_id,
                            r_earliest_navigation_start,
                            r_earliest_start_time,
