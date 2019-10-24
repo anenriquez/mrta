@@ -1,5 +1,7 @@
 from mrs.bidding.bid import Bid
 from mrs.exceptions.allocation import NoSTPSolution
+from fmlib.models.tasks import TimepointConstraints
+from datetime import timedelta
 
 
 class BiddingRule(object):
@@ -21,17 +23,22 @@ class BiddingRule(object):
                           temporal_metric=timetable.temporal_metric)
 
             else:
-                navigation_start_time = timetable.dispatchable_graph.get_task_time(task_lot.task.task_id)
+                r_start_time = timetable.dispatchable_graph.get_time(task_lot.task.task_id, "start")
+                start_time = timetable.zero_timepoint + timedelta(minutes=r_start_time)
                 timetable.risk_metric = 1
                 start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
-                timetable.temporal_metric = abs(navigation_start_time - start_timepoint_constraints.earliest_time),
+
+                r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
+                                                                                                timetable.zero_timepoint)
+
+                timetable.temporal_metric = abs(r_start_time - r_earliest_start_time)
 
                 bid = Bid(robot_id, round_id, task_lot.task.task_id, timetable,
                           position=position,
                           risk_metric=timetable.risk_metric,
                           temporal_metric=timetable.temporal_metric,
                           hard_constraints=False,
-                          alternative_start_time=navigation_start_time)
+                          alternative_start_time=start_time)
 
             return bid
 

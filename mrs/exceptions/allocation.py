@@ -1,18 +1,15 @@
 class AlternativeTimeSlot(Exception):
 
-    def __init__(self, task_id, robot_id, alternative_start_time):
+    def __init__(self, bid, time_to_allocate):
         """
         Raised when a task could not be allocated at the desired time slot.
 
-        :param task_id:
-        :param robot_id:
-        :param alternative_start_time: earliest start time at which the task can start
-                                    (lower bound of the dispatchable graph)
+        bid (obj): winning bid for the alternative timeslot
+        time_to_allocate (float)
         """
-        Exception.__init__(self, task_id, robot_id, alternative_start_time)
-        self.task_id = task_id
-        self.robot_id = robot_id
-        self.alternative_start_time = alternative_start_time
+        Exception.__init__(self, bid, time_to_allocate)
+        self.bid = bid
+        self.time_to_allocate = time_to_allocate
 
 
 class NoAllocation(Exception):
