@@ -7,6 +7,7 @@ from mrs.allocation.round import Round
 from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
+from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
@@ -67,23 +68,20 @@ class Auctioneer(object):
         if self.round.opened and self.round.time_to_close():
             try:
                 round_result = self.round.get_result()
-                allocation = self.process_round_result(round_result)
-                self.announce_winner(allocation)
+                self.process_round_result(round_result)
 
             except NoAllocation as exception:
-                self.logger.error("No allocation made in round %s ", exception.round_id)
+                self.logger.warning("No allocation made in round %s ", exception.round_id)
                 self.update_tasks_to_allocate()
                 self.round.finish()
 
             except AlternativeTimeSlot as exception:
-                allocation = self.process_alternative_timeslot(exception)
-                self.announce_winner(allocation)
+                self.process_alternative_timeslot(exception)
 
     def process_round_result(self, round_result):
         bid, time_to_allocate = round_result
         allocation = (bid.task_id, [bid.robot_id])
         self.process_allocation(allocation, time_to_allocate, bid)
-        return allocation
 
     def process_alternative_timeslot(self, exception):
         bid = exception.bid
@@ -101,22 +99,29 @@ class Auctioneer(object):
         # For now, accept always
         self.process_allocation(allocation, time_to_allocate, bid)
 
-        return allocation
-
     def process_allocation(self, allocation, time_to_allocate,  bid):
         task_lot = self.tasks_to_allocate.pop(bid.task_id)
-        self.allocations.append(allocation)
+        try:
+            self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
+            self.allocations.append(allocation)
 
-        if self.experiment:
-            task_performance = Experiment.get_task_performance(self.experiment, bid.task_id)
-            self.experiment.update_allocation(task_performance, time_to_allocate, bid.robot_id)
+            if self.experiment:
+                task_performance = Experiment.get_task_performance(self.experiment, bid.task_id)
+                self.experiment.update_allocation(task_performance, time_to_allocate, bid.robot_id)
 
-        self.logger.debug("Allocation: %s", allocation)
-        self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
+            self.logger.debug("Allocation: %s", allocation)
+            self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
-        self.logger.debug("Updating task status to ALLOCATED")
-        task_lot.task.update_status(TaskStatusConst.ALLOCATED)
-        self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
+            self.logger.debug("Updating task status to ALLOCATED")
+            task_lot.task.update_status(TaskStatusConst.ALLOCATED)
+
+            self.announce_winner(allocation)
+
+        except InvalidAllocation as e:
+            self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."
+                                "Task %s will be included in next allocation round", e.task_id, e.robot_id, e.task_id)
+            self.tasks_to_allocate[task_lot.task.task_id] = task_lot
+            self.round.finish()
 
     def add_task(self, task):
         task_lot = TaskLot.from_task(task)

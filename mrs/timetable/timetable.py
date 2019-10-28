@@ -2,12 +2,12 @@ import logging
 from datetime import timedelta, datetime
 
 from fmlib.models.tasks import TimepointConstraints
-from ropod.utils.timestamp import TimeStamp
-from stn.task import STNTask
 from mrs.db.models.timetable import Timetable as TimetableMongo
-
+from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoSTPSolution
 from pymodm.errors import DoesNotExist
+from ropod.utils.timestamp import TimeStamp
+from stn.task import STNTask
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -87,10 +87,6 @@ class Timetable(object):
             task_lot (obj): task_lot object to be converted
             zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
         """
-        delta = timedelta(minutes=1)
-        earliest_navigation_start = TimeStamp(delta)
-        r_earliest_navigation_start = earliest_navigation_start.get_difference(self.zero_timepoint, "minutes")
-
         if not task_lot.constraints.hard:
             # Get latest finish time of task in previous position
             if position > 1:
@@ -113,6 +109,8 @@ class Timetable(object):
 
         r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                           self.zero_timepoint)
+        r_earliest_navigation_start = r_earliest_start_time - 0.5
+
         stn_task = STNTask(task_lot.task.task_id,
                            r_earliest_navigation_start,
                            r_earliest_start_time,
@@ -242,11 +240,15 @@ class Timetable(object):
 
         return timetable
 
-    def update(self, zero_timepoint, task_lot, position, temporal_metric):
+    def update(self, zero_timepoint, robot_id, task_lot, position, temporal_metric):
         self.zero_timepoint = zero_timepoint
         self.add_task_to_stn(task_lot, position)
-        self.solve_stp()
-        self.temporal_metric = temporal_metric
+        try:
+            self.solve_stp()
+            self.temporal_metric = temporal_metric
+        except NoSTPSolution:
+            logging.warning("The STN is inconsistent with task %s in position %s", task_lot.task.task_id, position)
+            raise InvalidAllocation(task_lot.task.task_id, robot_id, position)
 
     def store(self):
 

@@ -44,7 +44,7 @@ class TimetableManager(object):
     def update_timetable(self, robot_id, position, temporal_metric, task_lot):
         self.fetch_timetable(robot_id)
         timetable = self.timetables.get(robot_id)
-        timetable.update(self.zero_timepoint, task_lot, position, temporal_metric)
+        timetable.update(self.zero_timepoint, robot_id, task_lot, position, temporal_metric)
         self.timetables.update({robot_id: timetable})
         timetable.store()
 
