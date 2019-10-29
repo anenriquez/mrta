@@ -94,7 +94,7 @@ if __name__ == '__main__':
     test.start()
 
     try:
-        time.sleep(5)
+        time.sleep(30)
         test.trigger()
         while not test.terminated:
             time.sleep(0.5)
