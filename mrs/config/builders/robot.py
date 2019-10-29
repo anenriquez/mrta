@@ -1,6 +1,6 @@
 from fmlib.api import API
 from fmlib.config.builders import Store
-from mrs.config.mrta import MRTAFactory
+from mrs.config.builders.mrta import MRTAFactory
 
 
 def get_robot_config(robot_id, config_params):

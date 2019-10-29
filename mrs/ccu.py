@@ -6,7 +6,7 @@ from fmlib.api import API
 from fmlib.config.builders import Store
 from fmlib.config.params import ConfigParams
 from fmlib.models.tasks import Task
-from mrs.config.mrta import MRTAFactory
+from mrs.config.builders.mrta import MRTAFactory
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 ConfigParams.default_config_module = 'mrs.config.default'
