@@ -49,6 +49,7 @@ class Bidder(RobotBase):
     def task_announcement_cb(self, msg):
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
+        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT msg", self.robot_id)
         self.timetable = self.get_timetable()
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
