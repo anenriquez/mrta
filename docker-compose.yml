@@ -1,6 +1,15 @@
 version: "2"
 
 services:
+  mongo:
+    container_name: mongo
+    image: mongo:4.0-xenial
+    volumes:
+      - /data/db:/data/db
+    ports:
+      - "27017:27017"
+    network_mode: "host"
+
   robot:
     container_name: robot
     image: ropod-mrs
@@ -29,6 +38,7 @@ services:
     tty: true
     stdin_open: true
     depends_on:
+      - mongo
       - robot
       - ccu
 

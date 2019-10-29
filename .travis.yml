@@ -11,8 +11,9 @@ before_install:
 install: skip
 
 script:
-  - docker-compose up -d robot
+  - docker-compose up -d mongo
   - docker-compose up -d ccu
+  - docker-compose up -d robot
   - docker-compose up --exit-code-from task_allocation_test
 after_script:
   - docker stop $(docker ps -aq)
