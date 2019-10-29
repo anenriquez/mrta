@@ -7,20 +7,16 @@ from fmlib.config.builders import Store
 from fmlib.config.params import ConfigParams
 from fmlib.models.tasks import Task
 from mrs.config.mrta import MRTAFactory
-from mrs.utils.datasets import validate_dataset_file
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 ConfigParams.default_config_module = 'mrs.config.default'
 
 
 class MRS(object):
-    def __init__(self, experiment_name, dataset_file, config_file=None):
+    def __init__(self, config_file=None):
 
         self.logger = logging.getLogger('mrs')
 
-        self.experiment_name = experiment_name
-        self.dataset_module, self.dataset_file = validate_dataset_file(experiment_name,
-                                                                       dataset_file)
         if config_file is None:
             self.config_params = ConfigParams.default()
         else:
@@ -31,7 +27,6 @@ class MRS(object):
 
         self.api = self.get_api()
         self.ccu_store = self.get_ccu_store()
-        self.experiment_config = self.get_experiment_config()
 
         components = self.get_mrta_components()
         self.auctioneer = components.get('auctioneer')
@@ -48,17 +43,10 @@ class MRS(object):
         store_config = self.config_params.get('ccu_store')
         return Store(**store_config)
 
-    def get_experiment_config(self):
-        experiment_config = {'experiment_name': self.experiment_name,
-                             'port': self.config_params.get('experiment_store').get('port'),
-                             'dataset_module': self.dataset_module,
-                             'dataset_file': self.dataset_file}
-        return experiment_config
-
     def get_mrta_components(self):
         allocation_method = self.config_params.get('allocation_method')
         fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
-        mrta_factory = MRTAFactory(allocation_method, experiment_config=self.experiment_config)
+        mrta_factory = MRTAFactory(allocation_method)
 
         config = self.config_params.get('plugins').get('mrta')
         components = mrta_factory(**config)
@@ -98,12 +86,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
 
-    parser.add_argument('experiment_name', type=str, action='store', help='Name of the experiment',
-                        choices=['non_intentional_delays',
-                                 'intentional_delays'])
-
-    parser.add_argument('dataset_file', type=str, action='store', help='Name of the file, including extension')
-
     args = parser.parse_args()
-    mrs = MRS(args.experiment_name, args.dataset_file, args.file)
+    mrs = MRS(args.file)
     mrs.run()

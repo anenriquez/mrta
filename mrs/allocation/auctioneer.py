@@ -4,7 +4,6 @@ from datetime import timedelta
 from fmlib.models.tasks import Task
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
 from mrs.allocation.round import Round
-from mrs.db.models.performance.experiment import Experiment
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
@@ -32,8 +31,6 @@ class Auctioneer(object):
         self.round_time = timedelta(seconds=round_time)
         self.freeze_window = timedelta(seconds=freeze_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
-
-        self.experiment = kwargs.get('experiment')
 
         self.logger.debug("Auctioneer started")
 
@@ -104,10 +101,6 @@ class Auctioneer(object):
         try:
             self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
             self.allocations.append(allocation)
-
-            if self.experiment:
-                task_performance = Experiment.get_task_performance(self.experiment, bid.task_id)
-                self.experiment.update_allocation(task_performance, time_to_allocate, bid.robot_id)
 
             self.logger.debug("Allocation: %s", allocation)
             self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
