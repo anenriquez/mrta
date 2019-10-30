@@ -2,7 +2,6 @@ import copy
 import logging
 
 from mrs.exceptions.allocation import NoSTPSolution
-from mrs.robot_base import RobotBase
 from mrs.allocation.allocation import FinishRound
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
 from mrs.bidding.bid import Bid
@@ -16,9 +15,9 @@ specified in the config file
 """
 
 
-class Bidder(RobotBase):
+class Bidder:
 
-    def __init__(self, robot_id, stp_solver, bidding_rule, auctioneer_name, **kwargs):
+    def __init__(self, robot_id, stp_solver, timetable, bidding_rule, auctioneer_name, **kwargs):
         """
         Includes bidder functionality for a robot in a multi-robot task-allocation auction-based
         approach
@@ -34,7 +33,12 @@ class Bidder(RobotBase):
                 robot_store (robot_store): interface to interact with the db
 
         """
-        super().__init__(robot_id, stp_solver, **kwargs)
+        self.robot_id = robot_id
+        self.stp_solver = stp_solver
+        self.timetable = timetable
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
+
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
         robustness = bidding_rule.get('robustness')
@@ -46,11 +50,19 @@ class Bidder(RobotBase):
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
+    def configure(self, **kwargs):
+        api = kwargs.get('api')
+        ccu_store = kwargs.get('ccu_store')
+        if api:
+            self.api = api
+        if ccu_store:
+            self.ccu_store = ccu_store
+
     def task_announcement_cb(self, msg):
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
         self.logger.debug("Robot %s received TASK-ANNOUNCEMENT msg", self.robot_id)
-        self.timetable = self.get_timetable()
+        self.timetable.fetch()
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
@@ -169,7 +181,12 @@ class Bidder(RobotBase):
 
     def allocate_to_robot(self, task_id):
 
-        self.timetable = copy.deepcopy(self.bid_placed.timetable)
+        # TODO: Refactor timetable update
+        self.timetable.stn = self.bid_placed.timetable.stn
+        self.timetable.dispatchable_graph = self.bid_placed.timetable.dispatchable_graph
+        self.timetable.temporal_metric = self.bid_placed.timetable.temporal_metric
+        self.timetable.risk_metric = self.bid_placed.timetable.risk_metric
+
         self.timetable.store()
 
         self.logger.debug("Robot %s allocated task %s", self.robot_id, task_id)

@@ -31,19 +31,17 @@ class TimetableManager(object):
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
-        self.fetch_timetable(robot_id)
-
-    def fetch_timetables(self):
-        for robot_id in self.robot_ids:
-            self.fetch_timetable(robot_id)
-
-    def fetch_timetable(self, robot_id):
-        timetable = Timetable.fetch(robot_id, self.stp_solver)
+        timetable = Timetable(robot_id, self.stp_solver)
+        timetable.fetch()
         self.timetables[robot_id] = timetable
 
+    def fetch_timetables(self):
+        for robot_id, timetable in self.timetables.items():
+            timetable.fetch()
+
     def update_timetable(self, robot_id, position, temporal_metric, task_lot):
-        self.fetch_timetable(robot_id)
         timetable = self.timetables.get(robot_id)
+        timetable.fetch()
         timetable.update(self.zero_timepoint, robot_id, task_lot, position, temporal_metric)
         self.timetables.update({robot_id: timetable})
         timetable.store()

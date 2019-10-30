@@ -1,25 +1,4 @@
-import argparse
-import logging.config
 import time
-
-from mrs.config.builders import robot
-from fmlib.config.params import ConfigParams
-
-ConfigParams.default_config_module = 'mrs.config.default'
-
-
-def get_robot_components(robot_id, config_file=None):
-    if config_file is None:
-        config_params = ConfigParams.default()
-    else:
-        config_params = ConfigParams.from_file(config_file)
-
-    logger_config = config_params.get('logger')
-    logging.config.dictConfig(logger_config)
-
-    components = robot.configure(robot_id, config_params)
-
-    return components
 
 
 class Robot(object):
@@ -27,13 +6,13 @@ class Robot(object):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
-        self.bidder = bidder
-
         self.api = kwargs.get('api')
+        self.robot_store = kwargs.get('robot_store')
+        self.bidder = bidder
+        self.schedule_monitor = kwargs.get('schedule_monitor')
+
         if self.api:
             self.api.register_callbacks(self)
-
-        self.robot_store = kwargs.get('robot_store')
 
         self.logger.info("Initialized Robot %s", robot_id)
 
@@ -51,14 +30,20 @@ class Robot(object):
             self.api.start()
             while True:
                 time.sleep(0.5)
-
         except (KeyboardInterrupt, SystemExit):
-            self.logger.info("Terminating %s robot ...", self.bidder.robot_id)
+            self.logger.info("Terminating %s robot ...", self.robot_id)
             self.api.shutdown()
             self.logger.info("Exiting...")
 
 
 if __name__ == '__main__':
+
+    import argparse
+    import logging.config
+    from mrs.config.mrta import MRTAFactory
+    from fmlib.config.params import ConfigParams
+
+    ConfigParams.default_config_module = 'mrs.config.default'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
@@ -67,11 +52,23 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    robot_components = get_robot_components(args.robot_id, args.file)
+    if args.file is None:
+        config_params = ConfigParams.default()
+    else:
+        config_params = ConfigParams.from_file(args.file)
 
-    new_robot = Robot(args.robot_id, **robot_components)
-    new_robot.run()
+    logger_config = config_params.get('logger')
+    logging.config.dictConfig(logger_config)
 
+    config = config_params.get('robot_proxy')
+    allocation_method = config_params.get('allocation_method')
+    config.update({'robot_id': args.robot_id})
+    robot_config = {'robot': config}
 
+    mrta_factory = MRTAFactory(allocation_method)
+    components = mrta_factory(**robot_config)
 
+    robot_components = components.get('robot')
+    robot = Robot(args.robot_id, **robot_components)
+    robot.run()
 

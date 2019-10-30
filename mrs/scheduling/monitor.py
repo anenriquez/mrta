@@ -3,10 +3,8 @@ from datetime import timedelta
 from mrs.scheduling.scheduler import Scheduler
 from mrs.execution.interface import ExecutorInterface
 
-from mrs.robot_base import RobotBase
 
-
-class ScheduleMonitor(RobotBase):
+class ScheduleMonitor:
 
     """ Maps allocation methods with their available corrective measures """
 
@@ -16,7 +14,7 @@ class ScheduleMonitor(RobotBase):
                            'tessi-dsc': ['re-allocate']
                            }
 
-    def __init__(self, robot_id, stp_solver, freeze_window, allocation_method, corrective_measure, **kwargs):
+    def __init__(self, robot_id, stp_solver, timetable, freeze_window, allocation_method, corrective_measure, **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
 
        Args:
@@ -33,7 +31,12 @@ class ScheduleMonitor(RobotBase):
                 robot_store (robot_store): interface to interact with the db
 
         """
-        super().__init__(robot_id, stp_solver, **kwargs)
+        self.robot_id = robot_id
+        self.stp_solver = stp_solver
+        self.api = kwargs.get('api')
+        self.ccu_store = kwargs.get('ccu_store')
+        self.timetable = timetable
+
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
 
         self.freeze_window = timedelta(minutes=freeze_window)
@@ -50,6 +53,14 @@ class ScheduleMonitor(RobotBase):
         self.executor_interface = ExecutorInterface(self.robot_id)
 
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
+
+    def configure(self, **kwargs):
+        api = kwargs.get('api')
+        ccu_store = kwargs.get('ccu_store')
+        if api:
+            self.api = api
+        if ccu_store:
+            self.ccu_store = ccu_store
 
 
 

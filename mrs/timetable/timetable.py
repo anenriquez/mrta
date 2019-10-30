@@ -260,17 +260,20 @@ class Timetable(object):
                                    self.dispatchable_graph.to_dict())
         timetable.save()
 
-    @staticmethod
-    def fetch(robot_id, stp):
-        timetable = Timetable(robot_id, stp)
+    def fetch(self):
         try:
-            timetable_mongo = TimetableMongo.objects.get_timetable(robot_id)
-            timetable.stn = timetable.stn.from_dict(timetable_mongo.stn)
-            timetable.dispatchable_graph = timetable.stn.from_dict(timetable_mongo.dispatchable_graph)
-            timetable.zero_timepoint = timetable_mongo.zero_timepoint
-            timetable.temporal_metric = timetable_mongo.temporal_metric
-            timetable.risk_metric = timetable_mongo.risk_metric
+            timetable_mongo = TimetableMongo.objects.get_timetable(self.robot_id)
+            self.stn = self.stn.from_dict(timetable_mongo.stn)
+            self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
+            self.zero_timepoint = timetable_mongo.zero_timepoint
+            self.temporal_metric = timetable_mongo.temporal_metric
+            self.risk_metric = timetable_mongo.risk_metric
         except DoesNotExist as err:
-            logging.debug("The timetable of robot %s is empty", robot_id)
+            logging.debug("The timetable of robot %s is empty", self.robot_id)
+            self.stn = self.initialize_stn()
+            self.dispatchable_graph = None
+            self.zero_timepoint = None
+            self.temporal_metric = None
+            self.risk_metric = None
+            self.schedule = None
 
-        return timetable

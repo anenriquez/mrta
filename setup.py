@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='mrs',
-      packages=['mrs', 'mrs.config', 'mrs.config.builders', 'mrs.config.default',
+      packages=['mrs', 'mrs.config', 'mrs.config.default',
                 'mrs.db.models', 'mrs.db.models.performance', 'mrs.exceptions',
                 'mrs.timetable', 'mrs.allocation', 'mrs.bidding', 'mrs.tests',
                 'mrs.scheduling', 'mrs.dispatching', 'mrs.execution', 'mrs.utils'],
