@@ -1,19 +1,19 @@
-import numpy as np
 from ropod.utils.uuid import from_str
 
 
 class Bid(object):
-    def __init__(self, robot_id, round_id, task_id, timetable=None, **kwargs):
+    def __init__(self, robot_id, round_id, task_id, **kwargs):
 
         self.robot_id = robot_id
         self.round_id = round_id
         self.task_id = task_id
-        self.timetable = timetable
-        self.position = kwargs.get('position')
-        self.risk_metric = kwargs.get('risk_metric', np.inf)
-        self.temporal_metric = kwargs.get('temporal_metric', np.inf)
-        self.hard_constraints = kwargs.get('hard_constraints', True)
+        self.insertion_point = kwargs.get('insertion_point')
+        self.risk_metric = kwargs.get('risk_metric')
+        self.temporal_metric = kwargs.get('temporal_metric')
         self.alternative_start_time = kwargs.get('alternative_start_time')
+
+        self.stn = None
+        self.dispatchable_graph = None
 
     def __repr__(self):
         return str(self.to_dict())
@@ -38,10 +38,9 @@ class Bid(object):
         bid_dict['robot_id'] = self.robot_id
         bid_dict['round_id'] = self.round_id
         bid_dict['task_id'] = self.task_id
-        bid_dict['position'] = self.position
+        bid_dict['insertion_point'] = self.insertion_point
         bid_dict['risk_metric'] = self.risk_metric
         bid_dict['temporal_metric'] = self.temporal_metric
-        bid_dict['hard_constraints'] = self.hard_constraints
         bid_dict['alternative_start_time'] = self.alternative_start_time
         return bid_dict
 
@@ -50,17 +49,15 @@ class Bid(object):
         robot_id = bid_dict['robotId']
         round_id = from_str(bid_dict['roundId'])
         task_id = from_str(bid_dict['taskId'])
-        position = bid_dict['position']
+        insertion_point = bid_dict['insertionPoint']
         risk_metric = bid_dict['riskMetric']
         temporal_metric = bid_dict['temporalMetric']
-        hard_constraints = bid_dict['hardConstraints']
         alternative_start_time = bid_dict['alternativeStartTime']
 
         bid = cls(robot_id, round_id, task_id,
-                  position=position,
+                  insertion_point=insertion_point,
                   risk_metric=risk_metric,
                   temporal_metric=temporal_metric,
-                  hard_constraints=hard_constraints,
                   alternative_start_time=alternative_start_time)
         return bid
 

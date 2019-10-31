@@ -3,7 +3,6 @@ import logging
 import time
 from datetime import timedelta
 
-import numpy as np
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.bidding.bid import Bid
@@ -61,7 +60,7 @@ class Round(object):
         self.logger.debug("Processing bid from robot %s: (risk metric: %s, temporal metric: %s)",
                           bid.robot_id, bid.risk_metric, bid.temporal_metric)
 
-        if bid.cost != (np.inf, np.inf):
+        if bid.cost != (None, None):
             # Process a bid
             if bid.task_id not in self.received_bids or \
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
@@ -118,7 +117,7 @@ class Round(object):
             winning_bid = self.elect_winner()
             round_result = (winning_bid, self.time_to_allocate)
 
-            if winning_bid.hard_constraints is False:
+            if winning_bid.alternative_start_time:
                 raise AlternativeTimeSlot(winning_bid, self.time_to_allocate)
 
             return round_result
