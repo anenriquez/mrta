@@ -40,6 +40,7 @@ class Bidder:
         self.ccu_store = kwargs.get('ccu_store')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
+        self.logger.critical("Initial timetable %s", self.timetable.stn)
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
@@ -128,8 +129,8 @@ class Bidder:
         for insertion_point in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
-            self.logger.debug("Schedule: %s", self.timetable.schedule)
-            if insertion_point == 1 and self.timetable.schedule:
+            self.logger.debug("Schedule: %s", self.timetable.schedule.get_tasks())
+            if insertion_point == 1 and self.timetable.schedule.get_tasks():
                 self.logger.debug("Not adding task in insertion_point %s", insertion_point)
                 continue
 

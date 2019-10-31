@@ -31,11 +31,21 @@ class Timetable(object):
     def __init__(self, robot_id, stp):
         self.robot_id = robot_id
         self.stp = stp  # Simple Temporal Problem
-        self.zero_timepoint = None
+        self.zero_timepoint = self.initialize_zero_timepoint()
 
         self.stn = self.stp.get_stn()
         self.dispatchable_graph = self.stp.get_stn()
         self.schedule = self.stp.get_stn()
+
+    @staticmethod
+    def initialize_zero_timepoint():
+        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        zero_timepoint = TimeStamp()
+        zero_timepoint.timestamp = today_midnight
+        return zero_timepoint
+
+    def update_zero_timepoint(self):
+        pass
 
     def solve_stp(self, task_lot, insertion_point):
         task = self.to_stn_task(task_lot, insertion_point)
@@ -142,26 +152,10 @@ class Timetable(object):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
-
-        if self.zero_timepoint:
-            timetable_dict['zero_timepoint'] = self.zero_timepoint.to_str()
-        else:
-            timetable_dict['zero_timepoint'] = self.zero_timepoint
-
-        if self.stn:
-            timetable_dict['stn'] = self.stn.to_dict()
-        else:
-            timetable_dict['stn'] = self.stn
-
-        if self.dispatchable_graph:
-            timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
-        else:
-            timetable_dict['dispatchable_graph'] = self.dispatchable_graph
-
-        if self.schedule:
-            timetable_dict['schedule'] = self.schedule.to_dict()
-        else:
-            timetable_dict['schedule'] = self.schedule
+        timetable_dict['zero_timepoint'] = self.zero_timepoint.to_str()
+        timetable_dict['stn'] = self.stn.to_dict()
+        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
+        timetable_dict['schedule'] = self.schedule.to_dict()
 
         return timetable_dict
 
@@ -172,28 +166,10 @@ class Timetable(object):
         stn_cls = timetable.stp.get_stn()
 
         zero_timepoint = timetable_dict.get('zero_timepoint')
-        if zero_timepoint:
-            timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
-        else:
-            timetable.zero_timepoint = zero_timepoint
-
-        stn = timetable_dict.get('stn')
-        if stn:
-            timetable.stn = stn_cls.from_dict(stn)
-        else:
-            timetable.stn = stn
-
-        dispatchable_graph = timetable_dict.get('dispatchable_graph')
-        if dispatchable_graph:
-            timetable.dispatchable_graph = stn_cls.from_dict(dispatchable_graph)
-        else:
-            timetable.dispatchable_graph = dispatchable_graph
-
-        schedule = timetable_dict.get('schedule')
-        if schedule:
-            timetable.schedule = stn_cls.from_dict(schedule)
-        else:
-            timetable.schedule = schedule
+        timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
+        timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
+        timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
+        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
 
         return timetable
 
@@ -212,13 +188,15 @@ class Timetable(object):
             timetable_mongo = TimetableMongo.objects.get_timetable(self.robot_id)
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
-            self.zero_timepoint = timetable_mongo.zero_timepoint
+            self.zero_timepoint = TimeStamp.from_datetime(timetable_mongo.zero_timepoint)
             self.dispatchable_graph.temporal_metric = timetable_mongo.temporal_metric
             self.dispatchable_graph.risk_metric = timetable_mongo.risk_metric
-        except DoesNotExist as err:
+        except DoesNotExist:
             logging.debug("The timetable of robot %s is empty", self.robot_id)
+            # Resetting values
             self.stn = self.stp.get_stn()
-            self.dispatchable_graph = None
-            self.zero_timepoint = None
-            self.schedule = None
+            self.dispatchable_graph = self.stp.get_stn()
+            self.schedule = self.stp.get_stn()
+
+
 
