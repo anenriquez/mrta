@@ -44,8 +44,6 @@ class Bidder(RobotBase):
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
 
-        self.experiment = kwargs.get('experiment')
-
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
     def task_announcement_cb(self, msg):
