@@ -1,11 +1,10 @@
 import logging
 
 from mrs.allocation.auctioneer import Auctioneer
-from mrs.bidding.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
-from mrs.scheduling.monitor import ScheduleMonitor
 from mrs.timetable.manager import TimetableManager
 from stn.stp import STP
+from mrs.config.robot import RobotFactory
 
 
 class MRTAFactory:
@@ -41,8 +40,7 @@ class MRTAFactory:
 
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)
-        self.register_component('bidder', Bidder)
-        self.register_component('schedule_monitor', ScheduleMonitor)
+        self.register_component('robot', RobotFactory())
 
     def register_component(self, component_name, component):
         self._components[component_name] = component
@@ -59,6 +57,7 @@ class MRTAFactory:
                                       stp_solver=self.stp_solver,
                                       timetable_manager=self.timetable_manager,
                                       **configuration)
+
                 components[component_name] = _instance
 
         return components
