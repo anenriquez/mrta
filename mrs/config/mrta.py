@@ -30,17 +30,21 @@ class MRTAFactory:
 
         self._components = {}
 
-        stp_solver_name = self.allocation_methods.get(allocation_method)
-        if not stp_solver_name:
-            self.logger.error("The given allocation method is not available")
-            raise ValueError(allocation_method)
+        self.stp_solver = self.get_stp_solver()
 
-        self.stp_solver = STP(stp_solver_name)
         self.timetable_manager = TimetableManager(self.stp_solver)
 
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)
         self.register_component('robot', RobotFactory())
+
+    def get_stp_solver(self):
+        stp_solver_name = self.allocation_methods.get(self.allocation_method)
+        if not stp_solver_name:
+            self.logger.error("The given allocation method is not available")
+            raise ValueError(self.allocation_method)
+
+        return STP(stp_solver_name)
 
     def register_component(self, component_name, component):
         self._components[component_name] = component
