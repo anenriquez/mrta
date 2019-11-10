@@ -33,26 +33,29 @@ class ScheduleMonitor:
         """
         self.robot_id = robot_id
         self.stp_solver = stp_solver
+        self.timetable = timetable
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
-        self.timetable = timetable
 
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
 
         self.freeze_window = timedelta(minutes=freeze_window)
-
-        available_corrective_measures = self.corrective_measures.get(allocation_method)
-
-        if corrective_measure not in available_corrective_measures:
-            self.logger.error("Corrective measure %s is not avaiable for method %s", corrective_measure, allocation_method)
-            raise ValueError(corrective_measure)
-
-        self.corrective_measure = corrective_measure
+        self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
 
         self.scheduler = Scheduler(self.stp_solver, self.robot_id)
         self.executor_interface = ExecutorInterface(self.robot_id)
 
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
+
+    def get_corrective_measure(self, allocation_method, corrective_measure):
+
+        available_corrective_measures = self.corrective_measures.get(allocation_method)
+
+        if corrective_measure not in available_corrective_measures:
+            self.logger.error("Corrective measure %s is not available for method %s", corrective_measure, allocation_method)
+            raise ValueError(corrective_measure)
+
+        return corrective_measure
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
