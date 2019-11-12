@@ -18,7 +18,7 @@ plugins:
     auctioneer:
       round_time: 15 # seconds
       alternative_timeslots: True
-      freeze_window: 3 # seconds
+      freeze_window: 5 # seconds
     dispatcher:
       re-allocate: True
 robot_proxy:
@@ -28,7 +28,8 @@ robot_proxy:
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
   schedule_monitor:
-    freeze_window: 3 # seconds
+    freeze_window: 5 # seconds
+    n_tasks_sub_graph: 2
     corrective_measure: re-allocate
   robot_store:
     db_name: robot_store
@@ -47,6 +48,7 @@ robot_proxy:
         message_types: # Types of messages the node will listen to. Messages not listed will be ignored
           - TASK-ANNOUNCEMENT
           - ALLOCATION
+          - TASK
         debug_msgs: false
       acknowledge: false
       publish:
@@ -62,11 +64,17 @@ robot_proxy:
           groups: ['TASK-ALLOCATION']
           msg_type: 'FINISH-ROUND'
           method: shout
+        dispatch-request:
+          groups: ['TASK-ALLOCATION']
+          msg_type: 'DISPATCH-REQUEST'
+          method: shout
       callbacks:
         - msg_type: 'TASK-ANNOUNCEMENT'
           component: 'bidder.task_announcement_cb'
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
+        - msg_type: 'TASK'
+          component: 'schedule_monitor.task_cb'
 
 api:
   version: 0.1.0
@@ -86,6 +94,7 @@ api:
         - BID
         - FINISH-ROUND
         - START-TEST
+        - DISPATCH-REQUEST
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -98,6 +107,10 @@ api:
         msg_type: 'ALLOCATION'
         groups: ['TASK-ALLOCATION']
         method: shout
+      task:
+        msg_type: 'TASK'
+        groups: ['TASK-ALLOCATION']
+        method: whisper
     callbacks:
       - msg_type: 'START-TEST'
         component: '.start_test_cb'
@@ -105,6 +118,8 @@ api:
         component: 'auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
         component: 'auctioneer.finish_round_cb'
+      - msg_type: 'DISPATCH-REQUEST'
+        component: 'dispatcher.dispatch_request_cb'
 
 logger:
   version: 1

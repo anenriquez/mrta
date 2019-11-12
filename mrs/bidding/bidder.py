@@ -129,10 +129,14 @@ class Bidder:
         for insertion_point in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
-            self.logger.debug("Schedule: %s", self.timetable.schedule.get_tasks())
-            if insertion_point == 1 and self.timetable.schedule.get_tasks():
-                self.logger.debug("Not adding task in insertion_point %s", insertion_point)
-                continue
+            if insertion_point == 1:
+                earliest_task_id = self.timetable.get_earliest_task_id()
+
+                if earliest_task_id and \
+                        Task.get_task_status(earliest_task_id).status != TaskStatusConst.ALLOCATED:
+
+                    self.logger.debug("Not adding task in insertion_point %s", insertion_point)
+                    continue
 
             self.logger.debug("Computing bid for task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
             try:

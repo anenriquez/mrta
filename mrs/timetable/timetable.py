@@ -8,6 +8,7 @@ from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
 import copy
+from mrs.exceptions.execution import InconsistentSchedule
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -122,6 +123,21 @@ class Timetable(object):
         """
         return self.stn.get_earliest_task_id()
 
+    def get_r_time(self, task_id, lower_bound=True):
+        r_start_time = self.dispatchable_graph.get_time(task_id, lower_bound=lower_bound)
+        return r_start_time
+
+    def get_start_time(self, task_id):
+        r_start_time = self.get_r_time(task_id)
+        start_time = self.zero_timepoint + timedelta(minutes=r_start_time)
+
+        return start_time
+
+    def get_finish_time(self, task_id):
+        r_finish_time = self.get_r_time(task_id, lower_bound=False)
+        finish_time = self.zero_timepoint + timedelta(minutes=r_finish_time)
+        return finish_time
+
     def remove_task(self, position=1):
         self.stn.remove_task(position)
         self.dispatchable_graph.remove_task(position)
@@ -148,6 +164,16 @@ class Timetable(object):
             self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
         else:
             logger.error("The dispatchable graph is empty")
+
+    def assign_timepoint(self, sub_stn, allotted_time, timepoint_position=1):
+        sub_stn.assign_timepoint(allotted_time, timepoint_position)
+        if self.stp.is_consistent(sub_stn):
+            self.dispatchable_graph.assign_timepoint(allotted_time, timepoint_position)
+            self.stn.assign_timepoint(allotted_time, timepoint_position)
+            self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
+
+        else:
+            raise InconsistentSchedule(allotted_time)
 
     def to_dict(self):
         timetable_dict = dict()
