@@ -107,6 +107,8 @@ class Auctioneer(object):
 
             self.logger.debug("Updating task status to ALLOCATED")
             task_lot.task.update_status(TaskStatusConst.ALLOCATED)
+            task = Task.get_task(bid.task_id)
+            task.assign_robots([bid.robot_id])
 
             self.announce_winner(allocation)
 
