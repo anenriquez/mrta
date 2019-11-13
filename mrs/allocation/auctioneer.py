@@ -99,7 +99,7 @@ class Auctioneer(object):
     def process_allocation(self, allocation, time_to_allocate,  bid):
         task_lot = self.tasks_to_allocate.pop(bid.task_id)
         try:
-            self.timetable_manager.update_timetable(bid.robot_id, bid.position, bid.temporal_metric, task_lot)
+            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.temporal_metric, task_lot)
             self.allocations.append(allocation)
 
             self.logger.debug("Allocation: %s", allocation)

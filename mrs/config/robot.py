@@ -1,12 +1,11 @@
 import logging
+
 from fmlib.api import API
 from fmlib.config.builders import Store
 
 from mrs.bidding.bidder import Bidder
 from mrs.scheduling.monitor import ScheduleMonitor
 from mrs.timetable.timetable import Timetable
-from datetime import datetime
-from ropod.utils.timestamp import TimeStamp
 
 
 class RobotFactory:
@@ -36,9 +35,6 @@ class RobotFactory:
         self.logger.debug("Creating timetable %s", robot_id)
         timetable = Timetable(robot_id, stp_solver)
         timetable.fetch()
-        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        timetable.zero_timepoint = TimeStamp()
-        timetable.zero_timepoint.timestamp = today_midnight
         return timetable
 
     def __call__(self, allocation_method, stp_solver, timetable_manager, **robot_config):

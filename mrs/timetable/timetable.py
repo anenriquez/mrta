@@ -3,11 +3,11 @@ from datetime import timedelta, datetime
 
 from fmlib.models.tasks import TimepointConstraints
 from mrs.db.models.timetable import Timetable as TimetableMongo
-from mrs.exceptions.allocation import InvalidAllocation
-from mrs.exceptions.allocation import NoSTPSolution
+from stn.exceptions.stp import NoSTPSolution
 from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
 from stn.task import STNTask
+import copy
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -29,68 +29,47 @@ class Timetable(object):
     """
 
     def __init__(self, robot_id, stp):
-        self.stp = stp  # Simple Temporal Problem
-        self.zero_timepoint = None
-        self.temporal_metric = None
-        self.risk_metric = None
-
         self.robot_id = robot_id
-        self.stn = self.initialize_stn()
-        self.dispatchable_graph = None
-        self.schedule = None
+        self.stp = stp  # Simple Temporal Problem
+        self.zero_timepoint = self.initialize_zero_timepoint()
 
-    def initialize_stn(self):
-        """ Initializes an stn of the type used by the stp solver
-        """
-        return self.stp.get_stn()
+        self.stn = self.stp.get_stn()
+        self.dispatchable_graph = self.stp.get_stn()
+        self.schedule = self.stp.get_stn()
 
-    def solve_stp(self):
-        """ Computes the dispatchable graph, risk metric and temporal metric
-        from the given stn
-        """
-        result_stp = self.stp.solve(self.stn)
+    @staticmethod
+    def initialize_zero_timepoint():
+        today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        zero_timepoint = TimeStamp()
+        zero_timepoint.timestamp = today_midnight
+        return zero_timepoint
 
-        if result_stp is None:
+    def update_zero_timepoint(self):
+        pass
+
+    def solve_stp(self, task_lot, insertion_point):
+        task = self.to_stn_task(task_lot, insertion_point)
+        stn = copy.deepcopy(self.stn)
+        stn.add_task(task, insertion_point)
+
+        try:
+            dispatchable_graph = self.stp.solve(stn)
+            return stn, dispatchable_graph
+
+        except NoSTPSolution:
             raise NoSTPSolution()
 
-        self.risk_metric, self.dispatchable_graph = result_stp
-
-    def compute_temporal_metric(self, temporal_criterion):
-        if self.dispatchable_graph:
-            self.temporal_metric = self.stp.compute_temporal_metric(self.dispatchable_graph, temporal_criterion)
-        else:
-            logger.error("The dispatchable graph is empty. Solve the stp first")
-
-    def compute_temporal_info(self):
-        if self.dispatchable_graph:
-            idle_time = self.dispatchable_graph.get_idle_time()
-            logger.debug("Idle time: %s", idle_time)
-            completion_time = self.dispatchable_graph.get_completion_time()
-            logger.debug("Completion time: %s", completion_time)
-            makespan = self.dispatchable_graph.get_makespan()
-            logger.debug("Makespan: %s", makespan)
-
-    def add_task_to_stn(self, task_lot, position):
-        """
-        Adds a task to the stn at the given position
-        Args:
-            task (obj): task object to add to the stn
-            position (int) : position in the STN where the task will be added
-        """
-        stn_task = self.to_stn_task(task_lot, position)
-        self.stn.add_task(stn_task, position)
-
-    def to_stn_task(self, task_lot, position):
+    def to_stn_task(self, task_lot, insertion_point):
         """ Converts a task to an stn task
 
         Args:
             task_lot (obj): task_lot object to be converted
-            zero_timepoint (TimeStamp): Zero Time Point. Origin time to which task temporal information is referenced to
+            insertion_point(int): position in the stn in which the task will be insterted
         """
         if not task_lot.constraints.hard:
             # Get latest finish time of task in previous position
-            if position > 1:
-                previous_task_id = self.dispatchable_graph.get_task_id(position-1)
+            if insertion_point > 1:
+                previous_task_id = self.dispatchable_graph.get_task_id(insertion_point-1)
                 r_latest_finish_time = self.dispatchable_graph.get_time(previous_task_id, "finish", False)
 
                 latest_finish_time = self.zero_timepoint + timedelta(minutes=r_latest_finish_time)
@@ -116,16 +95,10 @@ class Timetable(object):
                            r_earliest_start_time,
                            r_latest_start_time,
                            task_lot.start_location,
-                           task_lot.finish_location)
+                           task_lot.finish_location,
+                           hard_constraints=task_lot.constraints.hard)
 
         return stn_task
-
-    def remove_task_from_stn(self, position):
-        """ Removes task from the stn at the given position
-        Args:
-            position (int): the task at this position in the STN will be removed
-        """
-        self.stn.remove_task(position)
 
     def get_tasks(self):
         """ Returns the tasks contained in the timetable
@@ -179,29 +152,10 @@ class Timetable(object):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
-
-        if self.zero_timepoint:
-            timetable_dict['zero_timepoint'] = self.zero_timepoint.to_str()
-        else:
-            timetable_dict['zero_timepoint'] = self.zero_timepoint
-
-        timetable_dict['risk_metric'] = self.risk_metric
-        timetable_dict['temporal_metric'] = self.temporal_metric
-
-        if self.stn:
-            timetable_dict['stn'] = self.stn.to_dict()
-        else:
-            timetable_dict['stn'] = self.stn
-
-        if self.dispatchable_graph:
-            timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
-        else:
-            timetable_dict['dispatchable_graph'] = self.dispatchable_graph
-
-        if self.schedule:
-            timetable_dict['schedule'] = self.schedule.to_dict()
-        else:
-            timetable_dict['schedule'] = self.schedule
+        timetable_dict['zero_timepoint'] = self.zero_timepoint.to_str()
+        timetable_dict['stn'] = self.stn.to_dict()
+        timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
+        timetable_dict['schedule'] = self.schedule.to_dict()
 
         return timetable_dict
 
@@ -209,53 +163,22 @@ class Timetable(object):
     def from_dict(timetable_dict, stp):
         robot_id = timetable_dict['robot_id']
         timetable = Timetable(robot_id, stp)
-        stn_cls = timetable.initialize_stn()
+        stn_cls = timetable.stp.get_stn()
 
         zero_timepoint = timetable_dict.get('zero_timepoint')
-        if zero_timepoint:
-            timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
-        else:
-            timetable.zero_timepoint = zero_timepoint
-
-        timetable.risk_metric = timetable_dict['risk_metric']
-        timetable.temporal_metric = timetable_dict['temporal_metric']
-
-        stn = timetable_dict.get('stn')
-        if stn:
-            timetable.stn = stn_cls.from_dict(stn)
-        else:
-            timetable.stn = stn
-
-        dispatchable_graph = timetable_dict.get('dispatchable_graph')
-        if dispatchable_graph:
-            timetable.dispatchable_graph = stn_cls.from_dict(dispatchable_graph)
-        else:
-            timetable.dispatchable_graph = dispatchable_graph
-
-        schedule = timetable_dict.get('schedule')
-        if schedule:
-            timetable.schedule = stn_cls.from_dict(schedule)
-        else:
-            timetable.schedule = schedule
+        timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
+        timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
+        timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
+        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
 
         return timetable
-
-    def update(self, zero_timepoint, robot_id, task_lot, position, temporal_metric):
-        self.zero_timepoint = zero_timepoint
-        self.add_task_to_stn(task_lot, position)
-        try:
-            self.solve_stp()
-            self.temporal_metric = temporal_metric
-        except NoSTPSolution:
-            logging.warning("The STN is inconsistent with task %s in position %s", task_lot.task.task_id, position)
-            raise InvalidAllocation(task_lot.task.task_id, robot_id, position)
 
     def store(self):
 
         timetable = TimetableMongo(self.robot_id,
                                    self.zero_timepoint.to_datetime(),
-                                   self.temporal_metric,
-                                   self.risk_metric,
+                                   self.dispatchable_graph.temporal_metric,
+                                   self.dispatchable_graph.risk_metric,
                                    self.stn.to_dict(),
                                    self.dispatchable_graph.to_dict())
         timetable.save()
@@ -265,15 +188,15 @@ class Timetable(object):
             timetable_mongo = TimetableMongo.objects.get_timetable(self.robot_id)
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
-            self.zero_timepoint = timetable_mongo.zero_timepoint
-            self.temporal_metric = timetable_mongo.temporal_metric
-            self.risk_metric = timetable_mongo.risk_metric
-        except DoesNotExist as err:
+            self.zero_timepoint = TimeStamp.from_datetime(timetable_mongo.zero_timepoint)
+            self.dispatchable_graph.temporal_metric = timetable_mongo.temporal_metric
+            self.dispatchable_graph.risk_metric = timetable_mongo.risk_metric
+        except DoesNotExist:
             logging.debug("The timetable of robot %s is empty", self.robot_id)
-            self.stn = self.initialize_stn()
-            self.dispatchable_graph = None
-            self.zero_timepoint = None
-            self.temporal_metric = None
-            self.risk_metric = None
-            self.schedule = None
+            # Resetting values
+            self.stn = self.stp.get_stn()
+            self.dispatchable_graph = self.stp.get_stn()
+            self.schedule = self.stp.get_stn()
+
+
 

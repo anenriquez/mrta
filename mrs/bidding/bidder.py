@@ -1,7 +1,7 @@
 import copy
 import logging
 
-from mrs.exceptions.allocation import NoSTPSolution
+from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.allocation import FinishRound
 from mrs.allocation.allocation import TaskAnnouncement, Allocation
 from mrs.bidding.bid import Bid
@@ -40,10 +40,11 @@ class Bidder:
         self.ccu_store = kwargs.get('ccu_store')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
+        self.logger.critical("Initial timetable %s", self.timetable.stn)
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
-        self.bidding_rule = BiddingRule(robustness, temporal)
+        self.bidding_rule = BiddingRule(temporal)
 
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
@@ -83,7 +84,7 @@ class Bidder:
         for task_lot in task_announcement.tasks_lots:
             self.logger.debug("Computing bid of task %s", task_lot.task.task_id)
 
-            # Insert task in each possible position of the stn and
+            # Insert task in each possible insertion_point of the stn and
             # get the best_bid for each task
             best_bid = self.insert_task(task_lot, round_id)
 
@@ -124,19 +125,18 @@ class Bidder:
 
         n_tasks = len(self.timetable.get_tasks())
 
-        # Add task to the STN from position 1 onwards (position 0 is reserved for the zero_timepoint)
-        for position in range(1, n_tasks+2):
+        # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
+        for insertion_point in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
 
-            self.logger.debug("Schedule: %s", self.timetable.schedule)
-            if position == 1 and self.timetable.schedule:
-                self.logger.debug("Not adding task in position %s", position)
+            self.logger.debug("Schedule: %s", self.timetable.schedule.get_tasks())
+            if insertion_point == 1 and self.timetable.schedule.get_tasks():
+                self.logger.debug("Not adding task in insertion_point %s", insertion_point)
                 continue
 
-            self.logger.debug("Computing bid for task %s in position %s", task_lot.task.task_id, position)
-
+            self.logger.debug("Computing bid for task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
             try:
-                bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task_lot, position, self.timetable)
+                bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task_lot, insertion_point, self.timetable)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
@@ -144,13 +144,10 @@ class Bidder:
                         bid < best_bid or\
                         (bid == best_bid and bid.task_id < best_bid.task_id):
 
-                    best_bid = copy.deepcopy(bid)
+                    best_bid = bid
 
             except NoSTPSolution:
-                self.logger.debug("The STN is inconsistent with task %s in position %s", task_lot.task.task_id, position)
-
-            # Restore schedule for the next iteration
-            self.timetable.remove_task_from_stn(position)
+                self.logger.debug("The STN is inconsistent with task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
 
         return best_bid
 
@@ -182,10 +179,8 @@ class Bidder:
     def allocate_to_robot(self, task_id):
 
         # TODO: Refactor timetable update
-        self.timetable.stn = self.bid_placed.timetable.stn
-        self.timetable.dispatchable_graph = self.bid_placed.timetable.dispatchable_graph
-        self.timetable.temporal_metric = self.bid_placed.timetable.temporal_metric
-        self.timetable.risk_metric = self.bid_placed.timetable.risk_metric
+        self.timetable.stn = self.bid_placed.stn
+        self.timetable.dispatchable_graph = self.bid_placed.dispatchable_graph
 
         self.timetable.store()
 
