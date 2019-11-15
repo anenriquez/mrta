@@ -173,11 +173,11 @@ class Timetable(object):
         else:
             logger.error("The dispatchable graph is empty")
 
-    def assign_timepoint(self, sub_stn, allotted_time, timepoint_position=1):
-        sub_stn.assign_timepoint(allotted_time, timepoint_position)
+    def assign_timepoint(self, sub_stn, allotted_time, task_id):
+        sub_stn.assign_timepoint(allotted_time, task_id, "navigation")
         if self.stp.is_consistent(sub_stn):
-            self.dispatchable_graph.assign_timepoint(allotted_time, timepoint_position)
-            self.stn.assign_timepoint(allotted_time, timepoint_position)
+            self.dispatchable_graph.assign_timepoint(allotted_time, task_id, "navigation")
+            self.stn.assign_timepoint(allotted_time, task_id, "navigation")
             self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
 
         else:

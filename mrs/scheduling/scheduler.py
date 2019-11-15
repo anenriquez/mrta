@@ -34,7 +34,7 @@ class Scheduler(object):
         finish_time = self.timetable.get_finish_time(task_id)
         sub_stn = self.timetable.stn.get_subgraph(self.n_tasks_sub_graph)
         try:
-            self.timetable.assign_timepoint(sub_stn, r_start_time)
+            self.timetable.assign_timepoint(sub_stn, r_start_time, task_id)
             task = Task.get_task(task_id)
 
             task_schedule = {"start_time": start_time.to_datetime(),
