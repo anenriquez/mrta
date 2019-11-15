@@ -91,10 +91,11 @@ if __name__ == '__main__':
     test = AllocationTest(config)
 
     test.load_tasks(dataset)
-    test.start()
 
     try:
-        time.sleep(60)
+        time.sleep(30)
+        test.start()
+        time.sleep(30)
         test.trigger()
         while not test.terminated:
             time.sleep(0.5)
