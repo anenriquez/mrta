@@ -130,11 +130,8 @@ class Bidder:
             # TODO check if the robot can make it to the task, if not, return
 
             if insertion_point == 1:
-                earliest_task_id = self.timetable.get_earliest_task_id()
-
-                if earliest_task_id and \
-                        Task.get_task_status(earliest_task_id).status != TaskStatusConst.ALLOCATED:
-
+                earliest_task = self.timetable.get_earliest_task()
+                if earliest_task and earliest_task.status.status != TaskStatusConst.ALLOCATED:
                     self.logger.debug("Not adding task in insertion_point %s", insertion_point)
                     continue
 

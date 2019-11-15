@@ -1,13 +1,15 @@
+import copy
 import logging
 from datetime import timedelta, datetime
 
+from fmlib.models.tasks import Task
 from fmlib.models.tasks import TimepointConstraints
-from mrs.db.models.timetable import Timetable as TimetableMongo
-from stn.exceptions.stp import NoSTPSolution
 from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
 from stn.task import STNTask
-import copy
+
+from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.execution import InconsistentSchedule
 
 logger = logging.getLogger("mrs.timetable")
@@ -116,12 +118,18 @@ class Timetable(object):
         """
         return self.stn.get_task_id(position)
 
-    def get_earliest_task_id(self):
-        """ Returns the id of the task with the earliest start time in the timetable
+    def get_earliest_task(self):
+        """ Returns the task with the earliest start time in the timetable
 
-        :return: task_id (string)
+        :return: task
         """
-        return self.stn.get_earliest_task_id()
+        task_id = self.stn.get_earliest_task_id()
+        if task_id:
+            try:
+                earliest_task = Task.get_task(task_id)
+                return earliest_task
+            except DoesNotExist:
+                logging.warning("Task %s is not in db", task_id)
 
     def get_r_time(self, task_id, lower_bound=True):
         r_start_time = self.dispatchable_graph.get_time(task_id, lower_bound=lower_bound)
@@ -165,11 +173,11 @@ class Timetable(object):
         else:
             logger.error("The dispatchable graph is empty")
 
-    def assign_timepoint(self, sub_stn, allotted_time, timepoint_position=1):
-        sub_stn.assign_timepoint(allotted_time, timepoint_position)
+    def assign_timepoint(self, sub_stn, allotted_time, task_id):
+        sub_stn.assign_timepoint(allotted_time, task_id, "navigation")
         if self.stp.is_consistent(sub_stn):
-            self.dispatchable_graph.assign_timepoint(allotted_time, timepoint_position)
-            self.stn.assign_timepoint(allotted_time, timepoint_position)
+            self.dispatchable_graph.assign_timepoint(allotted_time, task_id, "navigation")
+            self.stn.assign_timepoint(allotted_time, task_id, "navigation")
             self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
 
         else:
