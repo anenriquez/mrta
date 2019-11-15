@@ -80,12 +80,11 @@ class ScheduleMonitor:
         self.trigger_execution()
 
     def trigger_scheduling(self):
-        earliest_task_id = self.timetable.get_earliest_task_id()
-        if earliest_task_id and \
-                Task.get_task_status(earliest_task_id).status == TaskStatusConst.ALLOCATED:
-            start_time = self.timetable.get_start_time(earliest_task_id)
+        earliest_task = self.timetable.get_earliest_task()
+        if earliest_task and earliest_task.status.status == TaskStatusConst.ALLOCATED:
+            start_time = self.timetable.get_start_time(earliest_task.task_id)
             if self.scheduler.is_schedulable(start_time):
-                self.request_dispatch(earliest_task_id)
+                self.request_dispatch(earliest_task.task_id)
 
     def trigger_execution(self):
         scheduled_tasks = Task.get_tasks_by_status(TaskStatusConst.SCHEDULED)
