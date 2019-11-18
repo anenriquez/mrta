@@ -25,6 +25,9 @@ class TimetableManager(object):
         else:
             self.logger.error("The zero timepoint has not been initialized")
 
+    def get_timetable(self, robot_id):
+        return self.timetables.get(robot_id)
+
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
         timetable = Timetable(robot_id, self.stp_solver)
