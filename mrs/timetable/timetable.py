@@ -11,6 +11,7 @@ from stn.task import STNTask
 
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.execution import InconsistentSchedule
+from stn.methods.fpc import get_minimal_network
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -110,39 +111,47 @@ class Timetable(object):
         """
         return self.stn.get_tasks()
 
-    def get_task_id(self, position):
-        """ Returns the id of the task in the given position
+    def get_task(self, position):
+        """ Returns the task in the given position
 
         :param position: (int) position in the STN
-        :return: (string) task id
+        :return: (Task) task
         """
-        return self.stn.get_task_id(position)
-
-    def get_earliest_task(self):
-        """ Returns the task with the earliest start time in the timetable
-
-        :return: task
-        """
-        task_id = self.stn.get_earliest_task_id()
+        task_id = self.stn.get_task_id(position)
         if task_id:
-            try:
-                earliest_task = Task.get_task(task_id)
-                return earliest_task
-            except DoesNotExist:
-                logging.warning("Task %s is not in db", task_id)
+            return Task.get_task(task_id)
 
-    def get_r_time(self, task_id, lower_bound=True):
-        r_start_time = self.dispatchable_graph.get_time(task_id, lower_bound=lower_bound)
-        return r_start_time
+    def get_earliest_tasks(self, n_tasks=2):
+        """ Returns a list of the earliest n_tasks in the timetable
+
+        :return: list of tasks
+        """
+        tasks = list()
+        for position in range(1, n_tasks+1):
+            task_id = self.stn.get_task_id(position)
+            if task_id:
+                try:
+                    tasks.append(Task.get_task(task_id))
+                except DoesNotExist:
+                    logging.warning("Task %s is not in db", task_id)
+        return tasks
+
+    def get_r_time(self, task_id, node_type='navigation', lower_bound=True):
+        r_time = self.dispatchable_graph.get_time(task_id, node_type, lower_bound)
+        return r_time
 
     def get_start_time(self, task_id):
         r_start_time = self.get_r_time(task_id)
         start_time = self.zero_timepoint + timedelta(minutes=r_start_time)
-
         return start_time
 
+    def get_pickup_time(self, task_id):
+        r_pickup_time = self.get_r_time(task_id, 'start', False)
+        pickup_time = self.zero_timepoint + timedelta(minutes=r_pickup_time)
+        return pickup_time
+
     def get_finish_time(self, task_id):
-        r_finish_time = self.get_r_time(task_id, lower_bound=False)
+        r_finish_time = self.get_r_time(task_id, 'finish', False)
         finish_time = self.zero_timepoint + timedelta(minutes=r_finish_time)
         return finish_time
 
@@ -173,15 +182,19 @@ class Timetable(object):
         else:
             logger.error("The dispatchable graph is empty")
 
-    def assign_timepoint(self, sub_stn, allotted_time, task_id):
-        sub_stn.assign_timepoint(allotted_time, task_id, "navigation")
-        if self.stp.is_consistent(sub_stn):
-            self.dispatchable_graph.assign_timepoint(allotted_time, task_id, "navigation")
-            self.stn.assign_timepoint(allotted_time, task_id, "navigation")
-            self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
+    def assign_timepoint(self, r_time, task_id, node_type):
+        # TODO: Use sub-stn to get minimal_network
+        minimal_network = get_minimal_network(self.stn)
 
+        if minimal_network:
+            minimal_network.assign_timepoint(r_time, task_id, node_type)
+            if self.stp.is_consistent(minimal_network):
+                self.stn.assign_timepoint(r_time, task_id, node_type)
+                self.dispatchable_graph.assign_timepoint(r_time, task_id, node_type)
+                self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
+                self.store()
         else:
-            raise InconsistentSchedule(allotted_time)
+            raise InconsistentSchedule(r_time)
 
     def to_dict(self):
         timetable_dict = dict()

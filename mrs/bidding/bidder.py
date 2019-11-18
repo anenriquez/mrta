@@ -128,12 +128,8 @@ class Bidder:
         # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
         for insertion_point in range(1, n_tasks+2):
             # TODO check if the robot can make it to the task, if not, return
-
-            if insertion_point == 1:
-                earliest_task = self.timetable.get_earliest_task()
-                if earliest_task and earliest_task.status.status != TaskStatusConst.ALLOCATED:
-                    self.logger.debug("Not adding task in insertion_point %s", insertion_point)
-                    continue
+            if not self.insert_in(insertion_point):
+                continue
 
             self.logger.debug("Computing bid for task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
             try:
@@ -151,6 +147,13 @@ class Bidder:
                 self.logger.debug("The STN is inconsistent with task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
 
         return best_bid
+
+    def insert_in(self, insertion_point):
+        task = self.timetable.get_task(insertion_point)
+        if task and task.status.status != TaskStatusConst.ALLOCATED:
+            self.logger.debug("Not adding task in insertion_point %s", insertion_point)
+            return False
+        return True
 
     @staticmethod
     def get_smallest_bid(bids):

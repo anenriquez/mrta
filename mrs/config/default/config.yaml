@@ -18,9 +18,8 @@ plugins:
     auctioneer:
       round_time: 15 # seconds
       alternative_timeslots: True
-      freeze_window: 5 # seconds
     dispatcher:
-      re-allocate: True
+      freeze_window: 5 # seconds
 robot_proxy:
   bidder:
     bidding_rule:
@@ -28,8 +27,6 @@ robot_proxy:
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
   schedule_monitor:
-    freeze_window: 5 # seconds
-    n_tasks_sub_graph: 2
     corrective_measure: re-allocate
   robot_store:
     db_name: robot_store

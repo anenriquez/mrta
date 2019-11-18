@@ -3,7 +3,6 @@ import logging
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
-from mrs.dispatching.request import DispatchRequest
 from mrs.execution.interface import ExecutorInterface
 from mrs.scheduling.scheduler import Scheduler
 
@@ -21,10 +20,8 @@ class ScheduleMonitor:
     def __init__(self, robot_id,
                  stp_solver,
                  timetable,
-                 freeze_window,
                  allocation_method,
                  corrective_measure,
-                 n_tasks_sub_graph=2,
                  **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
 
@@ -47,12 +44,13 @@ class ScheduleMonitor:
         self.timetable = timetable
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
+        self.dispatched_tasks = list()
 
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
 
         self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
 
-        self.scheduler = Scheduler(self.timetable, self.stp_solver, self.robot_id, freeze_window, n_tasks_sub_graph)
+        self.scheduler = Scheduler(self.timetable, self.stp_solver, self.robot_id)
         self.executor_interface = ExecutorInterface(self.robot_id)
 
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
@@ -74,34 +72,16 @@ class ScheduleMonitor:
             self.ccu_store = ccu_store
 
     def run(self):
-        if not self.scheduler.is_scheduling:
-            self.trigger_scheduling()
-
-        self.trigger_execution()
-
-    def trigger_scheduling(self):
-        earliest_task = self.timetable.get_earliest_task()
-        if earliest_task and earliest_task.status.status == TaskStatusConst.ALLOCATED:
-            start_time = self.timetable.get_start_time(earliest_task.task_id)
-            if self.scheduler.is_schedulable(start_time):
-                self.request_dispatch(earliest_task.task_id)
-
-    def trigger_execution(self):
-        scheduled_tasks = Task.get_tasks_by_status(TaskStatusConst.SCHEDULED)
-        for task in scheduled_tasks:
-            if task.is_executable():
-                self.executor_interface.execute(task.task_id)
-
-    def request_dispatch(self, task_id):
-        dispatch_request = DispatchRequest(task_id)
-        msg = self.api.create_message(dispatch_request)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
+        if self.dispatched_tasks:
+            task = self.dispatched_tasks.pop(0)
+            self.logger.debug("Scheduling task %s", task.task_id)
+            self.scheduler.schedule(task.task_id)
 
     def task_cb(self, msg):
         payload = msg['payload']
         task = Task.from_payload(payload)
         task.update_status(TaskStatusConst.DISPATCHED)
-        self.scheduler.schedule(task.task_id)
+        self.dispatched_tasks.append(task)
 
 
 
