@@ -30,6 +30,10 @@ class Dispatcher(object):
         if ccu_store:
             self.ccu_store = ccu_store
 
+    def register_robot(self, robot_id):
+        self.logger.debug("Registering robot %s", robot_id)
+        self.robot_ids.append(robot_id)
+
     def dispatch_request_cb(self, msg):
         payload = msg['payload']
         dispatch_request = DispatchRequest.from_payload(payload)
