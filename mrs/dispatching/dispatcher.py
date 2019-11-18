@@ -9,6 +9,19 @@ from ropod.utils.timestamp import TimeStamp
 class Dispatcher(object):
 
     def __init__(self, stp_solver, timetable_manager, freeze_window, **kwargs):
+        """ Dispatches tasks to a multi-robot system based on temporal constraints
+
+        Args:
+
+            stp_solver (STP): Simple Temporal Problem object
+            timetable_manager (TimetableManager): contains the timetables of all the robots in the fleet
+            freeze_window (float): Defines the time (minutes) within which a task can be scheduled
+                        e.g, with a freeze window of 2 minutes, a task can be scheduled if its earliest
+                        start navigation time is within the next 2 minutes.
+            kwargs:
+                api (API): object that provides middleware functionality
+                robot_store (robot_store): interface to interact with the db
+        """
         self.logger = logging.getLogger('mrs.dispatcher')
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
