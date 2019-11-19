@@ -11,3 +11,15 @@ class InconsistentSchedule(Exception):
         self.relative_time = allotted_time
 
 
+class MissingDispatchableGraph(Exception):
+    def __init__(self, robot_id):
+        """
+        Raised when a component does not have a dispatchable graph
+        Args:
+            robot_id (str):  id of the robot, e.g. ropod_001
+
+        """
+        Exception.__init__(self, robot_id)
+        self.robot_id = robot_id
+
+

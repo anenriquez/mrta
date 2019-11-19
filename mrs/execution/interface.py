@@ -4,6 +4,7 @@ from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.exceptions.execution import InconsistentSchedule
+from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.monitor import ScheduleMonitor
 
 
@@ -37,6 +38,8 @@ class ExecutorInterface:
             try:
                 scheduled_task = self.schedule_monitor.schedule(task)
                 self.scheduled_tasks.append(scheduled_task)
+            except MissingDispatchableGraph:
+                pass
             except InconsistentSchedule:
                 pass
 
@@ -51,5 +54,6 @@ class ExecutorInterface:
         self.logger.debug("Received task %s", task.task_id)
         if self.robot_id in task.assigned_robots:
             self.queued_tasks.append(task)
+            task.update_status(TaskStatusConst.DISPATCHED)
 
 

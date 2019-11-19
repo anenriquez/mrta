@@ -7,6 +7,7 @@ from stn.stn import STN
 from mrs.dispatching.d_graph_update import DGraphUpdate
 from mrs.scheduling.scheduler import Scheduler
 from mrs.exceptions.execution import InconsistentSchedule
+from mrs.exceptions.execution import MissingDispatchableGraph
 
 
 class ScheduleMonitor:
@@ -52,11 +53,13 @@ class ScheduleMonitor:
     def schedule(self, task):
         try:
             if not self.dispatchable_graph:
-                self.logger.warning("The schedule monitor does not have a dispatchable graph")
-                return
+                self.logger.error("The schedule monitor does not have a dispatchable graph")
+                raise MissingDispatchableGraph(self.robot_id)
+
             scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
             self.dispatchable_graph = dispatchable_task
             return scheduled_task
+
         except InconsistentSchedule as e:
             # TODO: Trigger corrective measure
             raise InconsistentSchedule(e.relative_time)
