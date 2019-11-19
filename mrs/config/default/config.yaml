@@ -63,7 +63,7 @@ robot_proxy:
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
         - msg_type: 'D-GRAPH-UPDATE'
-          component: 'executor_interface.d_graph_update_cb'
+          component: 'executor_interface.schedule_monitor.d_graph_update_cb'
         - msg_type: 'TASK'
           component: 'executor_interface.task_cb'
         - msg_type: 'TASK'

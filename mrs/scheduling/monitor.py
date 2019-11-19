@@ -1,5 +1,10 @@
 import logging
 
+import networkx as nx
+from ropod.utils.timestamp import TimeStamp
+from stn.stn import STN
+
+from mrs.dispatching.d_graph_update import DGraphUpdate
 from mrs.scheduling.scheduler import Scheduler
 
 
@@ -30,6 +35,8 @@ class ScheduleMonitor:
         self.stp_solver = stp_solver
         self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
         self.scheduler = Scheduler(self.stp_solver, self.robot_id)
+        self.dispatchable_graph = None
+        self.zero_timepoint = None
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
 
@@ -40,4 +47,31 @@ class ScheduleMonitor:
             raise ValueError(corrective_measure)
 
         return corrective_measure
+
+    def update_dispatchable_graph(self, dispatchable_graph):
+        current_task_ids = self.dispatchable_graph.get_tasks()
+        new_task_ids = dispatchable_graph.get_tasks()
+
+        for task_id in new_task_ids:
+            if task_id not in current_task_ids:
+                # Get graph with new task
+                node_ids = dispatchable_graph.get_task_node_ids(task_id)
+                node_ids.insert(0, 0)
+                task_graph = dispatchable_graph.subgraph(node_ids)
+
+                # Update dispatchable graph to include new task
+                self.dispatchable_graph = nx.compose(self.dispatchable_graph, task_graph)
+
+    def d_graph_update_cb(self, msg):
+        self.logger.critical("Received d-graph-update")
+        payload = msg['payload']
+        d_graph_update = DGraphUpdate.from_payload(payload)
+        self.zero_timepoint = TimeStamp.from_str(d_graph_update.zero_timepoint)
+        dispatchable_graph = STN.from_dict(d_graph_update.dispatchable_graph)
+        if self.dispatchable_graph:
+            self.update_dispatchable_graph(dispatchable_graph)
+        else:
+            self.dispatchable_graph = dispatchable_graph
+
+
 
