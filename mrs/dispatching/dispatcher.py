@@ -1,9 +1,9 @@
 
 import logging
-from datetime import timedelta
 
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
+
+from mrs.dispatching.schedule_monitor import ScheduleMonitor
 
 
 class Dispatcher(object):
@@ -28,7 +28,7 @@ class Dispatcher(object):
 
         self.stp_solver = stp_solver
         self.timetable_manager = timetable_manager
-        self.freeze_window = timedelta(seconds=freeze_window)
+        self.schedule_monitor = ScheduleMonitor(freeze_window)
 
         self.robot_ids = list()
 
@@ -53,14 +53,8 @@ class Dispatcher(object):
             for task in tasks:
                 if task.status.status == TaskStatusConst.PLANNED:
                     start_time = timetable.get_start_time(task.task_id)
-                    if self.is_schedulable(start_time):
+                    if self.schedule_monitor.is_schedulable(start_time):
                         self.dispatch_task(task, robot_id)
-
-    def is_schedulable(self, start_time):
-        current_time = TimeStamp()
-        if start_time.get_difference(current_time) < self.freeze_window:
-            return True
-        return False
 
     def dispatch_task(self, task, robot_id):
         """
@@ -70,7 +64,7 @@ class Dispatcher(object):
             task: a ropod.structs.task.Task object
             robot_id: a robot UUID
         """
-        self.logger.critical("Dispatching task to robot %s", robot_id)
+        self.logger.critical("Dispatching task %s to robot %s", task.task_id, robot_id)
         task_msg = self.api.create_message(task)
         self.api.publish(task_msg, peer=robot_id)
         task.update_status(TaskStatusConst.DISPATCHED)
