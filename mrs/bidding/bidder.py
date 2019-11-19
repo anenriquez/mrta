@@ -150,7 +150,7 @@ class Bidder:
 
     def insert_in(self, insertion_point):
         task = self.timetable.get_task(insertion_point)
-        if task and task.status.status != TaskStatusConst.PLANNED:
+        if task and task.status.status != TaskStatusConst.ALLOCATED:
             self.logger.debug("Not adding task in insertion_point %s", insertion_point)
             return False
         return True
