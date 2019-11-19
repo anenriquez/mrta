@@ -38,6 +38,7 @@ class Robot(object):
         try:
             self.api.start()
             while True:
+                self.executor_interface.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)

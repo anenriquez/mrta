@@ -6,6 +6,7 @@ from stn.stn import STN
 
 from mrs.dispatching.d_graph_update import DGraphUpdate
 from mrs.scheduling.scheduler import Scheduler
+from mrs.exceptions.execution import InconsistentSchedule
 
 
 class ScheduleMonitor:
@@ -47,6 +48,18 @@ class ScheduleMonitor:
             raise ValueError(corrective_measure)
 
         return corrective_measure
+
+    def schedule(self, task):
+        try:
+            if not self.dispatchable_graph:
+                self.logger.warning("The schedule monitor does not have a dispatchable graph")
+                return
+            scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
+            self.dispatchable_graph = dispatchable_task
+            return scheduled_task
+        except InconsistentSchedule as e:
+            # TODO: Trigger corrective measure
+            raise InconsistentSchedule(e.relative_time)
 
     def update_dispatchable_graph(self, dispatchable_graph):
         current_task_ids = self.dispatchable_graph.get_tasks()
