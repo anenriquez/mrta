@@ -26,7 +26,7 @@ robot_proxy:
       robustness: srea  # has to be the same as the stp_solver
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
-  schedule_monitor:
+  executor_interface:
     corrective_measure: re-allocate
   robot_store:
     db_name: robot_store
@@ -71,7 +71,7 @@ robot_proxy:
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
         - msg_type: 'TASK'
-          component: 'schedule_monitor.task_cb'
+          component: 'executor_interface.task_cb'
 
 api:
   version: 0.1.0

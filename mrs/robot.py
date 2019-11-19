@@ -9,7 +9,7 @@ class Robot(object):
         self.api = kwargs.get('api')
         self.robot_store = kwargs.get('robot_store')
         self.bidder = bidder
-        self.schedule_monitor = kwargs.get('schedule_monitor')
+        self.executor_interface = kwargs.get('executor_interface')
 
         if self.api:
             self.api.register_callbacks(self)
@@ -29,7 +29,6 @@ class Robot(object):
         try:
             self.api.start()
             while True:
-                self.schedule_monitor.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
