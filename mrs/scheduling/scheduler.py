@@ -38,7 +38,7 @@ class Scheduler(object):
 
         self.logger.warning("Task %s could not be scheduled between %s and %s", task.task_id,
                             earliest_start_time, latest_start_time)
-        raise InconsistentSchedule(latest_start_time)
+        raise InconsistentSchedule(earliest_start_time, latest_start_time)
 
 
 

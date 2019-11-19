@@ -62,7 +62,7 @@ class ScheduleMonitor:
 
         except InconsistentSchedule as e:
             # TODO: Trigger corrective measure
-            raise InconsistentSchedule(e.relative_time)
+            raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def update_dispatchable_graph(self, dispatchable_graph):
         current_task_ids = self.dispatchable_graph.get_tasks()
