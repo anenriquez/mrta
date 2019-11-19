@@ -72,7 +72,7 @@ class MRS(object):
 
             while True:
                 self.auctioneer.run()
-                self.dispatcher.dispatch_tasks()
+                self.dispatcher.run()
                 self.api.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):

@@ -1,4 +1,6 @@
 import time
+from fmlib.models.tasks import Task
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class Robot(object):
@@ -24,6 +26,13 @@ class Robot(object):
             self.api.register_callbacks(self)
         if robot_store:
             self.robot_store = robot_store
+
+    def task_cb(self, msg):
+        payload = msg['payload']
+        task = Task.from_payload(payload)
+        self.logger.critical("Received task %s", task.task_id)
+        if self.robot_id in task.assigned_robots:
+            task.update_status(TaskStatusConst.DISPATCHED)
 
     def run(self):
         try:

@@ -41,18 +41,14 @@ robot_proxy:
         interface: null
         groups:
           - TASK-ALLOCATION
-          - ROPOD
         message_types: # Types of messages the node will listen to. Messages not listed will be ignored
           - TASK-ANNOUNCEMENT
           - ALLOCATION
+          - D-GRAPH-UPDATE
           - TASK
         debug_msgs: false
       acknowledge: false
       publish:
-        task:
-          groups: ['ROPOD', 'TASK-ALLOCATION'] # Optional, if not present will shout to all groups
-          msg_type: 'TASK'
-          method: shout
         bid:
           groups: ['TASK-ALLOCATION']
           msg_type: 'BID'
@@ -61,17 +57,17 @@ robot_proxy:
           groups: ['TASK-ALLOCATION']
           msg_type: 'FINISH-ROUND'
           method: shout
-        dispatch-request:
-          groups: ['TASK-ALLOCATION']
-          msg_type: 'DISPATCH-REQUEST'
-          method: shout
       callbacks:
         - msg_type: 'TASK-ANNOUNCEMENT'
           component: 'bidder.task_announcement_cb'
         - msg_type: 'ALLOCATION'
           component: 'bidder.allocation_cb'
+        - msg_type: 'D-GRAPH-UPDATE'
+          component: 'executor_interface.d_graph_update_cb'
         - msg_type: 'TASK'
           component: 'executor_interface.task_cb'
+        - msg_type: 'TASK'
+          component: '.task_cb'
 
 api:
   version: 0.1.0
@@ -84,14 +80,11 @@ api:
       node_name: fms_zyre_api
       interface: null
       groups:
-        - ROPOD
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-        - TASK-PROGRESS
         - BID
         - FINISH-ROUND
         - START-TEST
-        - DISPATCH-REQUEST
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -105,6 +98,10 @@ api:
         groups: ['TASK-ALLOCATION']
         method: shout
       task:
+        msg_type: 'TASK'
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      d-graph-update:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
         method: whisper
