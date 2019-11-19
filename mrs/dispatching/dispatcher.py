@@ -80,7 +80,7 @@ class Dispatcher(object):
 
     def send_d_graph_update(self, timetable, robot_id):
         sub_dispatchable_graph = timetable.dispatchable_graph.get_subgraph(n_tasks=self.timetable_manager.n_tasks_queue)
-        d_graph_update = DGraphUpdate(sub_dispatchable_graph)
+        d_graph_update = DGraphUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
         d_graph_update_msg = self.api.create_message(d_graph_update)
         self.api.publish(d_graph_update_msg, peer=robot_id)
 

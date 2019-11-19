@@ -5,6 +5,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 from mrs.scheduling.monitor import ScheduleMonitor
 import networkx as nx
 from stn.stn import STN
+from ropod.utils.timestamp import TimeStamp
 
 
 class ExecutorInterface:
@@ -22,6 +23,7 @@ class ExecutorInterface:
                                                 corrective_measure)
         self.queued_tasks = list()
         self.dispatchable_graph = None
+        self.zero_timepoint = None
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
         self.logger.debug("Executor interface initialized %s", self.robot_id)
 
@@ -55,6 +57,7 @@ class ExecutorInterface:
         self.logger.critical("Received d-graph-update")
         payload = msg['payload']
         d_graph_update = DGraphUpdate.from_payload(payload)
+        self.zero_timepoint = TimeStamp.from_str(d_graph_update.zero_timepoint)
         dispatchable_graph = STN.from_dict(d_graph_update.dispatchable_graph)
         if self.dispatchable_graph:
             self.update_dispatchable_graph(dispatchable_graph)
