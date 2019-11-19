@@ -31,8 +31,8 @@ class MRTAFactory:
         self._components = {}
 
         self.stp_solver = self.get_stp_solver()
-
-        self.timetable_manager = TimetableManager(self.stp_solver)
+        n_tasks_queue = kwargs.get('n_tasks_queue', 3)
+        self.timetable_manager = TimetableManager(self.stp_solver, n_tasks_queue=n_tasks_queue)
 
         self.register_component('auctioneer', Auctioneer)
         self.register_component('dispatcher', Dispatcher)

@@ -4,7 +4,7 @@ from fmlib.api import API
 from fmlib.config.builders import Store
 
 from mrs.bidding.bidder import Bidder
-from mrs.scheduling.monitor import ScheduleMonitor
+from mrs.execution.interface import ExecutorInterface
 from mrs.timetable.timetable import Timetable
 
 
@@ -14,7 +14,7 @@ class RobotFactory:
         self._components = dict()
 
         self.register_component('bidder', Bidder)
-        self.register_component('schedule_monitor', ScheduleMonitor)
+        self.register_component('executor_interface', ExecutorInterface)
 
     def register_component(self, component_name, component):
         self._components[component_name] = component

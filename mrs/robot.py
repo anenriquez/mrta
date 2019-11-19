@@ -1,4 +1,6 @@
 import time
+from fmlib.models.tasks import Task
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class Robot(object):
@@ -9,7 +11,7 @@ class Robot(object):
         self.api = kwargs.get('api')
         self.robot_store = kwargs.get('robot_store')
         self.bidder = bidder
-        self.schedule_monitor = kwargs.get('schedule_monitor')
+        self.executor_interface = kwargs.get('executor_interface')
 
         if self.api:
             self.api.register_callbacks(self)
@@ -25,11 +27,17 @@ class Robot(object):
         if robot_store:
             self.robot_store = robot_store
 
+    def task_cb(self, msg):
+        payload = msg['payload']
+        task = Task.from_payload(payload)
+        self.logger.critical("Received task %s", task.task_id)
+        if self.robot_id in task.assigned_robots:
+            task.update_status(TaskStatusConst.DISPATCHED)
+
     def run(self):
         try:
             self.api.start()
             while True:
-                self.schedule_monitor.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
