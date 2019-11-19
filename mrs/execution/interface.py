@@ -17,10 +17,12 @@ class ExecutorInterface:
         self.robot_id = robot_id
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
+        time_resolution = kwargs.get('time_resolution', 0.5)
         self.schedule_monitor = ScheduleMonitor(robot_id,
                                                 stp_solver,
                                                 allocation_method,
-                                                corrective_measure)
+                                                corrective_measure,
+                                                time_resolution)
         self.queued_tasks = list()
         self.scheduled_tasks = list()
         self.ongoing_task = None

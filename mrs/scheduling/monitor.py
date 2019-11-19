@@ -23,7 +23,8 @@ class ScheduleMonitor:
     def __init__(self, robot_id,
                  stp_solver,
                  allocation_method,
-                 corrective_measure):
+                 corrective_measure,
+                 time_resolution):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
 
        Args:
@@ -36,7 +37,7 @@ class ScheduleMonitor:
         self.robot_id = robot_id
         self.stp_solver = stp_solver
         self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
-        self.scheduler = Scheduler(self.stp_solver, self.robot_id)
+        self.scheduler = Scheduler(self.stp_solver, self.robot_id, time_resolution)
         self.dispatchable_graph = None
         self.zero_timepoint = None
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
@@ -58,6 +59,8 @@ class ScheduleMonitor:
 
             scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
             self.dispatchable_graph = dispatchable_task
+            self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
+            self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
             return scheduled_task
 
         except InconsistentSchedule as e:

@@ -6,9 +6,10 @@ from datetime import timedelta
 
 
 class Scheduler(object):
-    def __init__(self, stp_solver, robot_id):
+    def __init__(self, stp_solver, robot_id, time_resolution):
         self.stp_solver = stp_solver
         self.robot_id = robot_id
+        self.time_resolution = time_resolution
         self.logger = logging.getLogger("mrs.scheduler")
         self.is_scheduling = False
 
@@ -27,8 +28,7 @@ class Scheduler(object):
     def schedule(self, task, dispatchable_graph, zero_timepoint):
         earliest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=True)
         latest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=False)
-        # TODO: Define resolution
-        start_times = np.arange(earliest_start_time, latest_start_time, 0.5).tolist()
+        start_times = np.arange(earliest_start_time, latest_start_time, self.time_resolution).tolist()
 
         for start_time in start_times:
             dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "navigation")
