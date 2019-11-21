@@ -119,18 +119,18 @@ class Auctioneer(object):
             self.tasks_to_allocate[task_lot.task.task_id] = task_lot
             self.round.finish()
 
-    def add_task(self, task):
-        task_lot = TaskLot.from_task(task)
-        self.tasks_to_allocate[task_lot.task.task_id] = task_lot
-
     def allocate(self, tasks):
+        tasks_to_allocate = dict()
         if isinstance(tasks, list):
-            for task in tasks:
-                self.add_task(task)
             self.logger.debug('Auctioneer received a list of tasks')
+            for task in tasks:
+                task_lot = TaskLot.from_task(task)
+                tasks_to_allocate[task_lot.task.task_id] = task_lot
         else:
-            self.add_task(tasks)
             self.logger.debug('Auctioneer received one task')
+            task_lot = TaskLot.from_task(tasks)
+            tasks_to_allocate[task_lot.task.task_id] = task_lot
+        self.tasks_to_allocate = tasks_to_allocate
 
     def announce_task(self):
         self.timetable_manager.fetch_timetables()
