@@ -40,7 +40,7 @@ class Bidder:
         self.ccu_store = kwargs.get('ccu_store')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
-        self.logger.critical("Initial timetable %s", self.timetable.stn)
+        self.logger.debug("Initial timetable %s", self.timetable.stn)
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
@@ -205,4 +205,12 @@ class Bidder:
 
         self.logger.debug("Robot %s sends close round msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
+
+    def archive_task(self, robot_id, task_id, node_id):
+        self.logger.debug("Deleting task %s", task_id)
+        self.timetable.remove_task(node_id)
+        self.logger.debug("STN robot %s: %s", robot_id, self.timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, self.timetable.dispatchable_graph)
+        # task = Task.get_task(task_id)
+        # task.update_status(TaskStatusConst.COMPLETED)
 

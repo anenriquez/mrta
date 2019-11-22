@@ -49,13 +49,13 @@ class Dispatcher(object):
         self.robot_ids.append(robot_id)
 
     def run(self):
+        self.dispatch_tasks()
+
         if self.timetable_manager.send_update_to:
             robot_id = self.timetable_manager.send_update_to
             self.timetable_manager.send_update_to = None
             timetable = self.timetable_manager.get_timetable(robot_id)
             self.send_d_graph_update(timetable, robot_id)
-
-        self.dispatch_tasks()
 
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:

@@ -58,6 +58,10 @@ robot_proxy:
           groups: ['TASK-ALLOCATION']
           msg_type: 'FINISH-ROUND'
           method: shout
+        archive-task:
+          groups: ['TASK-ALLOCATION']
+          msg_type: 'ARCHIVE-TASK'
+          method: shout
       callbacks:
         - msg_type: 'TASK-ANNOUNCEMENT'
           component: 'bidder.task_announcement_cb'
@@ -86,6 +90,7 @@ api:
         - BID
         - FINISH-ROUND
         - START-TEST
+        - ARCHIVE-TASK
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -113,6 +118,8 @@ api:
         component: 'auctioneer.bid_cb'
       - msg_type: 'FINISH-ROUND'
         component: 'auctioneer.finish_round_cb'
+      - msg_type: 'ARCHIVE-TASK'
+        component: '.archive_task_cb'
 logger:
   version: 1
   formatters:

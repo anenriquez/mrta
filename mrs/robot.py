@@ -33,8 +33,8 @@ class Robot(object):
         task = Task.from_payload(payload)
         self.logger.debug("Received task %s", task.task_id)
         if self.robot_id in task.assigned_robots:
-            self.executor_interface.queued_tasks.append(task)
             task.update_status(TaskStatusConst.DISPATCHED)
+            self.executor_interface.tasks.append(task)
             TaskLot.freeze_task(task.task_id)
 
     def run(self):
@@ -42,6 +42,12 @@ class Robot(object):
             self.api.start()
             while True:
                 self.executor_interface.run()
+                # Provisional hack
+                if self.executor_interface.task_to_archive:
+                    self.bidder.archive_task(self.executor_interface.task_to_archive.robot_id,
+                                             self.executor_interface.task_to_archive.task_id,
+                                             self.executor_interface.task_to_archive.node_id)
+                    self.executor_interface.task_to_archive = None
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)

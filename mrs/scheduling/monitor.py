@@ -7,6 +7,8 @@ from mrs.dispatching.d_graph_update import DGraphUpdate
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.scheduler import Scheduler
+from fmlib.models.tasks import Task
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class ScheduleMonitor:
@@ -24,9 +26,7 @@ class ScheduleMonitor:
                  allocation_method,
                  corrective_measure,
                  time_resolution,
-                 ongoing_task,
-                 scheduled_tasks,
-                 finished_tasks):
+                 tasks):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
 
        Args:
@@ -40,13 +40,11 @@ class ScheduleMonitor:
         self.stp_solver = stp_solver
         self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
         self.scheduler = Scheduler(self.stp_solver, self.robot_id, time_resolution)
+        self.tasks = tasks
         self.dispatchable_graph = None
         self.zero_timepoint = None
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
-        self.ongoing_task = ongoing_task
-        self.scheduled_tasks = scheduled_tasks
-        self.finished_tasks = finished_tasks
 
     def get_corrective_measure(self, allocation_method, corrective_measure):
         available_corrective_measures = self.corrective_measures.get(allocation_method)
@@ -73,7 +71,7 @@ class ScheduleMonitor:
             raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
-        self.logger.critical("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
+        self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
         dispatchable_graph = self.scheduler.assign_timepoint(assigned_time, self.dispatchable_graph, task_id, node_type)
         if dispatchable_graph:
             self.dispatchable_graph = dispatchable_graph
@@ -87,12 +85,11 @@ class ScheduleMonitor:
         tasks = list()
         new_task_ids = dispatchable_graph.get_tasks()
 
-        for i, task_id in enumerate(new_task_ids):
+        scheduled_tasks = [task.task_id for task in Task.get_tasks_by_status(TaskStatusConst.SCHEDULED) if task]
+        ongoing_tasks = [task.task_id for task in Task.get_tasks_by_status(TaskStatusConst.ONGOING) if task]
 
-            if task_id in [task.task_id for task in self.scheduled_tasks] \
-                    or task_id in [task.task_id for task in self.finished_tasks] \
-                    or self.ongoing_task and \
-                    task_id == self.ongoing_task.task_id:
+        for i, task_id in enumerate(new_task_ids):
+            if task_id in scheduled_tasks or ongoing_tasks:
                 # Keep current version of task
                 tasks.append(self.get_task_graph(self.dispatchable_graph, task_id))
             else:
@@ -117,6 +114,12 @@ class ScheduleMonitor:
         task_graph = graph.subgraph(node_ids)
         return task_graph
 
+    def remove_task(self, task_id):
+        node_id = self.dispatchable_graph.get_task_position(task_id)
+        self.dispatchable_graph.remove_task(node_id)
+        self.logger.debug("Dispatchable graph: %s ", self.dispatchable_graph)
+        return node_id
+
     def d_graph_update_cb(self, msg):
         payload = msg['payload']
         d_graph_update = DGraphUpdate.from_payload(payload)
@@ -126,7 +129,7 @@ class ScheduleMonitor:
             self.update_dispatchable_graph(dispatchable_graph)
         else:
             self.dispatchable_graph = dispatchable_graph
-        self.logger.critical("Received d-graph-update %s", self.dispatchable_graph)
+        self.logger.debug("Dispatchable graph update %s", self.dispatchable_graph)
 
 
 
