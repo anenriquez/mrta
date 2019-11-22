@@ -1,8 +1,10 @@
 import logging
+from datetime import timedelta
+
 import numpy as np
 from stn.methods.fpc import get_minimal_network
+
 from mrs.exceptions.execution import InconsistentSchedule
-from datetime import timedelta
 
 
 class Scheduler(object):
@@ -25,10 +27,17 @@ class Scheduler(object):
                 return dispatchable_graph
         return None
 
+    def get_times(self, earliest_time, latest_time):
+        start_times = np.arange(earliest_time, latest_time, self.time_resolution).tolist()
+        if not start_times:
+            start_times = [earliest_time, latest_time]
+        return start_times
+
     def schedule(self, task, dispatchable_graph, zero_timepoint):
+        self.logger.debug("Scheduling task: %s", task.task_id)
         earliest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=True)
         latest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=False)
-        start_times = np.arange(earliest_start_time, latest_start_time, self.time_resolution).tolist()
+        start_times = self.get_times(earliest_start_time, latest_start_time)
 
         for start_time in start_times:
             dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "navigation")

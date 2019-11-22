@@ -1,6 +1,7 @@
 import time
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from mrs.db.models.task import TaskLot
 
 
 class Robot(object):
@@ -30,9 +31,11 @@ class Robot(object):
     def task_cb(self, msg):
         payload = msg['payload']
         task = Task.from_payload(payload)
-        self.logger.critical("Received task %s", task.task_id)
+        self.logger.debug("Received task %s", task.task_id)
         if self.robot_id in task.assigned_robots:
+            self.executor_interface.queued_tasks.append(task)
             task.update_status(TaskStatusConst.DISPATCHED)
+            TaskLot.freeze_task(task.task_id)
 
     def run(self):
         try:

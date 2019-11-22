@@ -5,6 +5,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.dispatching.schedule_monitor import ScheduleMonitor
 from mrs.dispatching.d_graph_update import DGraphUpdate
+from mrs.db.models.task import TaskLot
 
 
 class Dispatcher(object):
@@ -48,12 +49,13 @@ class Dispatcher(object):
         self.robot_ids.append(robot_id)
 
     def run(self):
-        self.dispatch_tasks()
         if self.timetable_manager.send_update_to:
             robot_id = self.timetable_manager.send_update_to
             self.timetable_manager.send_update_to = None
             timetable = self.timetable_manager.get_timetable(robot_id)
             self.send_d_graph_update(timetable, robot_id)
+
+        self.dispatch_tasks()
 
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
@@ -63,6 +65,7 @@ class Dispatcher(object):
                 if task.status.status == TaskStatusConst.PLANNED:
                     start_time = timetable.get_start_time(task.task_id)
                     if self.schedule_monitor.is_schedulable(start_time):
+                        TaskLot.freeze_task(task.task_id)
                         self.dispatch_task(task, robot_id)
 
     def dispatch_task(self, task, robot_id):
@@ -79,6 +82,7 @@ class Dispatcher(object):
         task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, timetable, robot_id):
+        self.logger.debug("Sending DGraphUpdate to %s", robot_id)
         sub_dispatchable_graph = timetable.dispatchable_graph.get_subgraph(n_tasks=self.timetable_manager.n_tasks_queue)
         d_graph_update = DGraphUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
         d_graph_update_msg = self.api.create_message(d_graph_update)

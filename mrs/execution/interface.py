@@ -1,8 +1,5 @@
 import logging
 
-from fmlib.models.tasks import Task
-from ropod.structs.task import TaskStatus as TaskStatusConst
-
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.monitor import ScheduleMonitor
@@ -18,14 +15,18 @@ class ExecutorInterface:
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
         time_resolution = kwargs.get('time_resolution', 0.5)
+        self.scheduled_tasks = list()
+        self.ongoing_task = None
+        self.finished_tasks = list()
         self.schedule_monitor = ScheduleMonitor(robot_id,
                                                 stp_solver,
                                                 allocation_method,
                                                 corrective_measure,
-                                                time_resolution)
+                                                time_resolution,
+                                                self.ongoing_task,
+                                                self.scheduled_tasks,
+                                                self.finished_tasks)
         self.queued_tasks = list()
-        self.scheduled_tasks = list()
-        self.ongoing_task = None
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
         self.logger.debug("Executor interface initialized %s", self.robot_id)
 
@@ -33,6 +34,21 @@ class ExecutorInterface:
         self.scheduled_tasks.remove(task)
         self.ongoing_task = task
         self.logger.debug("Starting execution of task %s", task.task_id)
+
+    def task_progress_cb(self):
+        # For now, assume that the task's timepoints get assigned their latest time
+        # TODO: Receive task progress msgs
+        if self.ongoing_task:
+            pickup_time = self.schedule_monitor.dispatchable_graph.get_time(self.ongoing_task.task_id, 'start', False)
+            self.logger.debug("Task %s, assigning pickup_time %s", self.ongoing_task.task_id, pickup_time)
+            self.schedule_monitor.assign_timepoint(pickup_time, self.ongoing_task.task_id, 'start')
+
+            delivery_time = self.schedule_monitor.dispatchable_graph.get_time(self.ongoing_task.task_id, 'finish', False)
+            self.logger.debug("Task %s, assigning delivery_time %s", self.ongoing_task.task_id, delivery_time)
+            self.schedule_monitor.assign_timepoint(delivery_time, self.ongoing_task.task_id, 'finish')
+
+            self.finished_tasks.append(self.ongoing_task)
+            self.ongoing_task = None
 
     def run(self):
         if self.queued_tasks:
@@ -50,12 +66,6 @@ class ExecutorInterface:
                 if task.is_executable():
                     self.execute(task)
 
-    def task_cb(self, msg):
-        payload = msg['payload']
-        task = Task.from_payload(payload)
-        self.logger.debug("Received task %s", task.task_id)
-        if self.robot_id in task.assigned_robots:
-            self.queued_tasks.append(task)
-            task.update_status(TaskStatusConst.DISPATCHED)
+        self.task_progress_cb()
 
 
