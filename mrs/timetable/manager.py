@@ -40,6 +40,13 @@ class TimetableManager(object):
         for robot_id, timetable in self.timetables.items():
             timetable.fetch()
 
+    def get_n_allocated_tasks(self):
+        self.fetch_timetables()
+        n_allocated_tasks = dict()
+        for robot_id, timetable in self.timetables.items():
+            n_allocated_tasks[robot_id] = len(timetable.stn.get_tasks())
+        return n_allocated_tasks
+
     def update_timetable(self, robot_id, insertion_point, temporal_metric, task_lot):
         timetable = self.timetables.get(robot_id)
         timetable.fetch()

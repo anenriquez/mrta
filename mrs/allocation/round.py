@@ -13,11 +13,10 @@ from mrs.db.models.task import TaskLot
 
 class Round(object):
 
-    def __init__(self, n_robots=1, round_time=timedelta(seconds=5), **kwargs):
+    def __init__(self,  n_allocated_tasks, round_time=timedelta(seconds=5), **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
-
-        self.n_robots = n_robots
+        self.n_allocated_tasks = n_allocated_tasks
         self.round_time = round_time
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
