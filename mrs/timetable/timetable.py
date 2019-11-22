@@ -199,8 +199,7 @@ class Timetable(object):
     def remove_task(self, position=1):
         self.stn.remove_task(position)
         self.dispatchable_graph.remove_task(position)
-        # Reset schedule (there is only one task in the schedule)
-        self.schedule = None
+        self.store()
 
     def get_scheduled_task_id(self):
         if self.schedule is None:
