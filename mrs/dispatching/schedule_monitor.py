@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from ropod.utils.timestamp import TimeStamp
@@ -14,10 +15,13 @@ class ScheduleMonitor:
                         start navigation time is within the next 2 minutes.
 
         """
+        self.logger = logging.getLogger('mrs.schedule_monitor')
         self.freeze_window = timedelta(seconds=freeze_window)
+        self.logger.debug("Schedule Monitor started")
 
     def is_schedulable(self, start_time):
         current_time = TimeStamp()
         if start_time.get_difference(current_time) < self.freeze_window:
             return True
         return False
+
