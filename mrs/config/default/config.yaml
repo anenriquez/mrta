@@ -136,30 +136,10 @@ logger:
       class: logging.handlers.TimedRotatingFileHandler
       level: DEBUG
       formatter: default
-      filename: /var/log/ropod/fms/fms.log
+      filename: /var/log/mrta/fms.log
       when: 'm'
       interval: 5
   loggers:
-    requests:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    pyre:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    urllib3:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    OSMBridge:
-      level: WARNING
-      handlers: [console]
-    OSMAdapter:
-      level: WARNING
-      handlers: [console]
-    fms:
-      level: DEBUG
     mrs:
       level: DEBUG
   root:
