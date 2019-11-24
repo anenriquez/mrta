@@ -4,14 +4,10 @@ ccu_store:
   port: 27017
 experiment_store:
   port: 27017
-resource_manager:
-  resources:
-    fleet:
-      - ropod_001
-      - ropod_002
-      - ropod_003
-  plugins:
-    - auctioneer
+fleet:
+  - ropod_001
+  - ropod_002
+  - ropod_003
 allocation_method: tessi-srea
 plugins:
   mrta:

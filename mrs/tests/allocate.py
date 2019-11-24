@@ -36,7 +36,7 @@ class AllocationTest(RopodPyre):
         self.logger.info("Store %s cleaned", store_interface._store.db_name)
 
     def clean_stores(self):
-        fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
+        fleet = self.config_params.get('fleet')
         robot_store_config = self.config_params.get('robot_proxy').get("robot_store")
 
         for robot_id in fleet:
