@@ -37,13 +37,13 @@ class ScheduleMonitor:
             corrective_measure (str): Name of the corrective measure
         """
         self.robot_id = robot_id
+        self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
         self.stp_solver = stp_solver
         self.corrective_measure = self.get_corrective_measure(allocation_method, corrective_measure)
         self.scheduler = Scheduler(self.stp_solver, self.robot_id, time_resolution)
         self.tasks = tasks
         self.dispatchable_graph = None
         self.zero_timepoint = None
-        self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
 
     def get_corrective_measure(self, allocation_method, corrective_measure):
@@ -67,7 +67,7 @@ class ScheduleMonitor:
             return scheduled_task
 
         except InconsistentSchedule as e:
-            # TODO: Trigger corrective measure
+            # TODO: Trigger reallocation of task
             raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
@@ -76,10 +76,26 @@ class ScheduleMonitor:
         if dispatchable_graph:
             self.dispatchable_graph = dispatchable_graph
             self.logger.debug("Dispatchable graph with assigned value %s", self.dispatchable_graph)
+            self.apply_corrective_measure(task_id, consistent=True)
         else:
             self.logger.warning("Assignment of time %s to task %s timepoint %s was not consistent",
                                 assigned_time, task_id, node_type)
-            # TODO: Trigger corrective measure
+            self.apply_corrective_measure(task_id, consistent=False)
+
+    def apply_corrective_measure(self, task_id, consistent):
+        if not consistent and self.corrective_measure is None:
+            # Abort next task
+            pass
+
+        elif not consistent and self.corrective_measure == 're-allocate':
+            self.estimate_start_next_task()
+
+        elif consistent and self.corrective_measure == 're-schedule':
+            # Re-compute dispatchable graph
+            pass
+
+    def estimate_start_next_task(self):
+        pass
 
     def update_dispatchable_graph(self, dispatchable_graph):
         tasks = list()
