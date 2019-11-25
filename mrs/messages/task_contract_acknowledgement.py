@@ -1,4 +1,4 @@
-class FinishRound(object):
+class TaskContractAcknowledgment(object):
     def __init__(self, robot_id):
         self.robot_id = robot_id
 
@@ -9,4 +9,4 @@ class FinishRound(object):
 
     @property
     def meta_model(self):
-        return "finish-round"
+        return "task-contract-acknowledgement"

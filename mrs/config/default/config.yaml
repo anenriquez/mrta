@@ -57,9 +57,9 @@ robot_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'BID'
         method: whisper
-      finish-round:
+      task-contract-acknowledgement:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'FINISH-ROUND'
+        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         method: shout
       archive-task:
         groups: ['TASK-ALLOCATION']
@@ -91,7 +91,7 @@ ccu_api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - BID
-        - FINISH-ROUND
+        - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
         - ARCHIVE-TASK
     acknowledge: false
@@ -119,8 +119,8 @@ ccu_api:
         component: '.start_test_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
-      - msg_type: 'FINISH-ROUND'
-        component: 'auctioneer.finish_round_cb'
+      - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'ARCHIVE-TASK'
         component: '.archive_task_cb'
 

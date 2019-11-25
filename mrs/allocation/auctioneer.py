@@ -161,7 +161,7 @@ class Auctioneer(object):
         payload = msg['payload']
         self.round.process_bid(payload)
 
-    def finish_round_cb(self, msg):
+    def task_contract_acknowledgement_cb(self, msg):
         self.round.finish()
 
     def announce_winner(self, allocation):

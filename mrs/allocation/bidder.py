@@ -2,7 +2,7 @@ import copy
 import logging
 
 from stn.exceptions.stp import NoSTPSolution
-from mrs.messages.finish_round import FinishRound
+from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
 from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.bid import Bid
@@ -75,7 +75,7 @@ class Bidder:
 
         if task_contract.robot_id == self.robot_id:
             self.allocate_to_robot(task_contract.task_id)
-            self.send_finish_round()
+            self.send_contract_acknowledgement()
 
     def compute_bids(self, task_announcement):
         bids = list()
@@ -200,11 +200,11 @@ class Bidder:
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
 
-    def send_finish_round(self):
-        finish_round = FinishRound(self.robot_id)
-        msg = self.api.create_message(finish_round)
+    def send_contract_acknowledgement(self):
+        task_contract_acknowledgement = TaskContractAcknowledgment(self.robot_id)
+        msg = self.api.create_message(task_contract_acknowledgement)
 
-        self.logger.debug("Robot %s sends close round msg ", self.robot_id)
+        self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def archive_task(self, robot_id, task_id, node_id):
