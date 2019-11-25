@@ -37,7 +37,7 @@ class AllocationTest(RopodPyre):
 
     def clean_stores(self):
         fleet = self.config_params.get('fleet')
-        robot_store_config = self.config_params.get('robot_proxy').get("robot_store")
+        robot_store_config = self.config_params.get("robot_store")
 
         for robot_id in fleet:
             robot_store_config.update({'db_name': 'robot_store_' + robot_id.split('_')[1]})
