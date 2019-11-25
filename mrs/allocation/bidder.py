@@ -3,7 +3,7 @@ import logging
 
 from stn.exceptions.stp import NoSTPSolution
 from mrs.messages.finish_round import FinishRound
-from mrs.messages.allocation import Allocation
+from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.bid import Bid
 from mrs.allocation.bidding_rule import BiddingRule
@@ -68,13 +68,13 @@ class Bidder:
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
-    def allocation_cb(self, msg):
-        self.logger.debug("Robot %s received ALLOCATION", self.robot_id)
+    def task_contract_cb(self, msg):
+        self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
         payload = msg['payload']
-        allocation = Allocation.from_payload(payload)
+        task_contract = TaskContract.from_payload(payload)
 
-        if allocation.robot_id == self.robot_id:
-            self.allocate_to_robot(allocation.task_id)
+        if task_contract.robot_id == self.robot_id:
+            self.allocate_to_robot(task_contract.task_id)
             self.send_finish_round()
 
     def compute_bids(self, task_announcement):

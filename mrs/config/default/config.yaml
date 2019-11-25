@@ -47,7 +47,7 @@ robot_api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK-ANNOUNCEMENT
-        - ALLOCATION
+        - TASK-CONTRACT
         - DISPATCH-QUEUE-UPDATE
         - TASK
       debug_msgs: false
@@ -68,8 +68,8 @@ robot_api:
     callbacks:
       - msg_type: 'TASK-ANNOUNCEMENT'
         component: 'bidder.task_announcement_cb'
-      - msg_type: 'ALLOCATION'
-        component: 'bidder.allocation_cb'
+      - msg_type: 'TASK-CONTRACT'
+        component: 'bidder.task_contract_cb'
       - msg_type: 'DISPATCH-QUEUE-UPDATE'
         component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
       - msg_type: 'TASK'
@@ -102,8 +102,8 @@ ccu_api:
         msg_type: 'TASK-ANNOUNCEMENT'
         groups: ['TASK-ALLOCATION']
         method: shout
-      allocation:
-        msg_type: 'ALLOCATION'
+      task-contract:
+        msg_type: 'TASK-CONTRACT'
         groups: ['TASK-ALLOCATION']
         method: shout
       task:

@@ -71,7 +71,7 @@ class AllocationTest(RopodPyre):
             return
         msg_type = msg['header']['type']
 
-        if msg_type == 'ALLOCATION':
+        if msg_type == 'TASK-CONTRACT':
             self.n_received_msgs += 1
             self.logger.debug("Messages received: %s", self.n_received_msgs)
             self.check_termination_test()
