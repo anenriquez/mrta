@@ -4,7 +4,7 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.monitor import ScheduleMonitor
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from mrs.execution.archive_task import ArchiveTask
+from mrs.messages.archive_task import ArchiveTask
 
 
 class ExecutorInterface:

@@ -6,7 +6,7 @@ from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.config.configurator import Configurator
-from mrs.execution.archive_task import ArchiveTask
+from mrs.messages.archive_task import ArchiveTask
 
 
 class CCU:

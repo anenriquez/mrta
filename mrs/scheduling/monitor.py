@@ -3,7 +3,7 @@ import logging
 from ropod.utils.timestamp import TimeStamp
 from stn.stn import STN
 
-from mrs.dispatching.d_graph_update import DGraphUpdate
+from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.scheduler import Scheduler

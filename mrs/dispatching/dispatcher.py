@@ -4,7 +4,7 @@ import logging
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.dispatching.schedule_monitor import ScheduleMonitor
-from mrs.dispatching.d_graph_update import DGraphUpdate
+from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.db.models.task import TaskLot
 
 

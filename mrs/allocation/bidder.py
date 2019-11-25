@@ -2,10 +2,11 @@ import copy
 import logging
 
 from stn.exceptions.stp import NoSTPSolution
-from mrs.allocation.allocation import FinishRound
-from mrs.allocation.allocation import TaskAnnouncement, Allocation
-from mrs.bidding.bid import Bid
-from mrs.bidding.rule import BiddingRule
+from mrs.messages.finish_round import FinishRound
+from mrs.messages.allocation import Allocation
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.bid import Bid
+from mrs.allocation.bidding_rule import BiddingRule
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 

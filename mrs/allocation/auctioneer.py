@@ -2,7 +2,8 @@ import logging
 from datetime import timedelta
 
 from fmlib.models.tasks import Task
-from mrs.allocation.allocation import TaskAnnouncement, Allocation
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.allocation import Allocation
 from mrs.allocation.round import Round
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot

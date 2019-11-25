@@ -3,7 +3,7 @@ import logging
 from stn.stp import STP
 
 from mrs.allocation.auctioneer import Auctioneer
-from mrs.bidding.bidder import Bidder
+from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.interface import ExecutorInterface
 from mrs.timetable.manager import TimetableManager
