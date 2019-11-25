@@ -48,7 +48,7 @@ robot_api:
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK-ANNOUNCEMENT
         - ALLOCATION
-        - D-GRAPH-UPDATE
+        - DISPATCH-QUEUE-UPDATE
         - TASK
       debug_msgs: false
     acknowledge: false
@@ -70,8 +70,8 @@ robot_api:
         component: 'bidder.task_announcement_cb'
       - msg_type: 'ALLOCATION'
         component: 'bidder.allocation_cb'
-      - msg_type: 'D-GRAPH-UPDATE'
-        component: 'executor_interface.schedule_monitor.d_graph_update_cb'
+      - msg_type: 'DISPATCH-QUEUE-UPDATE'
+        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
       - msg_type: 'TASK'
         component: 'executor_interface.task_cb'
       - msg_type: 'TASK'
@@ -110,8 +110,8 @@ ccu_api:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
         method: shout
-      d-graph-update:
-        msg_type: 'TASK'
+      dispatch-queue-update:
+        msg_type: 'DISPATCH-QUEUE-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
     callbacks:

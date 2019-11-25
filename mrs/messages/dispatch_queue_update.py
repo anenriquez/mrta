@@ -1,7 +1,7 @@
 from fmlib.utils.messages import Document
 
 
-class DGraphUpdate:
+class DispatchQueueUpdate:
     def __init__(self, zero_timepoint, dispatchable_graph, **kwargs):
         self.zero_timepoint = zero_timepoint
         self.dispatchable_graph = dispatchable_graph
@@ -20,4 +20,4 @@ class DGraphUpdate:
 
     @property
     def meta_model(self):
-        return "d-graph-update"
+        return "dispatch-queue-update"

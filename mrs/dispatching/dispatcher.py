@@ -4,7 +4,7 @@ import logging
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.dispatching.schedule_monitor import ScheduleMonitor
-from mrs.messages.d_graph_update import DGraphUpdate
+from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.db.models.task import TaskLot
 
 
@@ -84,9 +84,9 @@ class Dispatcher(object):
     def send_d_graph_update(self, timetable, robot_id):
         self.logger.debug("Sending DGraphUpdate to %s", robot_id)
         sub_dispatchable_graph = timetable.dispatchable_graph.get_subgraph(n_tasks=self.timetable_manager.n_tasks_queue)
-        d_graph_update = DGraphUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
-        d_graph_update_msg = self.api.create_message(d_graph_update)
-        self.api.publish(d_graph_update_msg, peer=robot_id)
+        dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
+        msg = self.api.create_message(dispatch_queue_update)
+        self.api.publish(msg, peer=robot_id)
 
 
 

@@ -3,7 +3,7 @@ import logging
 from ropod.utils.timestamp import TimeStamp
 from stn.stn import STN
 
-from mrs.messages.d_graph_update import DGraphUpdate
+from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.scheduler import Scheduler
@@ -136,9 +136,9 @@ class ScheduleMonitor:
         self.logger.debug("Dispatchable graph: %s ", self.dispatchable_graph)
         return node_id
 
-    def d_graph_update_cb(self, msg):
+    def dispatch_queue_update_cb(self, msg):
         payload = msg['payload']
-        d_graph_update = DGraphUpdate.from_payload(payload)
+        d_graph_update = DispatchQueueUpdate.from_payload(payload)
         self.zero_timepoint = TimeStamp.from_str(d_graph_update.zero_timepoint)
         dispatchable_graph = STN.from_dict(d_graph_update.dispatchable_graph)
         if self.dispatchable_graph:
