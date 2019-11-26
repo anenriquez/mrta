@@ -37,7 +37,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
-        self.round = Round()
+        self.round = Round(self.timetable_manager.get_n_allocated_tasks())
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -64,8 +64,12 @@ class Auctioneer(object):
 
         if self.round.opened and self.round.time_to_close():
             try:
-                round_result = self.round.get_result()
-                self.process_round_result(round_result)
+                if self.round.n_allocated_tasks == self.timetable_manager.get_n_allocated_tasks():
+                    round_result = self.round.get_result()
+                    self.process_round_result(round_result)
+                else:
+                    self.logger.warning("Round has to be repeated")
+                    self.round.finish()
 
             except NoAllocation as exception:
                 self.logger.warning("No allocation made in round %s ", exception.round_id)
@@ -119,23 +123,23 @@ class Auctioneer(object):
             self.tasks_to_allocate[task_lot.task.task_id] = task_lot
             self.round.finish()
 
-    def add_task(self, task):
-        task_lot = TaskLot.from_task(task)
-        self.tasks_to_allocate[task_lot.task.task_id] = task_lot
-
     def allocate(self, tasks):
+        tasks_to_allocate = dict()
         if isinstance(tasks, list):
-            for task in tasks:
-                self.add_task(task)
             self.logger.debug('Auctioneer received a list of tasks')
+            for task in tasks:
+                task_lot = TaskLot.from_task(task)
+                tasks_to_allocate[task_lot.task.task_id] = task_lot
         else:
-            self.add_task(tasks)
             self.logger.debug('Auctioneer received one task')
+            task_lot = TaskLot.from_task(tasks)
+            tasks_to_allocate[task_lot.task.task_id] = task_lot
+        self.tasks_to_allocate = tasks_to_allocate
 
     def announce_task(self):
         self.timetable_manager.fetch_timetables()
 
-        self.round = Round(n_robots=len(self.robot_ids),
+        self.round = Round(self.timetable_manager.get_n_allocated_tasks(),
                            round_time=self.round_time,
                            alternative_timeslots=self.alternative_timeslots)
 
@@ -165,6 +169,15 @@ class Auctioneer(object):
             allocation = Allocation(allocated_task, robot_id)
             msg = self.api.create_message(allocation)
             self.api.publish(msg, groups=['TASK-ALLOCATION'])
+
+    def archive_task(self, robot_id, task_id, node_id):
+        self.logger.debug("Deleting task %s", task_id)
+        timetable = self.timetable_manager.get_timetable(robot_id)
+        timetable.remove_task(node_id)
+        task = Task.get_task(task_id)
+        task.update_status(TaskStatusConst.COMPLETED)
+        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

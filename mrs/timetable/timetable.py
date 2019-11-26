@@ -9,9 +9,8 @@ from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.task import STNTask
 
+from mrs.db.models.task import TaskLot
 from mrs.db.models.timetable import Timetable as TimetableMongo
-from mrs.exceptions.execution import InconsistentSchedule
-from stn.methods.fpc import get_minimal_network
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -55,13 +54,72 @@ class Timetable(object):
         task = self.to_stn_task(task_lot, insertion_point)
         stn = copy.deepcopy(self.stn)
         stn.add_task(task, insertion_point)
-
         try:
             dispatchable_graph = self.stp.solve(stn)
             return stn, dispatchable_graph
 
         except NoSTPSolution:
             raise NoSTPSolution()
+
+    def get_hard_constraints(self, task_lot, insertion_point):
+        start_timepoint = task_lot.constraints.timepoint_constraints[0]
+
+        if insertion_point == 1:
+            # TODO: Get navigation constraints using duration travel info:
+            #  [mu - 2sd, mu + 2sd] from current pose to start_pose of new task
+            earliest_navigation_start = start_timepoint.earliest_time - timedelta(minutes=0.5)
+            navigation_timepoint = \
+                TimepointConstraints(earliest_time=earliest_navigation_start,
+                                     latest_time=earliest_navigation_start)
+        else:
+            previous_task_id = self.dispatchable_graph.get_task_id(insertion_point-1)
+            previous_task = TaskLot.get_task(previous_task_id)
+
+            if previous_task.frozen:
+                r_latest_finish_time = self.dispatchable_graph.get_time(previous_task_id, "finish", False)
+                earliest_navigation_start = self.zero_timepoint + timedelta(minutes=r_latest_finish_time)
+                navigation_timepoint = TimepointConstraints(earliest_time=earliest_navigation_start.to_datetime(),
+                                                            latest_time=earliest_navigation_start.to_datetime())
+            else:
+                navigation_timepoint = TimepointConstraints(earliest_time=self.zero_timepoint.to_datetime(),
+                                                            latest_time=self.zero_timepoint.to_datetime())
+
+        return navigation_timepoint, start_timepoint
+
+    def get_soft_constraints(self, task_lot, insertion_point):
+        if insertion_point == 1:
+            # Try to start task as soon as possible
+            start_time = datetime.now() + timedelta(minutes=1)
+            start_timepoint = TimepointConstraints(earliest_time=start_time)
+
+            # TODO: Get start constraints using duration travel info:
+            #  [mu - 2sd, mu + 2sd] from current pose to start_pose of new task
+            earliest_navigation_start = start_timepoint.earliest_time - timedelta(minutes=0.5)
+            navigation_timepoint = \
+                TimepointConstraints(earliest_time=earliest_navigation_start,
+                                     latest_time=earliest_navigation_start)
+        else:
+            previous_task_id = self.dispatchable_graph.get_task_id(insertion_point-1)
+            previous_task = TaskLot.get_task(previous_task_id)
+            r_latest_finish_time = self.dispatchable_graph.get_time(previous_task_id, "finish", False)
+
+            latest_finish_time = self.zero_timepoint + timedelta(minutes=r_latest_finish_time)
+
+            if previous_task.frozen:
+                navigation_timepoint = TimepointConstraints(earliest_time=latest_finish_time.to_datetime(),
+                                                            latest_time=latest_finish_time.to_datetime())
+            else:
+                navigation_timepoint = TimepointConstraints(earliest_time=self.zero_timepoint.to_datetime(),
+                                                            latest_time=self.zero_timepoint.to_datetime())
+
+            # TODO: Get start constraints using duration travel info:
+            #  [mu - 2sd, mu + 2sd] from finish_pose of last task to start_pose of new task
+            earliest_time = latest_finish_time + timedelta(minutes=5)
+            latest_time = earliest_time + timedelta(minutes=6)
+            start_timepoint = TimepointConstraints(earliest_time=earliest_time.to_datetime(),
+                                                   latest_time=latest_time.to_datetime())
+
+        return navigation_timepoint, start_timepoint
 
     def to_stn_task(self, task_lot, insertion_point):
         """ Converts a task to an stn task
@@ -70,38 +128,21 @@ class Timetable(object):
             task_lot (obj): task_lot object to be converted
             insertion_point(int): position in the stn in which the task will be insterted
         """
-        if not task_lot.constraints.hard:
-            # Get latest finish time of task in previous position
-            if insertion_point > 1:
-                previous_task_id = self.dispatchable_graph.get_task_id(insertion_point-1)
-                r_latest_finish_time = self.dispatchable_graph.get_time(previous_task_id, "finish", False)
-
-                latest_finish_time = self.zero_timepoint + timedelta(minutes=r_latest_finish_time)
-                earliest_time = latest_finish_time + timedelta(minutes=5)
-                latest_time = earliest_time + timedelta(minutes=5)
-
-                start_timepoint_constraints = TimepointConstraints(earliest_time=earliest_time.to_datetime(),
-                                                                   latest_time=latest_time.to_datetime())
-            else:
-
-                start_time = datetime.now() + timedelta(minutes=1)
-                start_timepoint_constraints = TimepointConstraints(earliest_time=start_time,
-                                                                   latest_time=start_time)
+        if task_lot.constraints.hard:
+            navigation_timepoint, start_timepoint = self.get_hard_constraints(task_lot, insertion_point)
         else:
-            start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
+            navigation_timepoint, start_timepoint = self.get_soft_constraints(task_lot, insertion_point)
 
-        r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
+        r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint,
                                                                                           self.zero_timepoint)
-        r_earliest_navigation_start = r_earliest_start_time - 0.5
-
+        r_earliest_navigation_time, r_latest_navigation_time = TimepointConstraints.relative_to_ztp(navigation_timepoint,
+                                                                                                    self.zero_timepoint)
         stn_task = STNTask(task_lot.task.task_id,
-                           r_earliest_navigation_start,
+                           r_earliest_navigation_time,
                            r_earliest_start_time,
                            r_latest_start_time,
                            task_lot.start_location,
-                           task_lot.finish_location,
-                           hard_constraints=task_lot.constraints.hard)
-
+                           task_lot.finish_location)
         return stn_task
 
     def get_tasks(self):
@@ -158,8 +199,7 @@ class Timetable(object):
     def remove_task(self, position=1):
         self.stn.remove_task(position)
         self.dispatchable_graph.remove_task(position)
-        # Reset schedule (there is only one task in the schedule)
-        self.schedule = None
+        self.store()
 
     def get_scheduled_task_id(self):
         if self.schedule is None:
@@ -181,20 +221,6 @@ class Timetable(object):
             self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
         else:
             logger.error("The dispatchable graph is empty")
-
-    def assign_timepoint(self, r_time, task_id, node_type):
-        # TODO: Use sub-stn to get minimal_network
-        minimal_network = get_minimal_network(self.stn)
-
-        if minimal_network:
-            minimal_network.assign_timepoint(r_time, task_id, node_type)
-            if self.stp.is_consistent(minimal_network):
-                self.stn.assign_timepoint(r_time, task_id, node_type)
-                self.dispatchable_graph.assign_timepoint(r_time, task_id, node_type)
-                self.schedule = self.dispatchable_graph.get_subgraph(n_tasks=1)
-                self.store()
-        else:
-            raise InconsistentSchedule(r_time)
 
     def to_dict(self):
         timetable_dict = dict()

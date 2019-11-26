@@ -14,6 +14,7 @@ class TaskLot(MongoModel):
     start_location = fields.CharField()
     finish_location = fields.CharField()
     constraints = fields.EmbeddedDocumentField(TaskConstraints)
+    frozen = fields.BooleanField(default=False)
 
     objects = TaskManager()
 
@@ -58,11 +59,18 @@ class TaskLot(MongoModel):
         self.save()
 
     @classmethod
+    def freeze_task(cls, task_id):
+        task = cls.get_task(task_id)
+        task.frozen = True
+        task.save()
+
+    @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
         document['_id'] = document.pop('task_id')
         document["constraints"] = TaskConstraints.from_payload(document.pop("constraints"))
         task_lot = TaskLot.from_document(document)
+        task_lot.save()
         return task_lot
 
     def to_dict(self):

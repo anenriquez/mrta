@@ -1,10 +1,10 @@
 import logging
-from fmlib.models.tasks import Task
-from mrs.dispatching.d_graph_update import DGraphUpdate
-from ropod.structs.task import TaskStatus as TaskStatusConst
+
+from mrs.exceptions.execution import InconsistentSchedule
+from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.monitor import ScheduleMonitor
-import networkx as nx
-from stn.stn import STN
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from mrs.execution.archive_task import ArchiveTask
 
 
 class ExecutorInterface:
@@ -16,49 +16,64 @@ class ExecutorInterface:
         self.robot_id = robot_id
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
+        time_resolution = kwargs.get('time_resolution', 0.5)
+        self.tasks = list()
+        self.archived_tasks = list()
+        self.task_to_archive = None
         self.schedule_monitor = ScheduleMonitor(robot_id,
                                                 stp_solver,
                                                 allocation_method,
-                                                corrective_measure)
-        self.queued_tasks = list()
-        self.dispatchable_graph = None
+                                                corrective_measure,
+                                                time_resolution,
+                                                self.tasks)
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
         self.logger.debug("Executor interface initialized %s", self.robot_id)
 
-    def execute(self, task_id):
-        self.logger.debug("Starting execution of task %s", task_id)
-        task = Task.get_task(task_id)
-        task.update_status(TaskStatusConst.ONGOING)
+    def execute(self, task):
+        self.logger.debug("Starting execution of task %s", task.task_id)
 
-    def update_dispatchable_graph(self, dispatchable_graph):
-        current_task_ids = self.dispatchable_graph.get_tasks()
-        new_task_ids = dispatchable_graph.get_tasks()
+    def task_progress_cb(self):
+        # For now, assume that the task's timepoints get assigned their latest time
+        # TODO: Receive task progress msgs
+        for task in self.tasks:
+            if task.status.status == TaskStatusConst.ONGOING:
+                pickup_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'start', False)
+                self.logger.debug("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
+                self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'start')
 
-        for task_id in new_task_ids:
-            if task_id not in current_task_ids:
-                # Get graph with new task
-                node_ids = dispatchable_graph.get_task_node_ids(task_id)
-                node_ids.insert(0, 0)
-                task_graph = dispatchable_graph.subgraph(node_ids)
+                delivery_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'finish', False)
+                self.logger.debug("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
+                self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'finish')
 
-                # Update dispatchable graph to include new task
-                self.dispatchable_graph = nx.compose(self.dispatchable_graph, task_graph)
+                self.archive_task(task)
 
-    def task_cb(self, msg):
-        payload = msg['payload']
-        task = Task.from_payload(payload)
-        self.logger.debug("Received task %s", task.task_id)
-        if self.robot_id in task.assigned_robots:
-            self.queued_tasks.append(task)
+    def archive_task(self, task):
+        self.logger.debug("Deleting task: %s", task.task_id)
+        task.update_status(TaskStatusConst.COMPLETED)
+        self.tasks.remove(task)
+        self.archived_tasks.append(task)
+        node_id = self.schedule_monitor.remove_task(task.task_id)
+        archive_task = ArchiveTask(self.robot_id, task.task_id, node_id)
+        # Provisional hack
+        self.task_to_archive = archive_task
+        archive_task_msg = self.api.create_message(archive_task)
+        self.api.publish(archive_task_msg)
 
-    def d_graph_update_cb(self, msg):
-        self.logger.critical("Received d-graph-update")
-        payload = msg['payload']
-        d_graph_update = DGraphUpdate.from_payload(payload)
-        dispatchable_graph = STN.from_dict(d_graph_update.dispatchable_graph)
-        if self.dispatchable_graph:
-            self.update_dispatchable_graph(dispatchable_graph)
-        else:
-            self.dispatchable_graph = dispatchable_graph
+    def run(self):
+        for task in self.tasks:
+            if task.status.status == TaskStatusConst.DISPATCHED:
+                try:
+                    scheduled_task = self.schedule_monitor.schedule(task)
+                    scheduled_task.update_status(TaskStatusConst.SCHEDULED)
+                except MissingDispatchableGraph:
+                    pass
+                except InconsistentSchedule:
+                    pass
+
+            if task.status.status == TaskStatusConst.SCHEDULED and task.is_executable():
+                task.update_status(TaskStatusConst.ONGOING)
+                self.execute(task)
+
+        self.task_progress_cb()
 
 

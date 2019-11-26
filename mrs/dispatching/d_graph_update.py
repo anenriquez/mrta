@@ -2,11 +2,13 @@ from fmlib.utils.messages import Document
 
 
 class DGraphUpdate:
-    def __init__(self, dispatchable_graph, **kwargs):
+    def __init__(self, zero_timepoint, dispatchable_graph, **kwargs):
+        self.zero_timepoint = zero_timepoint
         self.dispatchable_graph = dispatchable_graph
 
     def to_dict(self):
         dict_repr = dict()
+        dict_repr['zero_timepoint'] = self.zero_timepoint.to_str()
         dict_repr['dispatchable_graph'] = self.dispatchable_graph.to_dict()
         return dict_repr
 

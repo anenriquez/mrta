@@ -8,6 +8,7 @@ from fmlib.config.params import ConfigParams
 from fmlib.models.tasks import Task
 from mrs.config.mrta import MRTAFactory
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from mrs.execution.archive_task import ArchiveTask
 
 ConfigParams.default_config_module = 'mrs.config.default'
 
@@ -65,6 +66,12 @@ class MRS(object):
         self.logger.debug("Start test msg received")
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         self.auctioneer.allocate(tasks)
+
+    def archive_task_cb(self, msg):
+        payload = msg['payload']
+        archive_task = ArchiveTask.from_payload(payload)
+        self.auctioneer.archive_task(archive_task.robot_id, archive_task.task_id, archive_task.node_id)
+        self.dispatcher.timetable_manager.send_update_to = archive_task.robot_id
 
     def run(self):
         try:
