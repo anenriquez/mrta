@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
-from mrs.bidding.bid import Bid
+from mrs.messages.bid import Bid
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 from mrs.db.models.task import TaskLot

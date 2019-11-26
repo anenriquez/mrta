@@ -2,10 +2,11 @@ import copy
 import logging
 
 from stn.exceptions.stp import NoSTPSolution
-from mrs.allocation.allocation import FinishRound
-from mrs.allocation.allocation import TaskAnnouncement, Allocation
-from mrs.bidding.bid import Bid
-from mrs.bidding.rule import BiddingRule
+from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
+from mrs.messages.task_contract import TaskContract
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.bid import Bid
+from mrs.allocation.bidding_rule import BiddingRule
 from fmlib.models.tasks import Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
@@ -67,14 +68,14 @@ class Bidder:
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
 
-    def allocation_cb(self, msg):
-        self.logger.debug("Robot %s received ALLOCATION", self.robot_id)
+    def task_contract_cb(self, msg):
+        self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
         payload = msg['payload']
-        allocation = Allocation.from_payload(payload)
+        task_contract = TaskContract.from_payload(payload)
 
-        if allocation.robot_id == self.robot_id:
-            self.allocate_to_robot(allocation.task_id)
-            self.send_finish_round()
+        if task_contract.robot_id == self.robot_id:
+            self.allocate_to_robot(task_contract.task_id)
+            self.send_contract_acknowledgement()
 
     def compute_bids(self, task_announcement):
         bids = list()
@@ -199,11 +200,11 @@ class Bidder:
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
 
-    def send_finish_round(self):
-        finish_round = FinishRound(self.robot_id)
-        msg = self.api.create_message(finish_round)
+    def send_contract_acknowledgement(self):
+        task_contract_acknowledgement = TaskContractAcknowledgment(self.robot_id)
+        msg = self.api.create_message(task_contract_acknowledgement)
 
-        self.logger.debug("Robot %s sends close round msg ", self.robot_id)
+        self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def archive_task(self, robot_id, task_id, node_id):

@@ -36,8 +36,8 @@ class AllocationTest(RopodPyre):
         self.logger.info("Store %s cleaned", store_interface._store.db_name)
 
     def clean_stores(self):
-        fleet = self.config_params.get('resource_manager').get('resources').get('fleet')
-        robot_store_config = self.config_params.get('robot_proxy').get("robot_store")
+        fleet = self.config_params.get('fleet')
+        robot_store_config = self.config_params.get("robot_store")
 
         for robot_id in fleet:
             robot_store_config.update({'db_name': 'robot_store_' + robot_id.split('_')[1]})
@@ -71,7 +71,7 @@ class AllocationTest(RopodPyre):
             return
         msg_type = msg['header']['type']
 
-        if msg_type == 'ALLOCATION':
+        if msg_type == 'TASK-CONTRACT':
             self.n_received_msgs += 1
             self.logger.debug("Messages received: %s", self.n_received_msgs)
             self.check_termination_test()

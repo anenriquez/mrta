@@ -2,7 +2,8 @@ import logging
 from datetime import timedelta
 
 from fmlib.models.tasks import Task
-from mrs.allocation.allocation import TaskAnnouncement, Allocation
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.task_contract import TaskContract
 from mrs.allocation.round import Round
 from mrs.db.models.task import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
@@ -160,14 +161,14 @@ class Auctioneer(object):
         payload = msg['payload']
         self.round.process_bid(payload)
 
-    def finish_round_cb(self, msg):
+    def task_contract_acknowledgement_cb(self, msg):
         self.round.finish()
 
     def announce_winner(self, allocation):
-        allocated_task, winner_robot_ids = allocation
-        for robot_id in winner_robot_ids:
-            allocation = Allocation(allocated_task, robot_id)
-            msg = self.api.create_message(allocation)
+        task_id, robot_ids = allocation
+        for robot_id in robot_ids:
+            task_contract = TaskContract(task_id, robot_id)
+            msg = self.api.create_message(task_contract)
             self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def archive_task(self, robot_id, task_id, node_id):

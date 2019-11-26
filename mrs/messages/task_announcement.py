@@ -1,7 +1,7 @@
+from fmlib.models.tasks import Task
+from mrs.db.models.task import TaskLot
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
-from mrs.db.models.task import TaskLot
-from fmlib.models.tasks import Task
 
 
 class TaskAnnouncement(object):
@@ -56,41 +56,3 @@ class TaskAnnouncement(object):
     def meta_model(self):
         return "task-announcement"
 
-
-class Allocation(object):
-    def __init__(self, task_id, robot_id):
-        self.task_id = task_id
-        self.robot_id = robot_id
-
-    def to_dict(self):
-        dict_repr = dict()
-        dict_repr['task_id'] = self.task_id
-        dict_repr['robot_id'] = self.robot_id
-
-        return dict_repr
-
-    @staticmethod
-    def from_payload(payload):
-        allocation = Allocation
-        allocation.task_id = from_str(payload['taskId'])
-        allocation.robot_id = payload['robotId']
-
-        return allocation
-
-    @property
-    def meta_model(self):
-        return "allocation"
-
-
-class FinishRound(object):
-    def __init__(self, robot_id):
-        self.robot_id = robot_id
-
-    def to_dict(self):
-        dict_repr = dict()
-        dict_repr['robot_id'] = self.robot_id
-        return dict_repr
-
-    @property
-    def meta_model(self):
-        return "finish-round"

@@ -90,8 +90,13 @@ All of the above components make use of the API object. The ccu components make 
 
 
 
+# Installation
 
-
+Create directory for logger
+```
+sudo mkdir -p /var/log/mrta
+sudo chown -R $USER:$USER /var/log/mrta
+```
 
 
 ## Using Docker

@@ -1,26 +1,31 @@
 version: 2
+
 ccu_store:
   db_name: ccu_store
   port: 27017
+
+robot_store:
+  db_name: robot_store
+  port: 27017
+
 experiment_store:
   port: 27017
-resource_manager:
-  resources:
-    fleet:
-      - ropod_001
-      - ropod_002
-      - ropod_003
-  plugins:
-    - auctioneer
+
+fleet:
+  - ropod_001
+  - ropod_002
+  - ropod_003
+
 allocation_method: tessi-srea
-plugins:
-  mrta:
-    auctioneer:
-      round_time: 15 # seconds
-      alternative_timeslots: True
-    dispatcher:
-      freeze_window: 5 # seconds
-robot_proxy:
+
+ccu:
+  auctioneer:
+    round_time: 15 # seconds
+    alternative_timeslots: True
+  dispatcher:
+    freeze_window: 5 # seconds
+
+robot:
   bidder:
     bidding_rule:
       robustness: srea  # has to be the same as the stp_solver
@@ -29,52 +34,50 @@ robot_proxy:
   executor_interface:
     corrective_measure: re-allocate
     time_resolution: 0.5 # minutes
-  robot_store:
-    db_name: robot_store
-    port: 27017
-  api:
-    version: 0.1.0
-    middleware:
-      - zyre
-    zyre:
-      zyre_node:
-        node_name: proxy
-        interface: null
-        groups:
-          - TASK-ALLOCATION
-        message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-          - TASK-ANNOUNCEMENT
-          - ALLOCATION
-          - D-GRAPH-UPDATE
-          - TASK
-        debug_msgs: false
-      acknowledge: false
-      publish:
-        bid:
-          groups: ['TASK-ALLOCATION']
-          msg_type: 'BID'
-          method: whisper
-        finish-round:
-          groups: ['TASK-ALLOCATION']
-          msg_type: 'FINISH-ROUND'
-          method: shout
-        archive-task:
-          groups: ['TASK-ALLOCATION']
-          msg_type: 'ARCHIVE-TASK'
-          method: shout
-      callbacks:
-        - msg_type: 'TASK-ANNOUNCEMENT'
-          component: 'bidder.task_announcement_cb'
-        - msg_type: 'ALLOCATION'
-          component: 'bidder.allocation_cb'
-        - msg_type: 'D-GRAPH-UPDATE'
-          component: 'executor_interface.schedule_monitor.d_graph_update_cb'
-        - msg_type: 'TASK'
-          component: 'executor_interface.task_cb'
-        - msg_type: 'TASK'
-          component: '.task_cb'
 
-api:
+robot_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: proxy
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK-ANNOUNCEMENT
+        - TASK-CONTRACT
+        - DISPATCH-QUEUE-UPDATE
+        - TASK
+      debug_msgs: false
+    acknowledge: false
+    publish:
+      bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'BID'
+        method: whisper
+      task-contract-acknowledgement:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        method: shout
+      archive-task:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ARCHIVE-TASK'
+        method: shout
+    callbacks:
+      - msg_type: 'TASK-ANNOUNCEMENT'
+        component: 'bidder.task_announcement_cb'
+      - msg_type: 'TASK-CONTRACT'
+        component: 'bidder.task_contract_cb'
+      - msg_type: 'DISPATCH-QUEUE-UPDATE'
+        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
+      - msg_type: 'TASK'
+        component: 'executor_interface.task_cb'
+      - msg_type: 'TASK'
+        component: '.task_cb'
+
+ccu_api:
   version: 0.1.0
   middleware:
     - zyre
@@ -88,7 +91,7 @@ api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - BID
-        - FINISH-ROUND
+        - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
         - ARCHIVE-TASK
     acknowledge: false
@@ -99,16 +102,16 @@ api:
         msg_type: 'TASK-ANNOUNCEMENT'
         groups: ['TASK-ALLOCATION']
         method: shout
-      allocation:
-        msg_type: 'ALLOCATION'
+      task-contract:
+        msg_type: 'TASK-CONTRACT'
         groups: ['TASK-ALLOCATION']
         method: shout
       task:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
         method: shout
-      d-graph-update:
-        msg_type: 'TASK'
+      dispatch-queue-update:
+        msg_type: 'DISPATCH-QUEUE-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
     callbacks:
@@ -116,10 +119,11 @@ api:
         component: '.start_test_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
-      - msg_type: 'FINISH-ROUND'
-        component: 'auctioneer.finish_round_cb'
+      - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'ARCHIVE-TASK'
         component: '.archive_task_cb'
+
 logger:
   version: 1
   formatters:
@@ -136,30 +140,10 @@ logger:
       class: logging.handlers.TimedRotatingFileHandler
       level: DEBUG
       formatter: default
-      filename: /var/log/ropod/fms/fms.log
+      filename: /var/log/mrta/fms.log
       when: 'm'
       interval: 5
   loggers:
-    requests:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    pyre:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    urllib3:
-      level: WARNING
-      handlers: [console]
-      propagate: no
-    OSMBridge:
-      level: WARNING
-      handlers: [console]
-    OSMAdapter:
-      level: WARNING
-      handlers: [console]
-    fms:
-      level: DEBUG
     mrs:
       level: DEBUG
   root:

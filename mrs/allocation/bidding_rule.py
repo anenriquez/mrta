@@ -1,4 +1,4 @@
-from mrs.bidding.bid import Bid
+from mrs.messages.bid import Bid
 from stn.exceptions.stp import NoSTPSolution
 from fmlib.models.tasks import TimepointConstraints
 from datetime import timedelta
