@@ -90,7 +90,7 @@ class Timetable(object):
         if insertion_point == 1:
             # Try to start task as soon as possible
             start_time = datetime.now() + timedelta(minutes=1)
-            start_timepoint = TimepointConstraints(earliest_time=start_time)
+            start_timepoint = TimepointConstraints(earliest_time=start_time, latest_time=start_time)
 
             # TODO: Get start constraints using duration travel info:
             #  [mu - 2sd, mu + 2sd] from current pose to start_pose of new task
