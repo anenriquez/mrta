@@ -9,7 +9,7 @@ from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.task import STNTask
 
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 from mrs.db.models.timetable import Timetable as TimetableMongo
 
 logger = logging.getLogger("mrs.timetable")

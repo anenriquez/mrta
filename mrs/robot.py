@@ -2,11 +2,11 @@ import argparse
 import logging.config
 import time
 
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.config.configurator import Configurator
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 
 
 class Robot:

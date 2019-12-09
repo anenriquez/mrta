@@ -1,11 +1,11 @@
 import logging
 from datetime import timedelta
 
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
 from mrs.allocation.round import Round
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation

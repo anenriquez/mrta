@@ -7,7 +7,7 @@ from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.bid import Bid
 from mrs.allocation.bidding_rule import BiddingRule
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 

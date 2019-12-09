@@ -4,7 +4,7 @@ from datetime import timedelta
 import yaml
 from fmlib.models.requests import TransportationRequest
 from fmlib.models.tasks import TaskConstraints, TimepointConstraints
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
@@ -43,7 +43,7 @@ def load_tasks_to_db(dataset_path):
         constraints = TaskConstraints(timepoint_constraints=[pickup_constraints],
                                       hard=request.hard_constraints)
 
-        task = Task.create_new(task_id=task_id, request=request, constraints=constraints)
+        task = TransportationTask.create_new(task_id=task_id, request=request, constraints=constraints)
 
         tasks.append(task)
 

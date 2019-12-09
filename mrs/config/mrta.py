@@ -7,6 +7,7 @@ from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.interface import ExecutorInterface
 from mrs.timetable.manager import TimetableManager
+from planner.planner import Planner
 
 
 class MRTAFactory:
@@ -38,6 +39,7 @@ class MRTAFactory:
         self.register_component('dispatcher', Dispatcher)
         self.register_component('bidder', Bidder)
         self.register_component('executor_interface', ExecutorInterface)
+        self.register_component('planner', Planner)
 
     def register_component(self, component_name, component):
         self._components[component_name] = component
