@@ -62,7 +62,7 @@ class Timetable(object):
             raise NoSTPSolution()
 
     def get_hard_constraints(self, task_lot, insertion_point):
-        start_timepoint = task_lot.constraints.timepoint_constraints[0]
+        start_timepoint = task_lot.task.constraints.timepoint_constraints[0]
 
         if insertion_point == 1:
             # TODO: Get navigation constraints using duration travel info:
@@ -128,7 +128,7 @@ class Timetable(object):
             task_lot (obj): task_lot object to be converted
             insertion_point(int): position in the stn in which the task will be insterted
         """
-        if task_lot.constraints.hard:
+        if task_lot.task.constraints.hard:
             navigation_timepoint, start_timepoint = self.get_hard_constraints(task_lot, insertion_point)
         else:
             navigation_timepoint, start_timepoint = self.get_soft_constraints(task_lot, insertion_point)
@@ -141,8 +141,8 @@ class Timetable(object):
                            r_earliest_navigation_time,
                            r_earliest_start_time,
                            r_latest_start_time,
-                           task_lot.start_location,
-                           task_lot.finish_location)
+                           task_lot.task.request.pickup_location,
+                           task_lot.task.request.delivery_location)
         return stn_task
 
     def get_tasks(self):

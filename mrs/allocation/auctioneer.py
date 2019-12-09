@@ -129,11 +129,11 @@ class Auctioneer(object):
         if isinstance(tasks, list):
             self.logger.debug('Auctioneer received a list of tasks')
             for task in tasks:
-                task_lot = TaskLot.from_task(task)
+                task_lot = TaskLot.create_new(task)
                 tasks_to_allocate[task_lot.task.task_id] = task_lot
         else:
             self.logger.debug('Auctioneer received one task')
-            task_lot = TaskLot.from_task(tasks)
+            task_lot = TaskLot.create_new(tasks)
             tasks_to_allocate[task_lot.task.task_id] = task_lot
         self.tasks_to_allocate = tasks_to_allocate
 
