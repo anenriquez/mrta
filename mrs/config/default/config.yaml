@@ -33,6 +33,8 @@ robot:
       robustness: srea  # has to be the same as the stp_solver
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
+    planner:
+      map_name: brsu
   executor_interface:
     corrective_measure: re-allocate
     time_resolution: 0.5 # minutes

@@ -39,6 +39,7 @@ class Bidder:
         self.timetable = timetable
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
+        self.planner = kwargs.get('planner')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
         self.logger.debug("Initial timetable %s", self.timetable.stn)
