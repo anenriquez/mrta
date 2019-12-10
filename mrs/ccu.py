@@ -11,7 +11,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 
 class CCU:
     def __init__(self, config_file=None):
-        self.logger = logging.getLogger('ccu')
+        self.logger = logging.getLogger('mrs.ccu')
         self.logger.info("Configuring CCU...")
 
         config = Configurator(config_file)
