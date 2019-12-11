@@ -8,6 +8,10 @@ COPY . /mrta
 WORKDIR /mrta
 RUN pip3 install -r requirements.txt && pip3 install -e .
 
+RUN git clone https://github.com/anenriquez/mrta_planner.git /opt/mrs/planner
+WORKDIR /opt/mrs/planner
+RUN pip3 install -r requirements.txt && pip3 install -e .
+
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 
