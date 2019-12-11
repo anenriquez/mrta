@@ -8,7 +8,7 @@ from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 
 
 class Round(object):

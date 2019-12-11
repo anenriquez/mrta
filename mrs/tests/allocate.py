@@ -1,12 +1,13 @@
 import logging.config
+import time
 
+from fmlib.db.mongo import MongoStore
+from fmlib.db.mongo import MongoStoreInterface
+from mrs.tests.fixtures.utils import get_msg_fixture
+from mrs.utils.datasets import load_yaml, load_tasks_to_db
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
-from mrs.utils.datasets import load_yaml, load_tasks_to_db
-import time
-from fmlib.db.mongo import MongoStore
-from fmlib.db.mongo import MongoStoreInterface
 
 
 class AllocationTest(RopodPyre):
@@ -48,6 +49,14 @@ class AllocationTest(RopodPyre):
         store = MongoStore(**ccu_store_config)
         self.clean_store(store)
 
+    def setup(self, robot_poses):
+        msg = get_msg_fixture('robot_pose.json')
+        for robot_id, pose in robot_poses.items():
+            msg['payload']['robotId'] = robot_id
+            msg['payload']['pose'] = pose
+            self.whisper(msg, peer=robot_id)
+            self.logger.info("Send init pose to %s: ", robot_id)
+
     def load_tasks(self, dataset):
         self.tasks = load_tasks_to_db(dataset)
 
@@ -85,17 +94,20 @@ class AllocationTest(RopodPyre):
 
 if __name__ == '__main__':
     config_file = '../config/default/config.yaml'
-    dataset = 'data/non_overlapping.yaml'
+    dataset = 'fixtures/datasets/overlapping.yaml'
+    robot_init_file = 'fixtures/robot_init_poses.yaml'
 
     config = load_yaml(config_file)
-    test = AllocationTest(config)
+    robot_poses = load_yaml(robot_init_file)
 
+    test = AllocationTest(config)
     test.load_tasks(dataset)
 
     try:
         time.sleep(30)
         test.start()
         time.sleep(30)
+        test.setup(robot_poses)
         test.trigger()
         while not test.terminated:
             time.sleep(0.5)

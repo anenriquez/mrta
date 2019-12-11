@@ -1,5 +1,4 @@
-from fmlib.models.tasks import Task
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
 
@@ -45,7 +44,6 @@ class TaskAnnouncement(object):
         tasks_lots = list()
 
         for task_id, task_dict in tasks_dict.items():
-            Task.create_new(task_id=task_id)
             tasks_lots.append(TaskLot.from_payload(task_dict))
 
         task_announcement = TaskAnnouncement(tasks_lots, round_id, zero_timepoint)

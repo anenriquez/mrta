@@ -9,7 +9,7 @@ from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.task import STNTask
 
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 from mrs.db.models.timetable import Timetable as TimetableMongo
 
 logger = logging.getLogger("mrs.timetable")
@@ -62,7 +62,7 @@ class Timetable(object):
             raise NoSTPSolution()
 
     def get_hard_constraints(self, task_lot, insertion_point):
-        start_timepoint = task_lot.constraints.timepoint_constraints[0]
+        start_timepoint = task_lot.task.constraints.timepoint_constraints[0]
 
         if insertion_point == 1:
             # TODO: Get navigation constraints using duration travel info:
@@ -90,7 +90,7 @@ class Timetable(object):
         if insertion_point == 1:
             # Try to start task as soon as possible
             start_time = datetime.now() + timedelta(minutes=1)
-            start_timepoint = TimepointConstraints(earliest_time=start_time)
+            start_timepoint = TimepointConstraints(earliest_time=start_time, latest_time=start_time)
 
             # TODO: Get start constraints using duration travel info:
             #  [mu - 2sd, mu + 2sd] from current pose to start_pose of new task
@@ -128,7 +128,7 @@ class Timetable(object):
             task_lot (obj): task_lot object to be converted
             insertion_point(int): position in the stn in which the task will be insterted
         """
-        if task_lot.constraints.hard:
+        if task_lot.task.constraints.hard:
             navigation_timepoint, start_timepoint = self.get_hard_constraints(task_lot, insertion_point)
         else:
             navigation_timepoint, start_timepoint = self.get_soft_constraints(task_lot, insertion_point)
@@ -141,8 +141,8 @@ class Timetable(object):
                            r_earliest_navigation_time,
                            r_earliest_start_time,
                            r_latest_start_time,
-                           task_lot.start_location,
-                           task_lot.finish_location)
+                           task_lot.task.request.pickup_location,
+                           task_lot.task.request.delivery_location)
         return stn_task
 
     def get_tasks(self):

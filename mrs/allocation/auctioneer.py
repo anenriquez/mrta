@@ -1,11 +1,11 @@
 import logging
 from datetime import timedelta
 
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
 from mrs.allocation.round import Round
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
@@ -129,11 +129,11 @@ class Auctioneer(object):
         if isinstance(tasks, list):
             self.logger.debug('Auctioneer received a list of tasks')
             for task in tasks:
-                task_lot = TaskLot.from_task(task)
+                task_lot = TaskLot.create_new(task)
                 tasks_to_allocate[task_lot.task.task_id] = task_lot
         else:
             self.logger.debug('Auctioneer received one task')
-            task_lot = TaskLot.from_task(tasks)
+            task_lot = TaskLot.create_new(tasks)
             tasks_to_allocate[task_lot.task.task_id] = task_lot
         self.tasks_to_allocate = tasks_to_allocate
 

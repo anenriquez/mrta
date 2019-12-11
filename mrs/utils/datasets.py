@@ -3,7 +3,8 @@ from datetime import timedelta
 
 import yaml
 from fmlib.models.requests import TransportationRequest
-from fmlib.models.tasks import Task
+from fmlib.models.tasks import TaskConstraints, TimepointConstraints
+from mrs.db.models.task import TransportationTask
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
@@ -27,18 +28,22 @@ def load_tasks_to_db(dataset_path):
     tasks = list()
 
     for task_id, task_info in ordered_tasks.items():
-        start_location = task_info.get("start_location")
-        finish_location = task_info.get("finish_location")
+        earliest_pickup_time, latest_pickup_time = reference_to_current_time(task_info.get("earliest_pickup_time"),
+                                                                             task_info.get("latest_pickup_time"))
+        request = TransportationRequest(request_id=generate_uuid(),
+                                        pickup_location=task_info.get('pickup_location'),
+                                        delivery_location=task_info.get('delivery_location'),
+                                        earliest_pickup_time=earliest_pickup_time,
+                                        latest_pickup_time=latest_pickup_time,
+                                        hard_constraints=task_info.get('hard_constraints'))
 
-        earliest_start_time, latest_start_time = reference_to_current_time(task_info.get("earliest_start_time"),
-                                                                           task_info.get("latest_start_time"))
-        hard_constraints = task_info.get("hard_constraints")
+        pickup_constraints = TimepointConstraints(earliest_time=request.earliest_pickup_time,
+                                                  latest_time=request.latest_pickup_time)
 
-        request = TransportationRequest(request_id=generate_uuid(), pickup_location=start_location,
-                                        delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
-                                        latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
+        constraints = TaskConstraints(timepoint_constraints=[pickup_constraints],
+                                      hard=request.hard_constraints)
 
-        task = Task.create_new(task_id=task_id, request=request)
+        task = TransportationTask.create_new(task_id=task_id, request=request, constraints=constraints)
 
         tasks.append(task)
 

@@ -1,15 +1,16 @@
 import copy
 import logging
 
-from stn.exceptions.stp import NoSTPSolution
-from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
-from mrs.messages.task_contract import TaskContract
-from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.bid import Bid
+from fmlib.models.robot import Robot
 from mrs.allocation.bidding_rule import BiddingRule
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
+from mrs.messages.bid import Bid
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.task_contract import TaskContract
+from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
+from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
-
+from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -25,7 +26,7 @@ class Bidder:
 
         Args:
 
-            robot_id (str): id of the robot, e.g. ropod_001
+            robot_id (str): id of the robot, e.g. robot_001
             stp_solver (STP): Simple Temporal Problem object
             bidding_rule(dict): robustness and temporal criteria for the bidding rule
             auctioneer_name (str): name of the auctioneer pyre node
@@ -39,6 +40,7 @@ class Bidder:
         self.timetable = timetable
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
+        self.planner = kwargs.get('planner')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
         self.logger.debug("Initial timetable %s", self.timetable.stn)
@@ -123,7 +125,6 @@ class Bidder:
 
     def insert_task(self, task_lot, round_id):
         best_bid = None
-
         n_tasks = len(self.timetable.get_tasks())
 
         # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
@@ -133,6 +134,11 @@ class Bidder:
                 continue
 
             self.logger.debug("Computing bid for task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
+            if insertion_point == 1:
+                try:
+                    robot_position = Robot.get_robot(self.robot_id).position
+                except DoesNotExist:
+                    self.logger.warning("No information about robot's current position")
             try:
                 bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task_lot, insertion_point, self.timetable)
 

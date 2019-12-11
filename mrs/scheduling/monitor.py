@@ -7,7 +7,7 @@ from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.scheduling.scheduler import Scheduler
-from fmlib.models.tasks import Task
+from mrs.db.models.task import TransportationTask as Task
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 

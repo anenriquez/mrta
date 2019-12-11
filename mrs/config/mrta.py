@@ -7,6 +7,13 @@ from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.interface import ExecutorInterface
 from mrs.timetable.manager import TimetableManager
+from planner.planner import Planner
+
+_component_modules = {'auctioneer': Auctioneer,
+                      'dispatcher': Dispatcher,
+                      'bidder': Bidder,
+                      'executor_interface': ExecutorInterface,
+                      'planner': Planner}
 
 
 class MRTAFactory:
@@ -34,11 +41,6 @@ class MRTAFactory:
         self.register_component('stp_solver', self.get_stp_solver())
         self.register_component('timetable_manager', TimetableManager(self._components.get('stp_solver')))
 
-        self.register_component('auctioneer', Auctioneer)
-        self.register_component('dispatcher', Dispatcher)
-        self.register_component('bidder', Bidder)
-        self.register_component('executor_interface', ExecutorInterface)
-
     def register_component(self, component_name, component):
         self._components[component_name] = component
 
@@ -52,12 +54,14 @@ class MRTAFactory:
 
     def __call__(self, **kwargs):
         for component_name, configuration in kwargs.items():
-            self.logger.debug("Creating %s", component_name)
-            component = self._components.get(component_name)
+            if component_name in _component_modules:
+                self.logger.debug("Creating %s", component_name)
+                component = _component_modules.get(component_name)
 
-            if component and isinstance(configuration, dict):
-                _component = component(**configuration, **self._components)
-                self._components[component_name] = _component
+                if component and isinstance(configuration, dict):
+                    self.register_component(component_name, component)
+                    _component = component(**configuration, **self._components)
+                    self._components[component_name] = _component
 
         return self._components
 

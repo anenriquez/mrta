@@ -5,7 +5,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 
 from mrs.dispatching.schedule_monitor import ScheduleMonitor
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
-from mrs.db.models.task import TaskLot
+from mrs.db.models.task_lot import TaskLot
 
 
 class Dispatcher(object):

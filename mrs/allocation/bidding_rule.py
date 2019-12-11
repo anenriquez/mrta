@@ -13,7 +13,7 @@ class BiddingRule(object):
             stn, dispatchable_graph = timetable.solve_stp(task_lot, insertion_point)
             dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
 
-            if task_lot.constraints.hard:
+            if task_lot.task.constraints.hard:
                 bid = Bid(robot_id,
                           round_id,
                           task_lot.task.task_id,
@@ -24,7 +24,7 @@ class BiddingRule(object):
             else:
                 r_start_time = dispatchable_graph.get_time(task_lot.task.task_id, "start")
                 start_time = timetable.zero_timepoint + timedelta(minutes=r_start_time)
-                start_timepoint_constraints = task_lot.constraints.timepoint_constraints[0]
+                start_timepoint_constraints = task_lot.task.constraints.timepoint_constraints[0]
 
                 r_earliest_start_time, r_latest_start_time = TimepointConstraints.relative_to_ztp(start_timepoint_constraints,
                                                                                                   timetable.zero_timepoint)
