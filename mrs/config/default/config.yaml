@@ -12,9 +12,11 @@ experiment_store:
   port: 27017
 
 fleet:
-  - ropod_001
-  - ropod_002
-  - ropod_003
+  - robot_001
+  - robot_002
+  - robot_003
+  - robot_004
+  - robot_005
 
 allocation_method: tessi-srea
 
@@ -54,6 +56,7 @@ robot_api:
         - TASK-CONTRACT
         - DISPATCH-QUEUE-UPDATE
         - TASK
+        - ROBOT-POSE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -80,6 +83,8 @@ robot_api:
         component: 'executor_interface.task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
+      - msg_type: 'ROBOT-POSE'
+        component: '.robot_pose_cb'
 
 ccu_api:
   version: 0.1.0

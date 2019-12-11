@@ -2,11 +2,11 @@ import argparse
 import logging.config
 import time
 
-from mrs.db.models.task import TransportationTask as Task
-from ropod.structs.task import TaskStatus as TaskStatusConst
-
+from fmlib.models.robot import Robot as RobotModel
 from mrs.config.configurator import Configurator
+from mrs.db.models.task import TransportationTask as Task
 from mrs.db.models.task_lot import TaskLot
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class Robot:
@@ -18,9 +18,9 @@ class Robot:
         self.robot_store = components.get('robot_store')
         self.bidder = bidder
         self.executor_interface = kwargs.get('executor_interface')
+        self.robot_model = RobotModel.create_new(robot_id)
 
         self.api.register_callbacks(self)
-
         self.logger.info("Initialized Robot %s", robot_id)
 
     def task_cb(self, msg):
@@ -31,6 +31,11 @@ class Robot:
             task.update_status(TaskStatusConst.DISPATCHED)
             self.executor_interface.tasks.append(task)
             TaskLot.freeze_task(task.task_id)
+
+    def robot_pose_cb(self, msg):
+        payload = msg.get("payload")
+        self.logger.debug("Robot %s received pose", self.robot_id)
+        self.robot_model.update_position(**payload.get("pose"))
 
     def run(self):
         try:
