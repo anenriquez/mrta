@@ -27,28 +27,28 @@ class ExecutorInterface:
                                                 time_resolution,
                                                 self.tasks)
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
-        self.logger.debug("Executor interface initialized %s", self.robot_id)
+        self.logger.critical("Executor interface initialized %s", self.robot_id)
 
     def execute(self, task):
-        self.logger.debug("Starting execution of task %s", task.task_id)
+        self.logger.critical("Starting execution of task %s", task.task_id)
 
     def task_progress_cb(self):
         # For now, assume that the task's timepoints get assigned their latest time
-        # TODO: Receive task progress msgs
+        # TODO: Sample constraint
         for task in self.tasks:
             if task.status.status == TaskStatusConst.ONGOING:
-                pickup_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'start', False)
-                self.logger.debug("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
-                self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'start')
+                pickup_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'pickup', False)
+                self.logger.critical("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
+                self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'pickup')
 
-                delivery_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'finish', False)
-                self.logger.debug("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
-                self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'finish')
+                delivery_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'delivery', False)
+                self.logger.critical("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
+                self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'delivery')
 
                 self.archive_task(task)
 
     def archive_task(self, task):
-        self.logger.debug("Deleting task: %s", task.task_id)
+        self.logger.critical("Deleting task: %s", task.task_id)
         task.update_status(TaskStatusConst.COMPLETED)
         self.tasks.remove(task)
         self.archived_tasks.append(task)

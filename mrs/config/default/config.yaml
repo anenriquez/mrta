@@ -19,6 +19,8 @@ fleet:
   - robot_005
 
 allocation_method: tessi-srea
+planner:
+  map_name: brsu
 
 ccu:
   auctioneer:
@@ -26,8 +28,6 @@ ccu:
     alternative_timeslots: True
   dispatcher:
     freeze_window: 5 # seconds
-  planner:
-    map_name: brsu
 
 robot:
   bidder:
@@ -35,8 +35,6 @@ robot:
       robustness: srea  # has to be the same as the stp_solver
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
-    planner:
-      map_name: brsu
   executor_interface:
     corrective_measure: re-allocate
     time_resolution: 0.5 # minutes

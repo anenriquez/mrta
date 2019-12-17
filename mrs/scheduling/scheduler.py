@@ -34,15 +34,15 @@ class Scheduler(object):
         return start_times
 
     def schedule(self, task, dispatchable_graph, zero_timepoint):
-        self.logger.debug("Scheduling task: %s", task.task_id)
         earliest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=True)
         latest_start_time = dispatchable_graph.get_time(task.task_id, lower_bound=False)
         start_times = self.get_times(earliest_start_time, latest_start_time)
 
         for start_time in start_times:
-            dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "navigation")
+            self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
+            dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "start")
             if dispatchable_graph:
-                task.start_time = (zero_timepoint + timedelta(minutes=start_time)).to_datetime()
+                task.start_time = (zero_timepoint + timedelta(seconds=start_time)).to_datetime()
                 return task, dispatchable_graph
 
         self.logger.warning("Task %s could not be scheduled between %s and %s", task.task_id,

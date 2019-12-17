@@ -2,15 +2,17 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
+from pymodm.errors import DoesNotExist
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.allocation.bidding_rule import BiddingRule
-from mrs.db.models.task import TransportationTask as Task
+from mrs.db.models.task import InterTimepointConstraint
+from mrs.db.models.task import Task
 from mrs.messages.bid import Bid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
-from pymodm.errors import DoesNotExist
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -84,21 +86,21 @@ class Bidder:
         no_bids = list()
         round_id = task_announcement.round_id
 
-        for task_lot in task_announcement.tasks_lots:
-            self.logger.debug("Computing bid of task %s", task_lot.task.task_id)
+        for task in task_announcement.tasks:
+            self.logger.debug("Computing bid of task %s", task.task_id)
 
             # Insert task in each possible insertion_point of the stn and
             # get the best_bid for each task
-            best_bid = self.insert_task(task_lot, round_id)
+            best_bid = self.insert_task(task, round_id)
 
             if best_bid:
-                self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task_lot.task.task_id,
+                self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task.task_id,
                                   best_bid.risk_metric, best_bid.temporal_metric)
 
                 bids.append(best_bid)
             else:
-                self.logger.warning("No bid for task %s", task_lot.task.task_id)
-                no_bid = Bid(self.robot_id, round_id, task_lot.task.task_id)
+                self.logger.warning("No bid for task %s", task.task_id)
+                no_bid = Bid(self.robot_id, round_id, task.task_id)
                 no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
@@ -114,8 +116,7 @@ class Bidder:
         """
         if bid:
             self.bid_placed = bid
-            self.logger.debug("Robot %s placed bid (risk metric: %s, temporal metric: %s)", self.robot_id,
-                              self.bid_placed.risk_metric, self.bid_placed.temporal_metric)
+            self.logger.debug("Placing bid %s ", self.bid_placed)
             self.send_bid(bid)
 
         if no_bids:
@@ -123,24 +124,22 @@ class Bidder:
                 self.logger.debug("Sending no bid for task %s", no_bid.task_id)
                 self.send_bid(no_bid)
 
-    def insert_task(self, task_lot, round_id):
+    def insert_task(self, task, round_id):
         best_bid = None
         n_tasks = len(self.timetable.get_tasks())
 
         # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
         for insertion_point in range(1, n_tasks+2):
-            # TODO check if the robot can make it to the task, if not, return
             if not self.insert_in(insertion_point):
                 continue
 
-            self.logger.debug("Computing bid for task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
-            if insertion_point == 1:
-                try:
-                    robot_position = Robot.get_robot(self.robot_id).position
-                except DoesNotExist:
-                    self.logger.warning("No information about robot's current position")
+            self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
+            previous_position = self.get_previous_position(insertion_point)
+            travel_time = self.compute_travel_time(previous_position, task)
+
             try:
-                bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task_lot, insertion_point, self.timetable)
+                bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task, insertion_point, self.timetable,
+                                                    travel_time)
 
                 self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
 
@@ -151,7 +150,7 @@ class Bidder:
                     best_bid = bid
 
             except NoSTPSolution:
-                self.logger.debug("The STN is inconsistent with task %s in insertion_point %s", task_lot.task.task_id, insertion_point)
+                self.logger.debug("The STN is inconsistent with task %s in insertion_point %s", task.task_id, insertion_point)
 
         return best_bid
 
@@ -161,6 +160,34 @@ class Bidder:
             self.logger.debug("Not adding task in insertion_point %s", insertion_point)
             return False
         return True
+
+    def get_previous_position(self, insertion_point):
+        if insertion_point == 1:
+            try:
+                position = Robot.get_robot(self.robot_id).position
+                previous_position = self.planner.get_node(position.x, position.y, position.theta)
+            except DoesNotExist:
+                self.logger.warning("No information about robot's current position")
+                previous_position = "AMK_D_L-1_C39"
+        else:
+            previous_task = self.timetable.get_task(insertion_point-1)
+            previous_position = previous_task.request.delivery_location
+
+        self.logger.debug("Previous position: %s ", previous_position)
+        return previous_position
+
+    def compute_travel_time(self, previous_position, task):
+        if self.planner:
+            plan = self.planner.get_path(previous_position, task.request.pickup_location)
+            mean, variance = self.planner.get_estimated_duration(plan)
+        else:
+            mean = 1
+            variance = 0.1
+
+        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
+        self.logger.debug("Travel time: %s", travel_time)
+        task.update_inter_timepoint_constraint("travel_time", mean, variance)
+        return travel_time
 
     @staticmethod
     def get_smallest_bid(bids):

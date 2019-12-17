@@ -1,16 +1,16 @@
 import logging
 from datetime import timedelta
 
-from mrs.db.models.task import TransportationTask as Task
-from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.task_contract import TaskContract
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+
 from mrs.allocation.round import Round
-from mrs.db.models.task_lot import TaskLot
+from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
+from mrs.messages.task_announcement import TaskAnnouncement
+from mrs.messages.task_contract import TaskContract
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -56,8 +56,7 @@ class Auctioneer(object):
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for task in tasks:
-            task_lot = TaskLot.get_task(task.task_id)
-            self.tasks_to_allocate[task_lot.task.task_id] = task_lot
+            self.tasks_to_allocate[task.task_id] = task
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -102,18 +101,18 @@ class Auctioneer(object):
         self.process_allocation(allocation, time_to_allocate, bid)
 
     def process_allocation(self, allocation, time_to_allocate,  bid):
-        task_lot = self.tasks_to_allocate.pop(bid.task_id)
+        task = self.tasks_to_allocate.pop(bid.task_id)
+        task.update_inter_timepoint_constraint(**bid.travel_time.to_dict())
         try:
-            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.temporal_metric, task_lot)
+            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.temporal_metric, task)
             self.allocations.append(allocation)
 
             self.logger.debug("Allocation: %s", allocation)
             self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
             self.logger.debug("Updating task status to ALLOCATED")
-            task_lot.task.update_status(TaskStatusConst.ALLOCATED)
-            task_lot.task.update_status(TaskStatusConst.PLANNED)
-            task = Task.get_task(bid.task_id)
+            task.update_status(TaskStatusConst.ALLOCATED)
+            task.update_status(TaskStatusConst.PLANNED)
             task.assign_robots([bid.robot_id])
 
             self.announce_winner(allocation)
@@ -121,7 +120,7 @@ class Auctioneer(object):
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."
                                 "Task %s will be included in next allocation round", e.task_id, e.robot_id, e.task_id)
-            self.tasks_to_allocate[task_lot.task.task_id] = task_lot
+            self.tasks_to_allocate[task.task_id] = task
             self.round.finish()
 
     def allocate(self, tasks):
@@ -129,12 +128,14 @@ class Auctioneer(object):
         if isinstance(tasks, list):
             self.logger.debug('Auctioneer received a list of tasks')
             for task in tasks:
-                task_lot = TaskLot.create_new(task)
-                tasks_to_allocate[task_lot.task.task_id] = task_lot
+                if not isinstance(task, Task):
+                    task = Task.from_task(task)
+                tasks_to_allocate[task.task_id] = task
         else:
             self.logger.debug('Auctioneer received one task')
-            task_lot = TaskLot.create_new(tasks)
-            tasks_to_allocate[task_lot.task.task_id] = task_lot
+            if not isinstance(tasks, Task):
+                tasks = Task.from_task(tasks)
+            tasks_to_allocate[tasks.task_id] = tasks
         self.tasks_to_allocate = tasks_to_allocate
 
     def announce_task(self):
@@ -147,9 +148,9 @@ class Auctioneer(object):
         self.logger.debug("Starting round: %s", self.round.id)
         self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
-        tasks_lots = list(self.tasks_to_allocate.values())
+        tasks = list(self.tasks_to_allocate.values())
 
-        task_announcement = TaskAnnouncement(tasks_lots, self.round.id, self.timetable_manager.zero_timepoint)
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
         msg = self.api.create_message(task_announcement)
 
         self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
@@ -186,26 +187,26 @@ class Auctioneer(object):
 
         timetable = self.timetable_manager.timetables.get(robot_id)
 
-        relative_start_navigation_time = timetable.dispatchable_graph.get_time(task_id, "navigation")
         relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
-        relative_latest_finish_time = timetable.dispatchable_graph.get_time(task_id, "finish", False)
+        relative_pickup_time = timetable.dispatchable_graph.get_time(task_id, "pickup")
+        relative_latest_delivery_time = timetable.dispatchable_graph.get_time(task_id, "delivery", False)
 
         self.logger.debug("Current time %s: ", TimeStamp())
         self.logger.debug("zero_timepoint %s: ", self.timetable_manager.zero_timepoint)
-        self.logger.debug("Relative start navigation time: %s", relative_start_navigation_time)
-        self.logger.debug("Relative start time: %s", relative_start_time)
-        self.logger.debug("Relative latest finish time: %s", relative_latest_finish_time)
+        self.logger.debug("Relative start navigation time: %s", relative_start_time)
+        self.logger.debug("Relative pickup time: %s", relative_pickup_time)
+        self.logger.debug("Relative latest delivery time: %s", relative_latest_delivery_time)
 
-        start_navigation_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_start_navigation_time)
-        start_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_start_time)
-        finish_time = self.timetable_manager.zero_timepoint + timedelta(minutes=relative_latest_finish_time)
+        start_time = self.timetable_manager.zero_timepoint + timedelta(seconds=relative_start_time)
+        pickup_time = self.timetable_manager.zero_timepoint + timedelta(seconds=relative_pickup_time)
+        delivery_time = self.timetable_manager.zero_timepoint + timedelta(seconds=relative_latest_delivery_time)
 
-        self.logger.debug("Start navigation of task %s: %s", task_id, start_navigation_time)
-        self.logger.debug("Start of task %s: %s", task_id, start_time)
-        self.logger.debug("Latest finish of task %s: %s", task_id, finish_time)
+        self.logger.debug("Task %s start time: %s", task_id, start_time)
+        self.logger.debug("Task %s pickup time : %s", task_id, pickup_time)
+        self.logger.debug("Task %s latest delivery time: %s", task_id, delivery_time)
 
-        task_schedule['start_time'] = start_navigation_time.to_datetime()
-        task_schedule['finish_time'] = finish_time.to_datetime()
+        task_schedule['start_time'] = start_time.to_datetime()
+        task_schedule['finish_time'] = delivery_time.to_datetime()
 
         return task_schedule
 

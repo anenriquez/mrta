@@ -3,10 +3,10 @@ import logging.config
 import time
 
 from fmlib.models.robot import Robot as RobotModel
-from mrs.config.configurator import Configurator
-from mrs.db.models.task import TransportationTask as Task
-from mrs.db.models.task_lot import TaskLot
 from ropod.structs.task import TaskStatus as TaskStatusConst
+
+from mrs.config.configurator import Configurator
+from mrs.db.models.task import Task
 
 
 class Robot:
@@ -30,7 +30,7 @@ class Robot:
         if self.robot_id in task.assigned_robots:
             task.update_status(TaskStatusConst.DISPATCHED)
             self.executor_interface.tasks.append(task)
-            TaskLot.freeze_task(task.task_id)
+            Task.freeze_task(task.task_id)
 
     def robot_pose_cb(self, msg):
         payload = msg.get("payload")
@@ -58,7 +58,7 @@ class Robot:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-    parser.add_argument('robot_id', type=str, help='example: ropod_001')
+    parser.add_argument('robot_id', type=str, help='example: robot_001')
     args = parser.parse_args()
 
     config = Configurator(args.file)

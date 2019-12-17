@@ -3,12 +3,13 @@ import logging
 import time
 from datetime import timedelta
 
+from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
+
+from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
-from mrs.db.models.task_lot import TaskLot
 
 
 class Round(object):
@@ -134,7 +135,7 @@ class Round(object):
         """
         for task_id, n_no_bids in self.received_no_bids.items():
             if task_id not in self.received_bids:
-                task = TaskLot.get_task(task_id)
+                task = Task.get_task(task_id)
                 task.set_soft_constraints()
                 self.logger.debug("Setting soft constraints for task %s", task_id)
 

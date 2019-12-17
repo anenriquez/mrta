@@ -1,14 +1,14 @@
 import logging
 
+from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.stn import STN
 
-from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
+from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
+from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.scheduling.scheduler import Scheduler
-from mrs.db.models.task import TransportationTask as Task
-from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class ScheduleMonitor:
@@ -62,7 +62,7 @@ class ScheduleMonitor:
 
             scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
             self.dispatchable_graph = dispatchable_task
-            self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
+            self.logger.critical("Task %s scheduled to start at %s", task.task_id, task.start_time)
             self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
             return scheduled_task
 
@@ -71,11 +71,11 @@ class ScheduleMonitor:
             raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
-        self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
+        self.logger.critical("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
         dispatchable_graph = self.scheduler.assign_timepoint(assigned_time, self.dispatchable_graph, task_id, node_type)
         if dispatchable_graph:
             self.dispatchable_graph = dispatchable_graph
-            self.logger.debug("Dispatchable graph with assigned value %s", self.dispatchable_graph)
+            self.logger.critical("Dispatchable graph with assigned value %s", self.dispatchable_graph)
             self.apply_corrective_measure(task_id, consistent=True)
         else:
             self.logger.warning("Assignment of time %s to task %s timepoint %s was not consistent",
@@ -112,7 +112,7 @@ class ScheduleMonitor:
                 # Add task from d-graph update
                 tasks.append(self.get_task_graph(dispatchable_graph, task_id))
 
-        stn = STN()
+        stn = self.stp_solver.get_stn()
         for task_graph in tasks:
             stn.add_nodes_from(task_graph.nodes(data=True))
             stn.add_edges_from(task_graph.edges(data=True))
@@ -140,12 +140,13 @@ class ScheduleMonitor:
         payload = msg['payload']
         d_graph_update = DispatchQueueUpdate.from_payload(payload)
         self.zero_timepoint = TimeStamp.from_str(d_graph_update.zero_timepoint)
-        dispatchable_graph = STN.from_dict(d_graph_update.dispatchable_graph)
+        stn = self.stp_solver.get_stn()
+        dispatchable_graph = stn.from_dict(d_graph_update.dispatchable_graph)
         if self.dispatchable_graph:
             self.update_dispatchable_graph(dispatchable_graph)
         else:
             self.dispatchable_graph = dispatchable_graph
-        self.logger.debug("Dispatchable graph update %s", self.dispatchable_graph)
+        self.logger.critical("Dispatchable graph update %s", self.dispatchable_graph)
 
 
 
