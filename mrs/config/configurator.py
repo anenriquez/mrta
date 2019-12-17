@@ -1,8 +1,11 @@
+import logging.config
+
 from fmlib.api import API
 from fmlib.config.builders import Store
 from fmlib.config.params import ConfigParams
+from planner.planner import Planner
+
 from mrs.config.mrta import MRTAFactory
-import logging.config
 from mrs.timetable.timetable import Timetable
 
 ConfigParams.default_config_module = 'mrs.config.default'
@@ -21,6 +24,9 @@ class Configurator:
         logging.config.dictConfig(logger_config)
 
         self.builder = MRTAFactory(self.config_params.get('allocation_method'))
+        planner_config = self.config_params.get('planner')
+        planner = Planner(**planner_config)
+        self.builder.register_component('planner', planner)
 
     def config_ccu(self):
         api_config = self.config_params.get('ccu_api')
@@ -51,7 +57,9 @@ class Configurator:
 
         self.builder.register_component('api', api)
         self.builder.register_component('robot_store', store)
-        self.builder.register_component('timetable', Timetable(robot_id, self.builder.get_stp_solver()))
+        timetable = Timetable(robot_id, self.builder.get_stp_solver())
+        timetable.fetch()
+        self.builder.register_component('timetable', timetable)
         self.builder.register_component('robot_id', robot_id)
 
         robot_config = self.config_params.get('robot')

@@ -35,6 +35,7 @@ class TimetableManager(object):
         timetable = Timetable(robot_id, self.stp_solver)
         timetable.fetch()
         self.timetables[robot_id] = timetable
+        print("Timetable zero timepoint: ", self.zero_timepoint)
 
     def fetch_timetables(self):
         for robot_id, timetable in self.timetables.items():
@@ -47,12 +48,12 @@ class TimetableManager(object):
             n_allocated_tasks[robot_id] = len(timetable.stn.get_tasks())
         return n_allocated_tasks
 
-    def update_timetable(self, robot_id, insertion_point, temporal_metric, task_lot):
+    def update_timetable(self, robot_id, insertion_point, temporal_metric, task):
         timetable = self.timetables.get(robot_id)
         timetable.fetch()
 
         try:
-            stn, dispatchable_graph = timetable.solve_stp(task_lot, insertion_point)
+            stn, dispatchable_graph = timetable.solve_stp(task, insertion_point)
             dispatchable_graph.temporal_metric = temporal_metric
             timetable.stn = stn
             timetable.dispatchable_graph = dispatchable_graph
@@ -61,8 +62,8 @@ class TimetableManager(object):
                 self.send_update_to = robot_id
 
         except NoSTPSolution:
-            self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task_lot.task.task_id, insertion_point)
-            raise InvalidAllocation(task_lot.task.task_id, robot_id, insertion_point)
+            self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id, insertion_point)
+            raise InvalidAllocation(task.task_id, robot_id, insertion_point)
 
         timetable.store()
 

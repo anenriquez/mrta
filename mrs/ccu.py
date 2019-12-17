@@ -2,16 +2,16 @@ import argparse
 import logging.config
 import time
 
-from mrs.config.configurator import Configurator
-from mrs.db.models.task import EstimatedDuration
-from mrs.db.models.task import TransportationTask as Task
-from mrs.messages.archive_task import ArchiveTask
 from ropod.structs.task import TaskStatus as TaskStatusConst
+
+from mrs.config.configurator import Configurator
+from mrs.db.models.task import Task
+from mrs.messages.archive_task import ArchiveTask
 
 
 class CCU:
     def __init__(self, config_file=None):
-        self.logger = logging.getLogger('mrs.ccu')
+        self.logger = logging.getLogger("mrs.ccu")
         self.logger.info("Configuring CCU...")
 
         config = Configurator(config_file)
@@ -33,10 +33,10 @@ class CCU:
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for task in tasks:
             plan = self.get_task_plan(task)
-            self.unallocated_tasks[task.task_id] = {'task': task,
-                                                    'plan': plan}
-            work_time = self.get_plan_work_time(plan)
-            task.update_work_time(work_time)
+            self.unallocated_tasks[task.task_id] = {"task": task,
+                                                    "plan": plan}
+            mean, variance = self.get_plan_work_time(plan)
+            task.update_inter_timepoint_constraint("work_time", mean, variance)
 
         self.auctioneer.allocate(tasks)
 
@@ -45,8 +45,7 @@ class CCU:
 
     def get_plan_work_time(self, plan):
         mean, variance = self.planner.get_estimated_duration(plan)
-        work_time = EstimatedDuration(mean=mean, variance=variance)
-        return work_time
+        return mean, variance
 
     def archive_task_cb(self, msg):
         payload = msg['payload']
