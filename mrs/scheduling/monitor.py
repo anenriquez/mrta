@@ -62,7 +62,7 @@ class ScheduleMonitor:
 
             scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
             self.dispatchable_graph = dispatchable_task
-            self.logger.critical("Task %s scheduled to start at %s", task.task_id, task.start_time)
+            self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
             self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
             return scheduled_task
 
@@ -71,11 +71,11 @@ class ScheduleMonitor:
             raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
-        self.logger.critical("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
+        self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
         dispatchable_graph = self.scheduler.assign_timepoint(assigned_time, self.dispatchable_graph, task_id, node_type)
         if dispatchable_graph:
             self.dispatchable_graph = dispatchable_graph
-            self.logger.critical("Dispatchable graph with assigned value %s", self.dispatchable_graph)
+            self.logger.debug("Dispatchable graph with assigned value %s", self.dispatchable_graph)
             self.apply_corrective_measure(task_id, consistent=True)
         else:
             self.logger.warning("Assignment of time %s to task %s timepoint %s was not consistent",
@@ -146,7 +146,7 @@ class ScheduleMonitor:
             self.update_dispatchable_graph(dispatchable_graph)
         else:
             self.dispatchable_graph = dispatchable_graph
-        self.logger.critical("Dispatchable graph update %s", self.dispatchable_graph)
+        self.logger.debug("Dispatchable graph update %s", self.dispatchable_graph)
 
 
 

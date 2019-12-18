@@ -34,7 +34,7 @@ class Dispatcher(object):
 
         self.robot_ids = list()
 
-        self.logger.critical("Dispatcher started")
+        self.logger.debug("Dispatcher started")
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -76,13 +76,13 @@ class Dispatcher(object):
             task: a ropod.structs.task.Task object
             robot_id: a robot UUID
         """
-        self.logger.critical("Dispatching task %s to robot %s", task.task_id, robot_id)
+        self.logger.debug("Dispatching task %s to robot %s", task.task_id, robot_id)
         task_msg = self.api.create_message(task)
         self.api.publish(task_msg)
         task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, timetable, robot_id):
-        self.logger.critical("Sending DGraphUpdate to %s", robot_id)
+        self.logger.debug("Sending DGraphUpdate to %s", robot_id)
         sub_dispatchable_graph = timetable.get_sub_d_graph(self.timetable_manager.n_tasks_queue)
         dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
         msg = self.api.create_message(dispatch_queue_update)
