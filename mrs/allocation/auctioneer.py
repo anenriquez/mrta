@@ -19,7 +19,7 @@ specified in the config file
 
 class Auctioneer(object):
 
-    def __init__(self, stp_solver, timetable_manager, round_time=5, freeze_window=300, **kwargs):
+    def __init__(self, stp_solver, timetable_manager, closure_window=5, freeze_window=300, **kwargs):
 
         self.logger = logging.getLogger("mrs.auctioneer")
         self.api = kwargs.get('api')
@@ -29,7 +29,7 @@ class Auctioneer(object):
 
         self.stp_solver = stp_solver
 
-        self.round_time = timedelta(seconds=round_time)
+        self.closure_window = timedelta(seconds=closure_window)
         self.freeze_window = timedelta(seconds=freeze_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
@@ -38,7 +38,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
-        self.round = Round(self.timetable_manager.get_n_allocated_tasks())
+        self.round = Round(self.timetable_manager.get_n_allocated_tasks(), self.n_robots)
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -52,6 +52,10 @@ class Auctioneer(object):
         self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
         self.timetable_manager.register_robot(robot_id)
+
+    @property
+    def n_robots(self):
+        return len(self.robot_ids)
 
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
@@ -141,16 +145,19 @@ class Auctioneer(object):
     def announce_task(self):
         self.timetable_manager.fetch_timetables()
 
+        tasks = list(self.tasks_to_allocate.values())
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
+        self.logger.debug("Pickup time of earliest task in task announcement %s", task_announcement.get_earliest_task())
+        closure_time = task_announcement.get_earliest_task() - self.closure_window
+
         self.round = Round(self.timetable_manager.get_n_allocated_tasks(),
-                           round_time=self.round_time,
+                           self.n_robots,
+                           closure_time=closure_time,
                            alternative_timeslots=self.alternative_timeslots)
 
         self.logger.debug("Starting round: %s", self.round.id)
         self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
 
-        tasks = list(self.tasks_to_allocate.values())
-
-        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
         msg = self.api.create_message(task_announcement)
 
         self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
