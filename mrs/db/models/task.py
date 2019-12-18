@@ -7,6 +7,7 @@ from fmlib.models.tasks import TaskManager
 from fmlib.utils.messages import Document
 from pymodm import EmbeddedMongoModel, fields
 from ropod.utils.timestamp import TimeStamp
+from stn.pstn.distempirical import norm_sample
 
 
 class TimepointConstraint(EmbeddedMongoModel):
@@ -69,6 +70,11 @@ class InterTimepointConstraint(EmbeddedMongoModel):
         to_print = ""
         to_print += "{}: N({}, {})".format(self.name, self.mean, self.variance ** 0.5)
         return to_print
+
+    def sample(self, random_state):
+        standard_dev = round(self.variance ** 0.5, 3)
+        sample = norm_sample(self.mean, standard_dev, random_state)
+        return round(sample)
 
     @classmethod
     def from_payload(cls, payload):
