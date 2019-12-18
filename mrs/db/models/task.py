@@ -66,15 +66,21 @@ class InterTimepointConstraint(EmbeddedMongoModel):
     mean = fields.FloatField()
     variance = fields.FloatField()
 
+    @property
+    def standard_dev(self):
+        return round(self.variance ** 0.5, 3)
+
     def __str__(self):
         to_print = ""
         to_print += "{}: N({}, {})".format(self.name, self.mean, self.variance ** 0.5)
         return to_print
 
     def sample(self, random_state):
-        standard_dev = round(self.variance ** 0.5, 3)
-        sample = norm_sample(self.mean, standard_dev, random_state)
+        sample = norm_sample(self.mean, self.standard_dev, random_state)
         return round(sample)
+
+    def get_duration(self, random_state, delay_n_standard_dev):
+        return self.sample(random_state) + delay_n_standard_dev*self.standard_dev
 
     @classmethod
     def from_payload(cls, payload):
