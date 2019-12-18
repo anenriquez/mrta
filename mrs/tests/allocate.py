@@ -104,9 +104,9 @@ if __name__ == '__main__':
     test.load_tasks(dataset)
 
     try:
-        time.sleep(30)
+        time.sleep(40)
         test.start()
-        time.sleep(30)
+        time.sleep(40)
         test.setup(robot_poses)
         test.trigger()
         while not test.terminated:
