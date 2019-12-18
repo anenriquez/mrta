@@ -19,6 +19,7 @@ class ExecutorInterface:
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
         time_resolution = kwargs.get('time_resolution', 0.5)
+        self.delay_n_standard_dev = kwargs.get('delay_n_standard_dev', 0)
         self.tasks = list()
         self.archived_tasks = list()
         self.task_to_archive = None
@@ -34,25 +35,24 @@ class ExecutorInterface:
         self.random_state = np.random.RandomState(random_seed)
 
     def execute(self, task):
-        self.logger.info("Starting execution of task %s", task.task_id)
-
+        self.logger.critical("Starting execution of task %s", task.task_id)
         travel_constraint = task.get_inter_timepoint_constraint("travel_time")
-        travel_time = travel_constraint.sample(self.random_state)
+        travel_duration = travel_constraint.get_duration(self.random_state, self.delay_n_standard_dev)
         start_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'start')
-        pickup_time = start_time + travel_time
+        pickup_time = start_time + travel_duration
         self.logger.info("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
         self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'pickup')
 
         work_constraint = task.get_inter_timepoint_constraint("work_time")
-        work_time = work_constraint.sample(self.random_state)
-        delivery_time = pickup_time + work_time
+        work_duration = work_constraint.get_duration(self.random_state, self.delay_n_standard_dev)
+        delivery_time = pickup_time + work_duration
         self.logger.info("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
         self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'delivery')
 
         self.archive_task(task)
 
     def archive_task(self, task):
-        self.logger.debug("Deleting task: %s", task.task_id)
+        self.logger.critical("Deleting task: %s", task.task_id)
         task.update_status(TaskStatusConst.COMPLETED)
         self.tasks.remove(task)
         self.archived_tasks.append(task)
