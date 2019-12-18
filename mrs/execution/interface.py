@@ -1,10 +1,11 @@
 import logging
 
+import numpy as np
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
+from mrs.messages.archive_task import ArchiveTask
 from mrs.scheduling.monitor import ScheduleMonitor
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from mrs.messages.archive_task import ArchiveTask
 
 
 class ExecutorInterface:
@@ -12,6 +13,7 @@ class ExecutorInterface:
                  stp_solver,
                  allocation_method,
                  corrective_measure,
+                 max_seed,
                  **kwargs):
         self.robot_id = robot_id
         self.api = kwargs.get('api')
@@ -27,28 +29,30 @@ class ExecutorInterface:
                                                 time_resolution,
                                                 self.tasks)
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
-        self.logger.critical("Executor interface initialized %s", self.robot_id)
+        self.logger.debug("Executor interface initialized %s", self.robot_id)
+        random_seed = np.random.randint(max_seed)
+        self.random_state = np.random.RandomState(random_seed)
 
     def execute(self, task):
-        self.logger.critical("Starting execution of task %s", task.task_id)
+        self.logger.info("Starting execution of task %s", task.task_id)
 
-    def task_progress_cb(self):
-        # For now, assume that the task's timepoints get assigned their latest time
-        # TODO: Sample constraint
-        for task in self.tasks:
-            if task.status.status == TaskStatusConst.ONGOING:
-                pickup_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'pickup', False)
-                self.logger.critical("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
-                self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'pickup')
+        travel_constraint = task.get_inter_timepoint_constraint("travel_time")
+        travel_time = travel_constraint.sample(self.random_state)
+        start_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'start')
+        pickup_time = start_time + travel_time
+        self.logger.info("Task %s, assigning pickup_time %s", task.task_id, pickup_time)
+        self.schedule_monitor.assign_timepoint(pickup_time, task.task_id, 'pickup')
 
-                delivery_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'delivery', False)
-                self.logger.critical("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
-                self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'delivery')
+        work_constraint = task.get_inter_timepoint_constraint("work_time")
+        work_time = work_constraint.sample(self.random_state)
+        delivery_time = pickup_time + work_time
+        self.logger.info("Task %s, assigning delivery_time %s", task.task_id, delivery_time)
+        self.schedule_monitor.assign_timepoint(delivery_time, task.task_id, 'delivery')
 
-                self.archive_task(task)
+        self.archive_task(task)
 
     def archive_task(self, task):
-        self.logger.critical("Deleting task: %s", task.task_id)
+        self.logger.debug("Deleting task: %s", task.task_id)
         task.update_status(TaskStatusConst.COMPLETED)
         self.tasks.remove(task)
         self.archived_tasks.append(task)
@@ -73,7 +77,3 @@ class ExecutorInterface:
             if task.status.status == TaskStatusConst.SCHEDULED and task.is_executable():
                 task.update_status(TaskStatusConst.ONGOING)
                 self.execute(task)
-
-        self.task_progress_cb()
-
-
