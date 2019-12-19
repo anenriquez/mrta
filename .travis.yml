@@ -3,10 +3,12 @@ language: python
 services:
   - docker
 
-
 before_install:
-  - docker-compose build task_allocation_test
-  - docker image ls
+  - docker build -t ropod-mrs:latest .
+  - docker images
+  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+  - docker tag ropod-mrs:latest $DOCKER_USERNAME/ropod-mrs:latest
+  - docker push $DOCKER_USERNAME/ropod-mrs:latest
 
 install: skip
 
@@ -15,7 +17,6 @@ script:
   - docker-compose logs
 after_script:
   - docker stop $(docker ps -aq)
-
 
 
 
