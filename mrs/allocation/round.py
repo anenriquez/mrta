@@ -1,32 +1,31 @@
 import copy
 import logging
 import time
-from datetime import timedelta
-
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
+from datetime import datetime
 
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid
+from ropod.utils.uuid import generate_uuid
 
 
 class Round(object):
 
-    def __init__(self,  n_allocated_tasks, round_time=timedelta(seconds=5), **kwargs):
+    def __init__(self, n_allocated_tasks, n_robots, **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
         self.n_allocated_tasks = n_allocated_tasks
-        self.round_time = round_time
+        self.n_robots = n_robots
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
-        self.closure_time = 0
+        self.closure_time = kwargs.get('closure_time')
         self.id = generate_uuid()
         self.finished = True
         self.opened = False
         self.received_bids = dict()
         self.received_no_bids = dict()
+        self.bidding_robots = list()  # Robots that have placed either a bid or an empty bid
         self.start_time = time.time()
         self.time_to_allocate = None
 
@@ -46,8 +45,7 @@ class Round(object):
                     (or an exception has been raised)
 
         """
-        open_time = TimeStamp()
-        self.closure_time = TimeStamp(delta=self.round_time)
+        open_time = datetime.now()
         self.logger.debug("Round opened at %s and will close at %s",
                           open_time, self.closure_time)
 
@@ -66,10 +64,14 @@ class Round(object):
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
 
                 self.received_bids[bid.task_id] = bid
+                if bid.robot_id not in self.bidding_robots:
+                    self.bidding_robots.append(bid.robot_id)
 
         else:
             # Process a no-bid
             self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
+            if bid.robot_id not in self.bidding_robots:
+                self.bidding_robots.append(bid.robot_id)
 
     @staticmethod
     def update_task_bid(new_bid, old_bid):
@@ -85,16 +87,21 @@ class Round(object):
 
         return False
 
+    def all_robots_placed_bid(self):
+        if len(self.bidding_robots) == self.n_robots:
+            return True
+        return False
+
     def time_to_close(self):
-        current_time = TimeStamp()
+        current_time = datetime.now()
 
-        if current_time < self.closure_time:
-            return False
+        if current_time > self.closure_time or self.all_robots_placed_bid():
+            self.logger.debug("Closing round at %s", current_time)
+            self.time_to_allocate = time.time() - self.start_time
+            self.opened = False
+            return True
 
-        self.logger.debug("Closing round at %s", current_time)
-        self.time_to_allocate = time.time() - self.start_time
-        self.opened = False
-        return True
+        return False
 
     def get_result(self):
         """ Returns the results of the mrs as a tuple
