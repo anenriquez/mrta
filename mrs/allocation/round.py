@@ -55,8 +55,7 @@ class Round(object):
     def process_bid(self, payload):
         bid = Bid.from_payload(payload)
 
-        self.logger.debug("Processing bid from robot %s: (risk metric: %s, temporal metric: %s)",
-                          bid.robot_id, bid.risk_metric, bid.temporal_metric)
+        self.logger.debug("Processing bid %s", bid)
 
         if bid.cost != (None, None):
             # Process a bid
