@@ -57,6 +57,9 @@ class Auctioneer(object):
     def n_robots(self):
         return len(self.robot_ids)
 
+    def set_zero_timepoint(self, time_):
+        self.timetable_manager.zero_timepoint = time_
+
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for task in tasks:

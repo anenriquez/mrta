@@ -27,6 +27,11 @@ class TimetableManager(object):
         else:
             self.logger.error("The zero timepoint has not been initialized")
 
+    @zero_timepoint.setter
+    def zero_timepoint(self, time_):
+        for robot_id, timetable in self.timetables.items():
+            timetable.update_zero_timepoint(time_)
+
     def get_timetable(self, robot_id):
         return self.timetables.get(robot_id)
 
