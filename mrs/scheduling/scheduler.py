@@ -25,6 +25,7 @@ class Scheduler(object):
             if self.stp_solver.is_consistent(minimal_network):
                 dispatchable_graph.assign_timepoint(assigned_time, task_id, node_type)
                 return dispatchable_graph
+        self.logger.debug("Task %s could not be scheduled at %s", task_id, assigned_time)
         return None
 
     def get_times(self, earliest_time, latest_time):
@@ -40,10 +41,10 @@ class Scheduler(object):
 
         for start_time in start_times:
             self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
-            dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "start")
-            if dispatchable_graph:
+            new_dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "start")
+            if new_dispatchable_graph:
                 task.start_time = (zero_timepoint + timedelta(seconds=start_time)).to_datetime()
-                return task, dispatchable_graph
+                return task, new_dispatchable_graph
 
         self.logger.warning("Task %s could not be scheduled between %s and %s", task.task_id,
                             earliest_start_time, latest_start_time)
