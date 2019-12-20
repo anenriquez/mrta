@@ -34,6 +34,7 @@ class MRTAFactory:
 
         self.logger = logging.getLogger('mrta.config.components')
         self._components = dict()
+        self._component_modules = kwargs.get('component_modules', _component_modules)
 
         self.register_component('allocation_method', allocation_method)
         self.register_component('stp_solver', self.get_stp_solver())
@@ -52,9 +53,9 @@ class MRTAFactory:
 
     def __call__(self, **kwargs):
         for component_name, configuration in kwargs.items():
-            if component_name in _component_modules:
+            if component_name in self._component_modules:
                 self.logger.debug("Creating %s", component_name)
-                component = _component_modules.get(component_name)
+                component = self._component_modules.get(component_name)
 
                 if component and isinstance(configuration, dict):
                     self.register_component(component_name, component)
