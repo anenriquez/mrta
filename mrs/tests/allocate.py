@@ -1,17 +1,20 @@
 import logging.config
 import time
+import argparse
 
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
 from mrs.tests.fixtures.utils import get_msg_fixture
-from mrs.utils.datasets import load_yaml, load_tasks_to_db
+from mrs.utils.datasets import load_tasks_to_db
+from mrs.utils.utils import load_yaml_file
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
+from mrs.config.configurator import Configurator
 
 
 class AllocationTest(RopodPyre):
-    def __init__(self, config_params):
+    def __init__(self, config_file=None):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
@@ -19,17 +22,15 @@ class AllocationTest(RopodPyre):
 
         super().__init__(zyre_config, acknowledge=False)
 
-        self.config_params = config_params
-
+        self.config_params = Configurator(config_file).config_params
         self.logger = logging.getLogger('mrs.allocate')
-        logger_config = config.get('logger')
-        logging.config.dictConfig(logger_config)
 
         self.tasks = list()
         self.n_received_msgs = 0
         self.terminated = False
-
         self.clean_stores()
+
+        self.logger.info("Initialized AllocationTest")
 
     def clean_store(self, store):
         store_interface = MongoStoreInterface(store)
@@ -49,7 +50,8 @@ class AllocationTest(RopodPyre):
         store = MongoStore(**ccu_store_config)
         self.clean_store(store)
 
-    def setup(self, robot_poses):
+    def setup(self, robot_poses_file):
+        robot_poses = load_yaml_file(robot_poses_file)
         msg = get_msg_fixture('robot_pose.json')
         for robot_id, pose in robot_poses.items():
             msg['payload']['robotId'] = robot_id
@@ -57,8 +59,8 @@ class AllocationTest(RopodPyre):
             self.whisper(msg, peer=robot_id)
             self.logger.info("Send init pose to %s: ", robot_id)
 
-    def load_tasks(self, dataset):
-        self.tasks = load_tasks_to_db(dataset)
+    def load_tasks(self, dataset_module, dataset_name, **kwargs):
+        self.tasks = load_tasks_to_db(dataset_module, dataset_name, **kwargs)
 
     def trigger(self):
         test_msg = dict()
@@ -93,21 +95,24 @@ class AllocationTest(RopodPyre):
 
 
 if __name__ == '__main__':
-    config_file = '../config/default/config.yaml'
-    dataset = 'fixtures/datasets/overlapping.yaml'
-    robot_init_file = 'fixtures/robot_init_poses.yaml'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
+    parser.add_argument('--dataset_module', type=str, action='store', help='Dataset module',
+                        default='mrs.tests.fixtures.datasets')
+    parser.add_argument('--dataset_name', type=str, action='store', help='Dataset name',
+                        default='overlapping')
+    parser.add_argument('--robot_poses_file', type=str, action='store', help='Path to robot init poses file',
+                        default='fixtures/robot_init_poses.yaml')
+    args = parser.parse_args()
 
-    config = load_yaml(config_file)
-    robot_poses = load_yaml(robot_init_file)
-
-    test = AllocationTest(config)
-    test.load_tasks(dataset)
+    test = AllocationTest(args.file)
+    test.load_tasks(args.dataset_module, args.dataset_name)
 
     try:
         time.sleep(40)
         test.start()
-        time.sleep(40)
-        test.setup(robot_poses)
+        time.sleep(10)
+        test.setup(args.robot_poses_file)
         test.trigger()
         while not test.terminated:
             time.sleep(0.5)
