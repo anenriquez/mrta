@@ -12,15 +12,16 @@ from ropod.utils.uuid import generate_uuid
 
 class Round(object):
 
-    def __init__(self, n_allocated_tasks, n_robots, **kwargs):
+    def __init__(self, n_robots, **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
-        self.n_allocated_tasks = n_allocated_tasks
         self.n_robots = n_robots
-        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
+        self.n_tasks = kwargs.get('n_tasks')
         self.closure_time = kwargs.get('closure_time')
+        self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
         self.id = generate_uuid()
+
         self.finished = True
         self.opened = False
         self.received_bids = dict()
@@ -63,14 +64,16 @@ class Round(object):
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
 
                 self.received_bids[bid.task_id] = bid
-                if bid.robot_id not in self.bidding_robots:
-                    self.bidding_robots.append(bid.robot_id)
 
         else:
             # Process a no-bid
             self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
-            if bid.robot_id not in self.bidding_robots:
-                self.bidding_robots.append(bid.robot_id)
+
+            # TODO: Check # of no bids placed by a robot. If the number of no bids is equal to the
+            #  n of tasks, add it to the bidding robots list
+
+        if bid.robot_id not in self.bidding_robots:
+            self.bidding_robots.append(bid.robot_id)
 
     @staticmethod
     def update_task_bid(new_bid, old_bid):
@@ -133,6 +136,7 @@ class Round(object):
             raise NoAllocation(self.id)
 
     def finish(self):
+        self.opened = False
         self.finished = True
         self.logger.debug("Round finished")
 

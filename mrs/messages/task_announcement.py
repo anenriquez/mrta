@@ -2,7 +2,6 @@ from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid, from_str
 
 from mrs.db.models.task import Task
-from datetime import datetime
 
 
 class TaskAnnouncement(object):
@@ -24,15 +23,6 @@ class TaskAnnouncement(object):
             self.round_id = round_id
 
         self.zero_timepoint = zero_timepoint
-
-    def get_earliest_task(self):
-        earliest_time = datetime.max
-        for task in self.tasks:
-            timepoint_constraints = task.get_timepoint_constraints()
-            for constraint in timepoint_constraints:
-                if constraint.earliest_time < earliest_time:
-                    earliest_time = constraint.earliest_time
-        return earliest_time
 
     def to_dict(self):
         dict_repr = dict()

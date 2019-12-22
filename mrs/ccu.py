@@ -55,6 +55,11 @@ class CCU:
         payload = msg['payload']
         archive_task = ArchiveTask.from_payload(payload)
         self.auctioneer.archive_task(archive_task.robot_id, archive_task.task_id, archive_task.node_id)
+
+        if self.auctioneer.round.opened:
+            self.logger.warning("Round %s has to be repeated", self.auctioneer.round.id)
+            self.auctioneer.round.finish()
+
         self.dispatcher.timetable_manager.send_update_to = archive_task.robot_id
 
     def run(self):

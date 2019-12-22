@@ -1,9 +1,6 @@
 import logging
 from datetime import timedelta
 
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
@@ -11,6 +8,8 @@ from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -38,7 +37,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
-        self.round = Round(self.timetable_manager.get_n_allocated_tasks(), self.n_robots)
+        self.round = Round(self.n_robots)
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -71,12 +70,8 @@ class Auctioneer(object):
 
         if self.round.opened and self.round.time_to_close():
             try:
-                if self.round.n_allocated_tasks == self.timetable_manager.get_n_allocated_tasks():
-                    round_result = self.round.get_result()
-                    self.process_round_result(round_result)
-                else:
-                    self.logger.warning("Round has to be repeated")
-                    self.round.finish()
+                round_result = self.round.get_result()
+                self.process_round_result(round_result)
 
             except NoAllocation as exception:
                 self.logger.warning("No allocation made in round %s ", exception.round_id)
@@ -149,17 +144,16 @@ class Auctioneer(object):
         self.timetable_manager.fetch_timetables()
 
         tasks = list(self.tasks_to_allocate.values())
-        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
-        self.logger.debug("Pickup time of earliest task in task announcement %s", task_announcement.get_earliest_task())
-        closure_time = task_announcement.get_earliest_task() - self.closure_window
 
-        self.round = Round(self.timetable_manager.get_n_allocated_tasks(),
-                           self.n_robots,
-                           closure_time=closure_time,
+        self.round = Round(self.n_robots,
+                           n_tasks=len(tasks),
+                           closure_time=Task.get_earliest_task(tasks) - self.closure_window,
                            alternative_timeslots=self.alternative_timeslots)
 
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
+
         self.logger.debug("Starting round: %s", self.round.id)
-        self.logger.debug("Number of tasks to allocate: %s", len(self.tasks_to_allocate))
+        self.logger.debug("Number of tasks to allocate: %s", len(tasks))
 
         msg = self.api.create_message(task_announcement)
 
