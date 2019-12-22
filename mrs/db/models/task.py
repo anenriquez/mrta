@@ -181,6 +181,16 @@ class Task(BaseTask):
                                                                                          variance=variance))
         self.save()
 
+    @staticmethod
+    def get_earliest_task(tasks):
+        earliest_time = datetime.max
+        for task in tasks:
+            timepoint_constraints = task.get_timepoint_constraints()
+            for constraint in timepoint_constraints:
+                if constraint.earliest_time < earliest_time:
+                    earliest_time = constraint.earliest_time
+        return earliest_time
+
     @classmethod
     def from_task(cls, task):
         # TODO: Receive mean and variance work time
