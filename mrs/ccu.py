@@ -14,8 +14,7 @@ class CCU:
         self.logger = logging.getLogger("mrs.ccu")
         self.logger.info("Configuring CCU...")
 
-        config = Configurator(config_file)
-        components = config.config_ccu()
+        components = self.get_components(config_file)
 
         self.auctioneer = components.get('auctioneer')
         self.dispatcher = components.get('dispatcher')
@@ -27,6 +26,11 @@ class CCU:
         self.logger.info("Initialized CCU")
 
         self.unallocated_tasks = dict()
+
+    @staticmethod
+    def get_components(config_file):
+        config = Configurator(config_file)
+        return config.config_ccu()
 
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
@@ -51,6 +55,11 @@ class CCU:
         payload = msg['payload']
         archive_task = ArchiveTask.from_payload(payload)
         self.auctioneer.archive_task(archive_task.robot_id, archive_task.task_id, archive_task.node_id)
+
+        if self.auctioneer.round.opened:
+            self.logger.warning("Round %s has to be repeated", self.auctioneer.round.id)
+            self.auctioneer.round.finish()
+
         self.dispatcher.timetable_manager.send_update_to = archive_task.robot_id
 
     def run(self):

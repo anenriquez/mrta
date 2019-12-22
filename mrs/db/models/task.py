@@ -8,6 +8,10 @@ from fmlib.utils.messages import Document
 from pymodm import EmbeddedMongoModel, fields
 from ropod.utils.timestamp import TimeStamp
 from stn.pstn.distempirical import norm_sample
+from pymodm.context_managers import switch_collection
+from pymodm.context_managers import switch_connection
+from pymongo.errors import ServerSelectionTimeoutError
+import logging
 
 
 class TimepointConstraint(EmbeddedMongoModel):
@@ -177,6 +181,16 @@ class Task(BaseTask):
                                                                                          variance=variance))
         self.save()
 
+    @staticmethod
+    def get_earliest_task(tasks):
+        earliest_time = datetime.max
+        for task in tasks:
+            timepoint_constraints = task.get_timepoint_constraints()
+            for constraint in timepoint_constraints:
+                if constraint.earliest_time < earliest_time:
+                    earliest_time = constraint.earliest_time
+        return earliest_time
+
     @classmethod
     def from_task(cls, task):
         # TODO: Receive mean and variance work time
@@ -214,4 +228,15 @@ class Task(BaseTask):
 
     @classmethod
     def get_task(cls, task_id):
-        return cls.objects.get_task(task_id)
+        with switch_connection(Task, "default"):
+            return cls.objects.get_task(task_id)
+
+    def archive(self):
+        try:
+            with switch_connection(Task, "default"):
+                with switch_collection(Task, Task.Meta.archive_collection):
+                    super().save()
+                self.delete()
+
+        except ServerSelectionTimeoutError:
+            logging.warning('Could not save models to MongoDB')

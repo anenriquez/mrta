@@ -10,12 +10,12 @@ from mrs.db.models.task import Task
 
 
 class Robot:
-    def __init__(self, robot_id, bidder, **kwargs):
+    def __init__(self, robot_id, api, robot_store, bidder, **kwargs):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
-        self.api = components.get('api')
-        self.robot_store = components.get('robot_store')
+        self.api = api
+        self.robot_store = robot_store
         self.bidder = bidder
         self.executor_interface = kwargs.get('executor_interface')
         self.robot_model = RobotModel.create_new(robot_id)

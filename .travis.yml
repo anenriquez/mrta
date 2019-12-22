@@ -3,22 +3,32 @@ language: python
 services:
   - docker
 
+stages:
+  - build
+  - test
+  - name: release
+    if: branch = develop AND repo = anenriquez/mrta
 
-before_install:
-  - docker-compose build task_allocation_test
-  - docker image ls
+jobs:
+  include:
+    - stage: build
+      script:
+        - docker build -t ropod-mrs:latest .
+        - docker images
 
-install: skip
+    - stage: test
+      script:
+        - docker-compose build task_allocation_test
+        - docker images
+        - docker-compose up -d task_allocation_test ccu robot_1 robot_2 robot_3 robot_4 robot_5
+        - docker-compose logs
+      after_script:
+        - docker stop $(docker ps -aq)
 
-script:
-  - docker-compose up --exit-code-from task_allocation_test task_allocation_test
-  - docker-compose logs
-after_script:
-  - docker stop $(docker ps -aq)
-
-
-
-
-
-
-
+    - stage: release
+      script:
+        - docker build -t ropod-mrs:latest .
+        - docker images
+        - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+        - docker tag ropod-mrs:latest $DOCKER_USERNAME/ropod-mrs:latest
+        - docker push $DOCKER_USERNAME/ropod-mrs:latest

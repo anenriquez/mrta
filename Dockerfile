@@ -1,4 +1,4 @@
-FROM ropod/ropod-base:fms-test
+FROM ropod/ropod-base:fms
 
 RUN pip3 install --upgrade pip
 RUN mkdir -p /var/log/mrta

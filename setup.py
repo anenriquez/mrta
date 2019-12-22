@@ -3,10 +3,19 @@
 from setuptools import setup
 
 setup(name='mrs',
-      packages=['mrs', 'mrs.config', 'mrs.config.default',
-                'mrs.db.models', 'mrs.db.models.performance', 'mrs.exceptions',
-                'mrs.timetable', 'mrs.allocation', 'mrs.tests', 'mrs.messages',
-                'mrs.scheduling', 'mrs.dispatching', 'mrs.execution', 'mrs.utils'],
+      packages=['mrs',
+                'mrs.config',
+                'mrs.config.default',
+                'mrs.db.models',
+                'mrs.exceptions',
+                'mrs.timetable',
+                'mrs.allocation',
+                'mrs.tests',
+                'mrs.messages',
+                'mrs.scheduling',
+                'mrs.dispatching',
+                'mrs.execution',
+                'mrs.utils'],
       version='0.2.0',
       description='Multi-Robot System (MRS) components for performing'
                   'Multi-Robot Task Allocation (MRTA) and executing'

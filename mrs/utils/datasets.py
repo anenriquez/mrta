@@ -1,36 +1,26 @@
 import collections
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-import yaml
+import dateutil.parser
 from fmlib.models.requests import TransportationRequest
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
-
 from mrs.db.models.task import Task
 from mrs.db.models.task import TimepointConstraint, TemporalConstraints
+from mrs.utils.utils import load_yaml_file_from_module
+from ropod.utils.uuid import generate_uuid
 
 
-def load_yaml(file):
-    """ Reads a yaml file and returns a dictionary with its contents
-
-    :param file: file to load
-    :return: data as dict()
-    """
-    with open(file, 'r') as file:
-        data = yaml.safe_load(file)
-    return data
-
-
-def load_tasks_to_db(dataset_path):
-    dataset_dict = load_yaml(dataset_path)
+def load_tasks_to_db(dataset_module, dataset_name, **kwargs):
+    dataset_dict = load_yaml_file_from_module(dataset_module, dataset_name + '.yaml')
+    start_time = kwargs.get('start_time', datetime.now().isoformat())
 
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
     tasks = list()
 
     for task_id, task_info in ordered_tasks.items():
-        earliest_pickup_time, latest_pickup_time = reference_to_current_time(task_info.get("earliest_pickup_time"),
-                                                                             task_info.get("latest_pickup_time"))
+        earliest_pickup_time, latest_pickup_time = reference_to_start_time(task_info.get("earliest_pickup_time"),
+                                                                           task_info.get("latest_pickup_time"),
+                                                                           start_time)
         request = TransportationRequest(request_id=generate_uuid(),
                                         pickup_location=task_info.get('pickup_location'),
                                         delivery_location=task_info.get('delivery_location'),
@@ -52,12 +42,11 @@ def load_tasks_to_db(dataset_path):
     return tasks
 
 
-def reference_to_current_time(earliest_time, latest_time):
-    delta = timedelta(minutes=earliest_time)
-    r_earliest_time = TimeStamp(delta).to_str()
+def reference_to_start_time(earliest_time, latest_time, start_time_str=None):
+    start_time = dateutil.parser.parse(start_time_str)
 
-    delta = timedelta(minutes=latest_time)
-    r_latest_time = TimeStamp(delta).to_str()
+    r_earliest_time = start_time + timedelta(minutes=earliest_time)
+    r_latest_time = start_time + timedelta(minutes=latest_time)
 
     return r_earliest_time, r_latest_time
 

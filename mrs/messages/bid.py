@@ -20,7 +20,8 @@ class Bid(object):
 
     def __str__(self):
         to_print = ""
-        to_print += "Task: {}, Risk metric: {}, Temporal metric: {}".format(self.task_id, self.risk_metric, self.temporal_metric)
+        to_print += "Task: {}, Robot:{}, Risk metric: {}, Temporal metric: {}".format(self.task_id, self.robot_id,
+                                                                                      self.risk_metric, self.temporal_metric)
         return to_print
 
     def __repr__(self):

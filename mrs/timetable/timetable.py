@@ -49,8 +49,9 @@ class Timetable(object):
         logger.critical("Timetable zero timepoint: %s", zero_timepoint)
         return zero_timepoint
 
-    def update_zero_timepoint(self):
-        pass
+    def update_zero_timepoint(self, time_):
+        self.zero_timepoint.timestamp = time_
+        logger.critical("Zero timepoint updated to: %s", self.zero_timepoint)
 
     def solve_stp(self, task, insertion_point):
         stn_task = self.to_stn_task(task, insertion_point)
