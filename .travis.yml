@@ -7,7 +7,7 @@ stages:
   - build
   - test
   - name: release
-    if: branch = develop
+    if: branch = develop AND repo = anenriquez/mrta
 
 jobs:
   include:
@@ -25,9 +25,8 @@ jobs:
       after_script:
         - docker stop $(docker ps -aq)
 
-    - stage: relase
-      allow_failures:
-      - script:
+    - stage: release
+      script:
         - docker build -t ropod-mrs:latest .
         - docker images
         - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
