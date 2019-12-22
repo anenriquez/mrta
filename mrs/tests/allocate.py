@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     try:
         test.start()
-        time.sleep(60)
+        time.sleep(20)
         test.setup(args.robot_poses_file)
         test.trigger()
         while not test.terminated:
