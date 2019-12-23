@@ -9,7 +9,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidding_rule import BiddingRule
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
-from mrs.messages.bid import Bid
+from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
@@ -67,7 +67,7 @@ class Bidder:
     def task_announcement_cb(self, msg):
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
-        self.logger.debug("Robot %s received TASK-ANNOUNCEMENT msg", self.robot_id)
+        self.logger.debug("Received TASK-ANNOUNCEMENT msg round %s", task_announcement.round_id)
         self.timetable.fetch()
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.compute_bids(task_announcement)
@@ -94,13 +94,11 @@ class Bidder:
             best_bid = self.insert_task(task, round_id)
 
             if best_bid:
-                self.logger.debug("Best bid for task %s: (risk metric: %s, temporal metric: %s)", task.task_id,
-                                  best_bid.risk_metric, best_bid.temporal_metric)
-
+                self.logger.debug("Best bid %s", best_bid)
                 bids.append(best_bid)
             else:
                 self.logger.warning("No bid for task %s", task.task_id)
-                no_bid = Bid(self.robot_id, round_id, task.task_id)
+                no_bid = NoBid(task.task_id, self.robot_id, round_id)
                 no_bids.append(no_bid)
 
         smallest_bid = self.get_smallest_bid(bids)
@@ -141,12 +139,11 @@ class Bidder:
                 bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task, insertion_point, self.timetable,
                                                     travel_time)
 
-                self.logger.debug("Bid: (risk metric: %s, temporal metric: %s)", bid.risk_metric, bid.temporal_metric)
+                self.logger.debug("Bid: %s", bid)
 
                 if best_bid is None or \
                         bid < best_bid or\
                         (bid == best_bid and bid.task_id < best_bid.task_id):
-
                     best_bid = bid
 
             except NoSTPSolution:

@@ -1,6 +1,6 @@
 from stn.exceptions.stp import NoSTPSolution
 
-from mrs.messages.bid import Bid
+from mrs.messages.bid import Bid, SoftBid, Metrics
 
 
 class BiddingRule(object):
@@ -13,27 +13,25 @@ class BiddingRule(object):
             dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
 
             if task.constraints.hard:
-                bid = Bid(robot_id,
+                bid = Bid(task.task_id,
+                          robot_id,
                           round_id,
-                          task.task_id,
-                          insertion_point=insertion_point,
-                          travel_time=travel_time,
-                          risk_metric=dispatchable_graph.risk_metric,
-                          temporal_metric=dispatchable_graph.temporal_metric)
-
+                          insertion_point,
+                          Metrics(dispatchable_graph.temporal_metric, dispatchable_graph.risk_metric),
+                          travel_time)
             else:
                 pickup_constraint = task.get_timepoint_constraint("pickup")
-                temporal_metric = (pickup_constraint.earliest_time - task.request.earliest_pickup_time).total_seconds()
-                timetable.temporal_metric = abs(temporal_metric)
+                temporal_metric = abs(pickup_constraint.earliest_time - task.request.earliest_pickup_time).total_seconds()
+                risk_metric = 1
+                alternative_start_time = pickup_constraint.earliest_time
 
-                bid = Bid(robot_id,
-                          round_id,
-                          task.task_id,
-                          insertion_point=insertion_point,
-                          travel_time=travel_time,
-                          risk_metric=1,
-                          temporal_metric=timetable.temporal_metric,
-                          alternative_start_time=pickup_constraint.earliest_time)
+                bid = SoftBid(task.task_id,
+                              robot_id,
+                              round_id,
+                              insertion_point,
+                              Metrics(temporal_metric, risk_metric),
+                              travel_time,
+                              alternative_start_time)
 
             bid.stn = stn
             bid.dispatchable_graph = dispatchable_graph
