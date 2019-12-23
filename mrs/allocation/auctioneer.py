@@ -1,15 +1,17 @@
 import logging
 from datetime import timedelta
 
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
+from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -37,7 +39,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.waiting_for_user_confirmation = list()
-        self.round = Round(self.n_robots)
+        self.round = Round(self.robot_ids)
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -106,7 +108,7 @@ class Auctioneer(object):
         task = self.tasks_to_allocate.pop(bid.task_id)
         task.update_inter_timepoint_constraint(**bid.travel_time.to_dict())
         try:
-            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.temporal_metric, task)
+            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.metrics.temporal, task)
             self.allocations.append(allocation)
 
             self.logger.debug("Allocation: %s", allocation)
@@ -145,7 +147,7 @@ class Auctioneer(object):
 
         tasks = list(self.tasks_to_allocate.values())
 
-        self.round = Round(self.n_robots,
+        self.round = Round(self.robot_ids,
                            n_tasks=len(tasks),
                            closure_time=Task.get_earliest_task(tasks) - self.closure_window,
                            alternative_timeslots=self.alternative_timeslots)
@@ -164,7 +166,15 @@ class Auctioneer(object):
 
     def bid_cb(self, msg):
         payload = msg['payload']
-        self.round.process_bid(payload)
+        self.round.process_bid(payload, Bid)
+
+    def no_bid_cb(self, msg):
+        payload = msg['payload']
+        self.round.process_bid(payload, NoBid)
+
+    def soft_bid_cb(self, msg):
+        payload = msg['payload']
+        self.round.process_bid(payload, SoftBid)
 
     def task_contract_acknowledgement_cb(self, msg):
         self.round.finish()

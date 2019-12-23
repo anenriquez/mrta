@@ -3,19 +3,20 @@ import logging
 import time
 from datetime import datetime
 
+from ropod.utils.uuid import generate_uuid
+
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
-from mrs.messages.bid import Bid
-from ropod.utils.uuid import generate_uuid
+from mrs.messages.bid import SoftBid, NoBid, BiddingRobot
 
 
 class Round(object):
 
-    def __init__(self, n_robots, **kwargs):
+    def __init__(self, robot_ids, **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
-        self.n_robots = n_robots
+        self.robot_ids = robot_ids
 
         self.n_tasks = kwargs.get('n_tasks')
         self.closure_time = kwargs.get('closure_time')
@@ -26,7 +27,7 @@ class Round(object):
         self.opened = False
         self.received_bids = dict()
         self.received_no_bids = dict()
-        self.bidding_robots = list()  # Robots that have placed either a bid or an empty bid
+        self.bidding_robots = {robot_id: BiddingRobot(robot_id) for robot_id in self.robot_ids}
         self.start_time = time.time()
         self.time_to_allocate = None
 
@@ -47,33 +48,25 @@ class Round(object):
 
         """
         open_time = datetime.now()
-        self.logger.debug("Round opened at %s and will close at %s",
-                          open_time, self.closure_time)
+        self.logger.debug("Round  %s opened at %s and will close at %s",
+                          self.id, open_time, self.closure_time)
 
         self.finished = False
         self.opened = True
 
-    def process_bid(self, payload):
-        bid = Bid.from_payload(payload)
+    def process_bid(self, payload, bid_cls):
+        bid = bid_cls.from_payload(payload)
 
         self.logger.debug("Processing bid %s", bid)
 
-        if bid.cost != (None, None):
-            # Process a bid
+        if isinstance(bid, NoBid):
+            self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
+        else:
             if bid.task_id not in self.received_bids or \
                     self.update_task_bid(bid, self.received_bids[bid.task_id]):
-
                 self.received_bids[bid.task_id] = bid
 
-        else:
-            # Process a no-bid
-            self.received_no_bids[bid.task_id] = self.received_no_bids.get(bid.task_id, 0) + 1
-
-            # TODO: Check # of no bids placed by a robot. If the number of no bids is equal to the
-            #  n of tasks, add it to the bidding robots list
-
-        if bid.robot_id not in self.bidding_robots:
-            self.bidding_robots.append(bid.robot_id)
+        self.bidding_robots[bid.robot_id].update(bid)
 
     @staticmethod
     def update_task_bid(new_bid, old_bid):
@@ -90,7 +83,12 @@ class Round(object):
         return False
 
     def all_robots_placed_bid(self):
-        if len(self.bidding_robots) == self.n_robots:
+        bidding_robots = 0
+        for robot_id, bidding_robot in self.bidding_robots.items():
+            if bidding_robot.placed_bid(self.n_tasks):
+                bidding_robots += 1
+
+        if bidding_robots == len(self.robot_ids):
             return True
         return False
 
@@ -98,7 +96,7 @@ class Round(object):
         current_time = datetime.now()
 
         if current_time > self.closure_time or self.all_robots_placed_bid():
-            self.logger.debug("Closing round at %s", current_time)
+            self.logger.debug("Closing round %s at %s", self.id, current_time)
             self.time_to_allocate = time.time() - self.start_time
             self.opened = False
             return True
@@ -126,7 +124,7 @@ class Round(object):
             winning_bid = self.elect_winner()
             round_result = (winning_bid, self.time_to_allocate)
 
-            if winning_bid.alternative_start_time:
+            if isinstance(winning_bid, SoftBid):
                 raise AlternativeTimeSlot(winning_bid, self.time_to_allocate)
 
             return round_result

@@ -64,6 +64,14 @@ robot_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'BID'
         method: whisper
+      no-bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'BID'
+        method: whisper
+      soft-bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'BID'
+        method: whisper
       task-contract-acknowledgement:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
@@ -100,6 +108,8 @@ ccu_api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - BID
+        - NO-BID
+        - SOFT-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
         - ARCHIVE-TASK
@@ -128,6 +138,10 @@ ccu_api:
         component: '.start_test_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
+      - msg_type: 'NO-BID'
+        component: 'auctioneer.no_bid_cb'
+      - msg_type: 'SOFT-BID'
+        component: 'auctioneer.soft_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'ARCHIVE-TASK'
