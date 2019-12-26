@@ -11,8 +11,7 @@ from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.task_contract import TaskContract
-from mrs.messages.task_contract_acknowledgement import TaskContractAcknowledgment
+from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file

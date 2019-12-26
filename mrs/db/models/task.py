@@ -27,8 +27,7 @@ class TimepointConstraint(EmbeddedMongoModel):
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
-        timepoint_constraints = TimepointConstraint.from_document(document)
-        return timepoint_constraints
+        return cls.from_document(document)
 
     def to_dict(self):
         dict_repr = dict()
@@ -89,8 +88,7 @@ class InterTimepointConstraint(EmbeddedMongoModel):
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
-        timepoint_constraints = InterTimepointConstraint.from_document(document)
-        return timepoint_constraints
+        return cls.from_document(document)
 
     def to_dict(self):
         dict_repr = self.to_son().to_dict()
