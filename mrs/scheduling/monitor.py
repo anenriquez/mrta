@@ -1,8 +1,6 @@
 import logging
 
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-from stn.stn import STN
 
 from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
@@ -139,7 +137,7 @@ class ScheduleMonitor:
     def dispatch_queue_update_cb(self, msg):
         payload = msg['payload']
         d_graph_update = DispatchQueueUpdate.from_payload(payload)
-        self.zero_timepoint = TimeStamp.from_str(d_graph_update.zero_timepoint)
+        self.zero_timepoint = d_graph_update.zero_timepoint
         stn = self.stp_solver.get_stn()
         dispatchable_graph = stn.from_dict(d_graph_update.dispatchable_graph)
         if self.dispatchable_graph:

@@ -1,11 +1,9 @@
-from fmlib.utils.messages import Document
-from ropod.utils.uuid import from_str
-
 from mrs.db.models.task import InterTimepointConstraint
-from mrs.utils.dictionaries import AsDictMixin
+from mrs.utils.as_dict import AsDictMixin
 
 
 class Metrics(AsDictMixin):
+
     def __init__(self, temporal, risk):
         self.temporal = temporal
         self.risk = risk
@@ -25,6 +23,10 @@ class Metrics(AsDictMixin):
             return False
         return self.risk == other.risk and self.temporal == other.temporal
 
+    @classmethod
+    def from_dict(cls, dict_repr):
+        return cls(**dict_repr)
+
     @property
     def cost(self):
         return self.risk, self.temporal
@@ -36,19 +38,6 @@ class BidBase(AsDictMixin):
         self.task_id = task_id
         self.robot_id = robot_id
         self.round_id = round_id
-
-    @classmethod
-    def to_document(cls,  payload):
-        document = Document.from_payload(payload)
-        document.pop("metamodel")
-        document.update(task_id=from_str(document["task_id"]))
-        document.update(round_id=from_str(document["round_id"]))
-        return document
-
-    @classmethod
-    def from_payload(cls, payload):
-        document = cls.to_document(payload)
-        return cls(**document)
 
     @property
     def meta_model(self):
@@ -114,11 +103,11 @@ class Bid(BidBase):
         return "bid"
 
     @classmethod
-    def from_payload(cls, payload):
-        document = cls.to_document(payload)
-        document.update(travel_time=InterTimepointConstraint.from_payload(document["travel_time"]))
-        document.update(metrics=Metrics.from_dict(document["metrics"]))
-        return cls(**document)
+    def to_attrs(cls, dict_repr):
+        attrs = super().to_attrs(dict_repr)
+        attrs.update(metrics=Metrics.from_dict(dict_repr.get("metrics")))
+        attrs.update(travel_time=InterTimepointConstraint.from_payload(dict_repr.get("travel_time")))
+        return attrs
 
 
 class SoftBid(Bid):
