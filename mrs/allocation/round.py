@@ -55,6 +55,9 @@ class Round(object):
         self.opened = True
 
     def process_bid(self, payload, bid_cls):
+        if not self.opened:
+            self.logger.warning("No round bid opened. Do not processing bid..")
+            return
         bid = bid_cls.from_payload(payload)
 
         self.logger.debug("Processing bid %s", bid)
@@ -116,9 +119,7 @@ class Round(object):
         tasks_to_allocate (dict): tasks left to allocate
 
         """
-        # Check for which tasks the constraints need to be set to soft
-        if self.alternative_timeslots and self.received_no_bids:
-            self.set_soft_constraints()
+        self.get_result_no_bids()
 
         try:
             winning_bid = self.elect_winner()
@@ -138,14 +139,16 @@ class Round(object):
         self.finished = True
         self.logger.debug("Round finished")
 
-    def set_soft_constraints(self):
-        """ If there are no bids for the task, set its temporal constraints to soft
-        """
+    def get_result_no_bids(self):
         for task_id, n_no_bids in self.received_no_bids.items():
             if task_id not in self.received_bids:
                 task = Task.get_task(task_id)
-                task.set_soft_constraints()
-                self.logger.debug("Setting soft constraints for task %s", task_id)
+                if self.alternative_timeslots:
+                    task.set_soft_constraints()
+                    self.logger.debug("Setting soft constraints for task %s", task_id)
+                else:
+                    self.logger.warning("Task %s could not be allocated", task_id)
+                    task.remove()
 
     def elect_winner(self):
         """ Elects the winner of the round

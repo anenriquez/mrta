@@ -12,6 +12,7 @@ from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract
+from mrs.utils.utils import is_valid_time
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -63,6 +64,7 @@ class Auctioneer(object):
 
     def update_tasks_to_allocate(self):
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        self.tasks_to_allocate = dict()
         for task in tasks:
             self.tasks_to_allocate[task.task_id] = task
 
@@ -144,12 +146,21 @@ class Auctioneer(object):
 
     def announce_task(self):
         self.timetable_manager.fetch_timetables()
+        self.update_tasks_to_allocate()
+        if not self.tasks_to_allocate:
+            return
 
         tasks = list(self.tasks_to_allocate.values())
+        earliest_task = Task.get_earliest_task(tasks)
+        closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
+        if not is_valid_time(closure_time) and not self.alternative_timeslots:
+            self.logger.warning("Task %s cannot not be allocated at it's given temporal constraints", earliest_task.task_id)
+            earliest_task.remove()
+            return
 
         self.round = Round(self.robot_ids,
                            n_tasks=len(tasks),
-                           closure_time=Task.get_earliest_task(tasks) - self.closure_window,
+                           closure_time=closure_time,
                            alternative_timeslots=self.alternative_timeslots)
 
         task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
