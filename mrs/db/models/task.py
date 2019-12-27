@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -6,12 +7,11 @@ from fmlib.models.tasks import Task as BaseTask
 from fmlib.models.tasks import TaskManager
 from fmlib.utils.messages import Document
 from pymodm import EmbeddedMongoModel, fields
-from ropod.utils.timestamp import TimeStamp
-from stn.pstn.distempirical import norm_sample
 from pymodm.context_managers import switch_collection
 from pymodm.context_managers import switch_connection
 from pymongo.errors import ServerSelectionTimeoutError
-import logging
+from ropod.utils.timestamp import TimeStamp
+from stn.pstn.distempirical import norm_sample
 
 
 class TimepointConstraint(EmbeddedMongoModel):
@@ -182,12 +182,19 @@ class Task(BaseTask):
     @staticmethod
     def get_earliest_task(tasks):
         earliest_time = datetime.max
+        earliest_task = None
         for task in tasks:
             timepoint_constraints = task.get_timepoint_constraints()
             for constraint in timepoint_constraints:
                 if constraint.earliest_time < earliest_time:
                     earliest_time = constraint.earliest_time
-        return earliest_time
+                    earliest_task = task
+        if earliest_task:
+            return Task.get_task(earliest_task.task_id)
+
+    def remove(self):
+        self.status.archive()
+        self.archive()
 
     @classmethod
     def from_task(cls, task):

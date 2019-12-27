@@ -12,6 +12,7 @@ from stn.task import TimepointConstraint as STNTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.db.models.task import TimepointConstraint
 from mrs.db.models.timetable import Timetable as TimetableMongo
+from mrs.exceptions.allocation import TaskNotFound
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -168,6 +169,8 @@ class Timetable(object):
         task_id = self.stn.get_task_id(position)
         if task_id:
             return Task.get_task(task_id)
+        else:
+            raise TaskNotFound(position)
 
     def get_earliest_tasks(self, n_tasks=2):
         """ Returns a list of the earliest n_tasks in the timetable

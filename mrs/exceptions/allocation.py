@@ -39,3 +39,9 @@ class InvalidAllocation(Exception):
         self.task_id = task_id
         self.robot_id = robot_id
         self.position = position
+
+
+class TaskNotFound(Exception):
+    def __init__(self, position):
+        """ Raised when attempting to read a task in a timetable position that does not exist"""
+        self.position = position

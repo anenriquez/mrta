@@ -9,6 +9,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidding_rule import BiddingRule
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
+from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
@@ -127,11 +128,13 @@ class Bidder:
 
         # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
         for insertion_point in range(1, n_tasks+2):
+            self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
             if not self.insert_in(insertion_point):
                 continue
 
-            self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
             previous_position = self.get_previous_position(insertion_point)
+            if previous_position is None:
+                continue
             travel_time = self.compute_travel_time(previous_position, task)
 
             try:
@@ -151,11 +154,17 @@ class Bidder:
         return best_bid
 
     def insert_in(self, insertion_point):
-        task = self.timetable.get_task(insertion_point)
-        if task and task.status.status != TaskStatusConst.ALLOCATED:
-            self.logger.debug("Not adding task in insertion_point %s", insertion_point)
-            return False
-        return True
+        try:
+            task = self.timetable.get_task(insertion_point)
+            if task.frozen:
+                self.logger.debug("Task % is frozen. "
+                                  "Not computing bid for this insertion point %s", task.task_id, insertion_point)
+                return False
+            return True
+        except TaskNotFound as e:
+            self.logger.debug("There is not task in insertion_point %s "
+                              "Computing bid for this insertion point", insertion_point)
+            return True
 
     def get_previous_position(self, insertion_point):
         if insertion_point == 1:
@@ -165,12 +174,17 @@ class Bidder:
             except DoesNotExist:
                 self.logger.warning("No information about robot's current position")
                 previous_position = "AMK_D_L-1_C39"
-        else:
-            previous_task = self.timetable.get_task(insertion_point-1)
-            previous_position = previous_task.request.delivery_location
 
-        self.logger.debug("Previous position: %s ", previous_position)
-        return previous_position
+            self.logger.debug("Previous position: %s ", previous_position)
+            return previous_position
+        else:
+            try:
+                previous_task = self.timetable.get_task(insertion_point-1)
+                previous_position = previous_task.request.delivery_location
+                self.logger.debug("Previous position: %s ", previous_position)
+                return previous_position
+            except TaskNotFound as e:
+                self.logger.warning("Task in position %s has been removed", e.position)
 
     def compute_travel_time(self, previous_position, task):
         if self.planner:
