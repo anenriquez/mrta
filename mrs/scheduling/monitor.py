@@ -53,20 +53,22 @@ class ScheduleMonitor:
         return corrective_measure
 
     def schedule(self, task):
-        try:
-            if not self.dispatchable_graph:
-                self.logger.error("The schedule monitor does not have a dispatchable graph")
-                raise MissingDispatchableGraph(self.robot_id)
+        task_position = self.dispatchable_graph.get_task_position(task.task_id)
+        if task_position is None:
+            self.logger.error("The dispatchable graph does not include task %s", task.task_id)
+            # TODO: Request DispatchQueueUpdate
+            raise MissingDispatchableGraph(self.robot_id)
+        else:
+            try:
+                scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
+                self.dispatchable_graph = dispatchable_task
+                self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
+                self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
+                return scheduled_task
 
-            scheduled_task, dispatchable_task = self.scheduler.schedule(task, self.dispatchable_graph, self.zero_timepoint)
-            self.dispatchable_graph = dispatchable_task
-            self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
-            self.logger.debug("Dispatchable graph %s", self.dispatchable_graph)
-            return scheduled_task
-
-        except InconsistentSchedule as e:
-            # TODO: Trigger reallocation of task
-            raise InconsistentSchedule(e.earliest_time, e.latest_time)
+            except InconsistentSchedule as e:
+                # TODO: Trigger reallocation of task
+                raise InconsistentSchedule(e.earliest_time, e.latest_time)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
         self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
