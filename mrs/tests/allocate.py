@@ -1,16 +1,22 @@
+import argparse
 import logging.config
 import time
-import argparse
 
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
+from fmlib.models.tasks import TaskStatus
+from pymodm.context_managers import switch_collection
+from ropod.pyre_communicator.base_class import RopodPyre
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+from ropod.utils.uuid import generate_uuid
+
+from mrs.config.configurator import Configurator
+from mrs.db.models.task import Task
+from mrs.messages.task_contract import TaskContract
 from mrs.tests.fixtures.utils import get_msg_fixture
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.utils import load_yaml_file
-from ropod.pyre_communicator.base_class import RopodPyre
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
-from mrs.config.configurator import Configurator
 
 
 class AllocationTest(RopodPyre):
@@ -26,7 +32,7 @@ class AllocationTest(RopodPyre):
         self.logger = logging.getLogger('mrs.allocate')
 
         self.tasks = list()
-        self.n_received_msgs = 0
+        self.allocations = dict()
         self.terminated = False
         self.clean_stores()
 
@@ -83,15 +89,26 @@ class AllocationTest(RopodPyre):
         msg_type = msg['header']['type']
 
         if msg_type == 'TASK-CONTRACT':
-            self.n_received_msgs += 1
-            self.logger.debug("Messages received: %s", self.n_received_msgs)
+            task_contract = TaskContract.from_payload(msg["payload"])
+            self.allocations[task_contract.task_id] = task_contract.robot_id
+            self.logger.debug("Allocation: (%s, %s)", task_contract.task_id, task_contract.robot_id)
             self.check_termination_test()
 
     def check_termination_test(self):
-        print("Checking termination test")
-        if self.n_received_msgs == len(self.tasks):
+        if len(self.allocations) == len(self.tasks):
             logging.info("Terminating test")
+            logging.info("Allocations: %s", self.allocations)
             self.terminated = True
+
+    def check_unsuccessful_allocations(self):
+        with switch_collection(Task, Task.Meta.archive_collection):
+            for task in Task.objects.all():
+                with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+                    task_status = TaskStatus.objects.get({"_id": task.task_id})
+                    if task_status.status == TaskStatusConst.UNALLOCATED and task.task_id not in self.allocations:
+                        self.allocations[task.task_id] = "None"
+                        self.logger.debug("Allocation: (%s, None)", task.task_id)
+                        self.check_termination_test()
 
 
 if __name__ == '__main__':
@@ -115,6 +132,7 @@ if __name__ == '__main__':
         test.trigger()
         while not test.terminated:
             time.sleep(0.5)
+            test.check_unsuccessful_allocations()
     except (KeyboardInterrupt, SystemExit):
         print('Task request test interrupted; exiting')
 
