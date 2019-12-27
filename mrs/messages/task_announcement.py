@@ -42,36 +42,6 @@ class TaskAnnouncement(AsDictMixin):
         attrs.update(tasks=tasks)
         return attrs
 
-
-    # @classmethod
-    # def from_payload(cls, payload):
-    #     document = Document.from_payload(payload)
-    #     document.pop("metamodel")
-    #     tasks = list()
-    #     for task_id, task_dict in document.get("tasks").items():
-    #         tasks.append(Task.from_payload(task_dict))
-    #     document.update(tasks=tasks)
-    #     document.update(round_id=from_str(document["round_id"]))
-    #     document.update(zero_timepoint=TimeStamp.from_str(document["zero_timepoint"]))
-    #
-    #     print("----->Document")
-    #     print(document)
-    #     task_announcement = cls(**document)
-    #     return task_announcement
-
-        # round_id = from_str(payload['roundId'])
-        # zero_timepoint = TimeStamp.from_str(payload['zeroTimepoint'])
-        #
-        # tasks_dict = payload['tasks']
-        # tasks = list()
-        #[
-        # for task_id, task_dict in tasks_dict.items():
-        #     tasks.append(Task.from_payload(task_dict))
-        #
-        # task_announcement = TaskAnnouncement(tasks, round_id, zero_timepoint)
-        #
-        # return task_announcement
-
     @property
     def meta_model(self):
         return "task-announcement"
