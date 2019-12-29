@@ -4,9 +4,11 @@ import logging
 from fmlib.models.robot import Robot
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.allocation.bidding_rule import BiddingRule
+from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import TaskNotFound
@@ -135,11 +137,19 @@ class Bidder:
             previous_position = self.get_previous_position(insertion_point)
             if previous_position is None:
                 continue
-            travel_time = self.compute_travel_time(previous_position, task)
+
+            travel_path = self.get_travel_path(previous_position, task.request.pickup_location)
+            travel_time = self.get_travel_time(travel_path)
+            task.update_inter_timepoint_constraint(**travel_time.to_dict())
+
+            pre_task_action = GoTo(action_id=generate_uuid(),
+                                   type="ROBOT-TO-PICKUP",
+                                   locations=travel_path,
+                                   estimated_duration=travel_time)
 
             try:
                 bid = self.bidding_rule.compute_bid(self.robot_id, round_id, task, insertion_point, self.timetable,
-                                                    travel_time)
+                                                    pre_task_action)
 
                 self.logger.debug("Bid: %s", bid)
 
@@ -186,17 +196,19 @@ class Bidder:
             except TaskNotFound as e:
                 self.logger.warning("Task in position %s has been removed", e.position)
 
-    def compute_travel_time(self, previous_position, task):
+    def get_travel_path(self, robot_position, pickup_location):
         if self.planner:
-            plan = self.planner.get_path(previous_position, task.request.pickup_location)
-            mean, variance = self.planner.get_estimated_duration(plan)
-        else:
+            return self.planner.get_path(robot_position, pickup_location)
+
+    def get_travel_time(self, path):
+        if path:
+            mean, variance = self.planner.get_estimated_duration(path)
+        else:  # temporal hack
             mean = 1
             variance = 0.1
 
         travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
         self.logger.debug("Travel time: %s", travel_time)
-        task.update_inter_timepoint_constraint("travel_time", mean, variance)
         return travel_time
 
     @staticmethod
