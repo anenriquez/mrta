@@ -172,7 +172,7 @@ class Timetable(object):
         else:
             raise TaskNotFound(position)
 
-    def get_earliest_tasks(self, n_tasks=2):
+    def get_earliest_tasks(self, n_tasks=1):
         """ Returns a list of the earliest n_tasks in the timetable
 
         :return: list of tasks
