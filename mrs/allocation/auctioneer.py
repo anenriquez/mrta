@@ -57,10 +57,6 @@ class Auctioneer(object):
         self.robot_ids.append(robot_id)
         self.timetable_manager.register_robot(robot_id)
 
-    @property
-    def n_robots(self):
-        return len(self.robot_ids)
-
     def set_zero_timepoint(self, time_):
         self.timetable_manager.zero_timepoint = time_
 

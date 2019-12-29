@@ -28,9 +28,6 @@ class Timetable(object):
                             shrinks the original temporal constraints to the times at which the robot
                             can allocate the task
 
-    - schedule (stn): Uses the same data structure as the stn but contains only one task
-                (the next task to be executed)
-                The start navigation time is instantiated to a float value (minutes after zero_timepoint)
     """
 
     def __init__(self, robot_id, stp):
@@ -40,19 +37,17 @@ class Timetable(object):
 
         self.stn = self.stp.get_stn()
         self.dispatchable_graph = self.stp.get_stn()
-        self.schedule = self.stp.get_stn()
 
     @staticmethod
     def initialize_zero_timepoint():
         today_midnight = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         zero_timepoint = TimeStamp()
         zero_timepoint.timestamp = today_midnight
-        logger.critical("Timetable zero timepoint: %s", zero_timepoint)
         return zero_timepoint
 
     def update_zero_timepoint(self, time_):
         self.zero_timepoint.timestamp = time_
-        logger.critical("Zero timepoint updated to: %s", self.zero_timepoint)
+        logger.debug("Zero timepoint updated to: %s", self.zero_timepoint)
 
     def solve_stp(self, task, insertion_point):
         stn_task = self.to_stn_task(task, insertion_point)
@@ -211,27 +206,6 @@ class Timetable(object):
         self.dispatchable_graph.remove_task(position)
         self.store()
 
-    def get_scheduled_task_id(self):
-        if self.schedule is None:
-            logger.error("No tasks scheduled")
-            return
-
-        task_ids = self.schedule.get_tasks()
-        task_id = task_ids.pop()
-        return task_id
-
-    def get_schedule(self, task_id):
-        """ Gets an schedule (stn) containing the nodes associated with the task_id
-
-        :param task_id: (string) id of the task
-        :return: schedule (stn)
-        """
-        if self.dispatchable_graph:
-            node_ids = self.dispatchable_graph.get_task_node_ids(task_id)
-            self.schedule = self.dispatchable_graph.get_subgraph(node_ids)
-        else:
-            logger.error("The dispatchable graph is empty")
-
     def get_sub_d_graph(self, n_tasks):
         stn = self.stp.get_stn()
         sub_graph = self.dispatchable_graph.get_subgraph(n_tasks=n_tasks)
@@ -245,7 +219,6 @@ class Timetable(object):
         timetable_dict['zero_timepoint'] = self.zero_timepoint.to_str()
         timetable_dict['stn'] = self.stn.to_dict()
         timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
-        timetable_dict['schedule'] = self.schedule.to_dict()
 
         return timetable_dict
 
@@ -286,7 +259,3 @@ class Timetable(object):
             # Resetting values
             self.stn = self.stp.get_stn()
             self.dispatchable_graph = self.stp.get_stn()
-            self.schedule = self.stp.get_stn()
-
-
-

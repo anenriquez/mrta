@@ -35,7 +35,7 @@ class ExecutorInterface:
         self.random_state = np.random.RandomState(random_seed)
 
     def execute(self, task):
-        self.logger.critical("Starting execution of task %s", task.task_id)
+        self.logger.info("Starting execution of task %s", task.task_id)
         travel_constraint = task.get_inter_timepoint_constraint("travel_time")
         travel_duration = travel_constraint.get_duration(self.random_state, self.delay_n_standard_dev)
         start_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, 'start')
