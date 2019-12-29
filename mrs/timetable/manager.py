@@ -33,7 +33,10 @@ class TimetableManager(object):
             timetable.update_zero_timepoint(time_)
 
     def get_timetable(self, robot_id):
-        return self.timetables.get(robot_id)
+        timetable = self.timetables.get(robot_id)
+        timetable.fetch()
+        self.timetables.update({robot_id: timetable})
+        return timetable
 
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
