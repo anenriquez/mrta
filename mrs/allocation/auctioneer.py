@@ -39,6 +39,7 @@ class Auctioneer(object):
 
         self.tasks_to_allocate = dict()
         self.allocations = list()
+        self.pre_task_actions = dict()
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids)
 
@@ -108,20 +109,21 @@ class Auctioneer(object):
 
     def process_allocation(self, allocation, time_to_allocate,  bid):
         task = self.tasks_to_allocate.pop(bid.task_id)
-        task.update_inter_timepoint_constraint(**bid.travel_time.to_dict())
+        travel_time = bid.pre_task_action.estimated_duration
+        task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        self.pre_task_actions[bid.task_id] = bid.pre_task_action
+
         try:
             self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.metrics.temporal, task)
-            self.allocations.append(allocation)
 
             self.logger.debug("Allocation: %s", allocation)
             self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
             self.logger.debug("Updating task status to ALLOCATED")
             task.update_status(TaskStatusConst.ALLOCATED)
-            task.update_status(TaskStatusConst.PLANNED)
-            task.assign_robots([bid.robot_id])
 
             self.announce_winner(allocation)
+            self.allocations.append(allocation)
 
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."

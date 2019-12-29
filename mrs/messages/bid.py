@@ -1,4 +1,4 @@
-from mrs.db.models.task import InterTimepointConstraint
+from mrs.db.models.actions import GoTo
 from mrs.utils.as_dict import AsDictMixin
 
 
@@ -59,10 +59,10 @@ class NoBid(BidBase):
 
 
 class Bid(BidBase):
-    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, travel_time):
+    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, pre_task_action):
         self.insertion_point = insertion_point
         self.metrics = metrics
-        self.travel_time = travel_time
+        self.pre_task_action = pre_task_action
         self._stn = None
         self._dispatchable_graph = None
         super().__init__(task_id, robot_id, round_id)
@@ -106,13 +106,13 @@ class Bid(BidBase):
     def to_attrs(cls, dict_repr):
         attrs = super().to_attrs(dict_repr)
         attrs.update(metrics=Metrics.from_dict(dict_repr.get("metrics")))
-        attrs.update(travel_time=InterTimepointConstraint.from_payload(dict_repr.get("travel_time")))
+        attrs.update(pre_task_action=GoTo.from_payload(dict_repr.get("pre_task_action")))
         return attrs
 
 
 class SoftBid(Bid):
-    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, travel_time, alternative_start_time):
-        super().__init__(task_id, robot_id, round_id, insertion_point, metrics, travel_time)
+    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, pre_task_action, alternative_start_time):
+        super().__init__(task_id, robot_id, round_id, insertion_point, metrics, pre_task_action)
         self.alternative_start_time = alternative_start_time
 
     def __str__(self):

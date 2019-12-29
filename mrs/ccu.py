@@ -2,9 +2,13 @@ import argparse
 import logging.config
 import time
 
+from fmlib.models.tasks import TaskPlan
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
 
 from mrs.config.configurator import Configurator
+from mrs.db.models.actions import GoTo
+from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.messages.archive_task import ArchiveTask
 
@@ -25,7 +29,7 @@ class CCU:
         self.api.register_callbacks(self)
         self.logger.info("Initialized CCU")
 
-        self.unallocated_tasks = dict()
+        self.task_plans = dict()
 
     @staticmethod
     def get_components(config_file):
@@ -36,20 +40,41 @@ class CCU:
         self.logger.debug("Start test msg received")
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for task in tasks:
-            plan = self.get_task_plan(task)
-            self.unallocated_tasks[task.task_id] = {"task": task,
-                                                    "plan": plan}
-            mean, variance = self.get_plan_work_time(plan)
-            task.update_inter_timepoint_constraint("work_time", mean, variance)
-
+            self.task_plans[task.task_id] = self.get_task_plan(task)
         self.auctioneer.allocate(tasks)
 
     def get_task_plan(self, task):
-        return self.planner.get_path(task.request.pickup_location, task.request.delivery_location)
+        path = self.planner.get_path(task.request.pickup_location, task.request.delivery_location)
+
+        mean, variance = self.get_plan_work_time(path)
+        work_time = InterTimepointConstraint(name="work_time", mean=mean, variance=variance)
+        task.update_inter_timepoint_constraint(work_time.name, work_time.mean, work_time.variance)
+
+        task_plan = TaskPlan()
+        action = GoTo(action_id=generate_uuid(),
+                      type="PICKUP-TO-DELIVERY",
+                      locations=path,
+                      estimated_duration=work_time)
+        task_plan.actions.append(action)
+
+        return task_plan
 
     def get_plan_work_time(self, plan):
         mean, variance = self.planner.get_estimated_duration(plan)
         return mean, variance
+
+    def update_task_plan(self):
+        while self.auctioneer.allocations and self.auctioneer.round.finished:
+            task_id, robot_ids = self.auctioneer.allocations.pop(0)
+            task = Task.get_task(task_id)
+            task.assign_robots(robot_ids)
+
+            task_plan = self.task_plans[task_id]
+            pre_task_action = self.auctioneer.pre_task_actions.get(task_id)
+            task_plan.actions.append(pre_task_action)
+
+            task.update_plan(robot_ids, task_plan)
+            self.logger.debug('Task plan updated...')
 
     def archive_task_cb(self, msg):
         payload = msg['payload']
@@ -69,6 +94,7 @@ class CCU:
             while True:
                 self.auctioneer.run()
                 self.dispatcher.run()
+                self.update_task_plan()
                 self.api.run()
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
