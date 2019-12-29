@@ -11,7 +11,7 @@ from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.task_contract import TaskContract
+from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 from mrs.utils.utils import is_valid_time
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
@@ -40,6 +40,7 @@ class Auctioneer(object):
         self.tasks_to_allocate = dict()
         self.allocations = list()
         self.pre_task_actions = dict()
+        self.winning_bid = None
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids)
 
@@ -88,15 +89,14 @@ class Auctioneer(object):
 
     def process_round_result(self, round_result):
         bid, time_to_allocate = round_result
-        allocation = (bid.task_id, [bid.robot_id])
-        self.process_allocation(allocation, time_to_allocate, bid)
+        self.winning_bid = bid
+        self.announce_winner(bid.task_id, bid.robot_id)
 
     def process_alternative_timeslot(self, exception):
         bid = exception.bid
         time_to_allocate = exception.time_to_allocate
         alternative_start_time = bid.alternative_start_time
         alternative_allocation = (bid.task_id, [bid.robot_id], alternative_start_time)
-        allocation = (bid.task_id, [bid.robot_id])
 
         self.logger.debug("Alternative timeslot for task %s: robot %s, alternative start time: %s ", bid.task_id,
                           bid.robot_id, bid.alternative_start_time)
@@ -105,24 +105,28 @@ class Auctioneer(object):
 
         # TODO: Prompt the user to accept the alternative timeslot
         # For now, accept always
-        self.process_allocation(allocation, time_to_allocate, bid)
+        self.winning_bid = bid
+        self.announce_winner(bid.task_id, bid.robot_id)
 
-    def process_allocation(self, allocation, time_to_allocate,  bid):
-        task = self.tasks_to_allocate.pop(bid.task_id)
-        travel_time = bid.pre_task_action.estimated_duration
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        self.pre_task_actions[bid.task_id] = bid.pre_task_action
+    def process_allocation(self):
+        task = self.tasks_to_allocate.pop(self.winning_bid.task_id)
 
         try:
-            self.timetable_manager.update_timetable(bid.robot_id, bid.insertion_point, bid.metrics.temporal, task)
+            travel_time = self.winning_bid.pre_task_action.estimated_duration
+            task.update_inter_timepoint_constraint(**travel_time.to_dict())
+            self.pre_task_actions[self.winning_bid.task_id] = self.winning_bid.pre_task_action
 
+            self.timetable_manager.update_timetable(self.winning_bid.robot_id,
+                                                    self.winning_bid.insertion_point,
+                                                    self.winning_bid.metrics.temporal, task)
+
+            allocation = (self.winning_bid.task_id, [self.winning_bid.robot_id])
             self.logger.debug("Allocation: %s", allocation)
             self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
             self.logger.debug("Updating task status to ALLOCATED")
             task.update_status(TaskStatusConst.ALLOCATED)
 
-            self.announce_winner(allocation)
             self.allocations.append(allocation)
 
         except InvalidAllocation as e:
@@ -190,23 +194,31 @@ class Auctioneer(object):
         self.round.process_bid(payload, SoftBid)
 
     def task_contract_acknowledgement_cb(self, msg):
+        payload = msg['payload']
+        task_contract_acknowledgement = TaskContractAcknowledgment.from_payload(payload)
+        n_tasks_before = len(self.timetable_manager.get_timetable(task_contract_acknowledgement.robot_id).get_tasks())
+
+        if task_contract_acknowledgement.accept and \
+                TaskContract.is_valid(n_tasks_before, task_contract_acknowledgement.n_tasks):
+            self.logger.debug("Concluding allocation of task %s", task_contract_acknowledgement.task_id)
+            self.process_allocation()
+        else:
+            self.logger.warning("Round %s has to be repeated", self.round.id)
         self.round.finish()
 
-    def announce_winner(self, allocation):
-        task_id, robot_ids = allocation
-        for robot_id in robot_ids:
-            task_contract = TaskContract(task_id, robot_id)
-            msg = self.api.create_message(task_contract)
-            self.api.publish(msg, groups=['TASK-ALLOCATION'])
+    def announce_winner(self, task_id, robot_id):
+        task_contract = TaskContract(task_id, robot_id)
+        msg = self.api.create_message(task_contract)
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, robot_id, task_id, node_id):
-        self.logger.debug("Deleting task %s", task_id)
-        timetable = self.timetable_manager.get_timetable(robot_id)
-        timetable.remove_task(node_id)
-        task = Task.get_task(task_id)
+    def archive_task(self, archive_task):
+        self.logger.debug("Deleting task %s", archive_task.task_id)
+        timetable = self.timetable_manager.get_timetable(archive_task.robot_id)
+        timetable.remove_task(archive_task.node_id)
+        task = Task.get_task(archive_task.task_id)
         task.update_status(TaskStatusConst.COMPLETED)
-        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+        self.logger.debug("STN robot %s: %s", archive_task.robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", archive_task.robot_id, timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

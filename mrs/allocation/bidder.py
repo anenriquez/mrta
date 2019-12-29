@@ -75,13 +75,23 @@ class Bidder:
         self.compute_bids(task_announcement)
 
     def task_contract_cb(self, msg):
-        self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
         payload = msg['payload']
         task_contract = TaskContract.from_payload(payload)
 
         if task_contract.robot_id == self.robot_id:
-            self.allocate_to_robot(task_contract.task_id)
-            self.send_contract_acknowledgement()
+            self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
+            self.timetable.fetch()
+            n_tasks_before = len(self.timetable.stn.get_tasks())
+            n_tasks_after = len(self.bid_placed.stn.get_tasks())
+
+            if TaskContract.is_valid(n_tasks_before, n_tasks_after):
+                self.allocate_to_robot(task_contract.task_id)
+                self.send_contract_acknowledgement(task_contract, n_tasks_after, accept=True)
+            else:
+                self.logger.warning("A task was removed before the round was completed, "
+                                    "as a result, the bid placed %s is no longer valid ",
+                                    self.bid_placed)
+                self.send_contract_acknowledgement(task_contract, n_tasks_after, accept=False)
 
     def compute_bids(self, task_announcement):
         bids = list()
@@ -237,7 +247,6 @@ class Bidder:
         self.api.publish(msg, peer=self.auctioneer_name)
 
     def allocate_to_robot(self, task_id):
-
         # TODO: Refactor timetable update
         self.timetable.stn = self.bid_placed.stn
         self.timetable.dispatchable_graph = self.bid_placed.dispatchable_graph
@@ -255,18 +264,21 @@ class Bidder:
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
 
-    def send_contract_acknowledgement(self):
-        task_contract_acknowledgement = TaskContractAcknowledgment(self.robot_id)
+    def send_contract_acknowledgement(self, task_contract, n_tasks, accept=True):
+        task_contract_acknowledgement = TaskContractAcknowledgment(task_contract.task_id,
+                                                                   task_contract.robot_id,
+                                                                   n_tasks,
+                                                                   accept)
         msg = self.api.create_message(task_contract_acknowledgement)
 
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, robot_id, task_id, node_id):
-        self.logger.debug("Deleting task %s", task_id)
-        self.timetable.remove_task(node_id)
-        self.logger.debug("STN robot %s: %s", robot_id, self.timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, self.timetable.dispatchable_graph)
+    def archive_task(self, archive_task):
+        self.timetable.fetch()
+        self.logger.debug("Deleting task %s", archive_task.task_id)
+        self.timetable.remove_task(archive_task.node_id)
+        self.logger.debug("STN robot %s: %s", archive_task.robot_id, self.timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", archive_task.robot_id, self.timetable.dispatchable_graph)
         # task = Task.get_task(task_id)
         # task.update_status(TaskStatusConst.COMPLETED)
-
