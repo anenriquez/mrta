@@ -2,9 +2,9 @@ import logging
 from datetime import timedelta
 
 import numpy as np
-from stn.methods.fpc import get_minimal_network
-
+from mrs.exceptions.execution import InconsistentAssignment
 from mrs.exceptions.execution import InconsistentSchedule
+from stn.methods.fpc import get_minimal_network
 
 
 class Scheduler(object):
@@ -19,14 +19,14 @@ class Scheduler(object):
 
     def assign_timepoint(self, assigned_time, dispatchable_graph, task_id, node_type):
         minimal_network = get_minimal_network(dispatchable_graph)
-
         if minimal_network:
             minimal_network.assign_timepoint(assigned_time, task_id, node_type)
             if self.stp_solver.is_consistent(minimal_network):
                 dispatchable_graph.assign_timepoint(assigned_time, task_id, node_type)
                 return dispatchable_graph
-        self.logger.debug("Task %s could not be scheduled at %s", task_id, assigned_time)
-        return None
+        # self.logger.debug("Task %s could not be scheduled at %s", task_id, assigned_time)
+        dispatchable_graph.assign_timepoint(assigned_time, task_id, node_type)
+        raise InconsistentAssignment(assigned_time, dispatchable_graph)
 
     def get_times(self, earliest_time, latest_time):
         start_times = list(np.arange(earliest_time, latest_time + self.time_resolution, self.time_resolution))
@@ -43,10 +43,12 @@ class Scheduler(object):
 
         for start_time in start_times:
             self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
-            new_dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "start")
-            if new_dispatchable_graph:
+            try:
+                new_dispatchable_graph = self.assign_timepoint(start_time, dispatchable_graph, task.task_id, "start")
                 task.start_time = (zero_timepoint + timedelta(seconds=start_time)).to_datetime()
                 return task, new_dispatchable_graph
+            except InconsistentAssignment as e:
+                self.logger.warning("Task %s could not be scheduled at %s", task.task_id, e.assigned_time)
 
         self.logger.warning("Task %s could not be scheduled between %s and %s", task.task_id,
                             earliest_start_time, latest_start_time)

@@ -3,14 +3,13 @@ import logging.config
 import time
 
 from fmlib.models.tasks import TaskPlan
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
-from mrs.messages.archive_task import ArchiveTask
+from mrs.messages.task_progress import TaskProgress
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
 
 
 class CCU:
@@ -71,16 +70,31 @@ class CCU:
 
             task_plan = self.task_plans[task_id]
             pre_task_action = self.auctioneer.pre_task_actions.get(task_id)
-            task_plan.actions.append(pre_task_action)
+            task_plan.actions.insert(0, pre_task_action)
 
             task.update_plan(robot_ids, task_plan)
             self.logger.debug('Task plan updated...')
 
-    def archive_task_cb(self, msg):
+    def task_progress_cb(self, msg):
         payload = msg['payload']
-        archive_task = ArchiveTask.from_payload(payload)
-        self.auctioneer.archive_task(archive_task)
-        self.dispatcher.timetable_manager.send_update_to = archive_task.robot_id
+        task_progress = TaskProgress.from_payload(payload)
+        task = Task.get_task(task_progress.task_id)
+
+        if task_progress.status == TaskStatusConst.COMPLETED:
+            self.auctioneer.archive_task(task_progress.task_id, task_progress.robot_id)
+            self.dispatcher.timetable_manager.send_update_to = task_progress.robot_id
+        elif task_progress.status == TaskStatusConst.UNALLOCATED:
+            self.trigger_reallocation(task, task_progress.robot_id)
+        elif task_progress.re_allocate_next:
+            timetable = self.auctioneer.timetable_manager.get_timetable(task_progress.robot_id)
+            next_task = timetable.get_next_task(task)
+            self.trigger_reallocation(next_task, task_progress.robot_id)
+
+    def trigger_reallocation(self, task, robot_id):
+        self.auctioneer.archive_task(task.task_id, robot_id, status=TaskStatusConst.ABORTED)
+        self.dispatcher.timetable_manager.send_update_to = robot_id
+        task.save()
+        task.update_status(TaskStatusConst.UNALLOCATED)
 
     def run(self):
         try:

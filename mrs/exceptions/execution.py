@@ -15,6 +15,20 @@ class InconsistentSchedule(Exception):
         self.latest_time = latest_time
 
 
+class InconsistentAssignment(Exception):
+
+    def __init__(self, assigned_time, dispatchable_graph):
+        """ Trying to assign assigned_time to a timepoint in dispatchable graph makes the temporal
+        network inconsistent
+
+        assigned_time (float): time relative to the zero timepoint
+        dispatchable_graph (stn): dispatchable graph with assigned_time assigned
+        """
+        Exception.__init__(self, assigned_time, dispatchable_graph)
+        self.assigned_time = assigned_time
+        self.dispatchable_graph = dispatchable_graph
+
+
 class MissingDispatchableGraph(Exception):
     def __init__(self, robot_id):
         """

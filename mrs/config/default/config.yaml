@@ -36,7 +36,7 @@ robot:
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
   executor_interface:
-    corrective_measure: re-allocate
+    corrective_measure: pre-failure-re-allocate
     time_resolution: 0.5 # minutes
     max_seed: 2147483647
     delay_n_standard_dev: 1
@@ -76,9 +76,9 @@ robot_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         method: shout
-      archive-task:
+      task-progress:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'ARCHIVE-TASK'
+        msg_type: 'TASK-PROGRESS'
         method: shout
     callbacks:
       - msg_type: 'TASK-ANNOUNCEMENT'
@@ -112,7 +112,7 @@ ccu_api:
         - SOFT-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
-        - ARCHIVE-TASK
+        - TASK-PROGRESS
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -144,8 +144,8 @@ ccu_api:
         component: 'auctioneer.soft_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
-      - msg_type: 'ARCHIVE-TASK'
-        component: '.archive_task_cb'
+      - msg_type: 'TASK-PROGRESS'
+        component: '.task_progress_cb'
 
 logger:
   version: 1

@@ -44,7 +44,7 @@ class Robot:
                 self.executor_interface.run()
                 # Provisional hack
                 if self.executor_interface.task_to_archive:
-                    self.bidder.archive_task(self.executor_interface.task_to_archive)
+                    self.bidder.archive_task(self.executor_interface.task_to_archive.task_id)
                     self.executor_interface.task_to_archive = None
                 time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):

@@ -207,14 +207,15 @@ class Auctioneer(object):
         msg = self.api.create_message(task_contract)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, archive_task):
-        self.logger.debug("Deleting task %s", archive_task.task_id)
-        timetable = self.timetable_manager.get_timetable(archive_task.robot_id)
-        timetable.remove_task(archive_task.node_id)
-        task = Task.get_task(archive_task.task_id)
-        task.update_status(TaskStatusConst.COMPLETED)
-        self.logger.debug("STN robot %s: %s", archive_task.robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", archive_task.robot_id, timetable.dispatchable_graph)
+    def archive_task(self, task_id, robot_id, status=TaskStatusConst.COMPLETED):
+        self.logger.debug("Deleting task %s", task_id)
+        timetable = self.timetable_manager.get_timetable(robot_id)
+        node_id = timetable.get_task_position(task_id)
+        timetable.remove_task(node_id)
+        task = Task.get_task(task_id)
+        task.update_status(status)
+        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph
