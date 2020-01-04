@@ -167,6 +167,16 @@ class Timetable(object):
         else:
             raise TaskNotFound(position)
 
+    def get_next_task(self, task):
+        task_idx = self.dispatchable_graph.get_task_position(task.task_id)
+        next_task_id = self.dispatchable_graph.get_task_id(task_idx+1)
+        if next_task_id:
+            next_task = Task.get_task(next_task_id)
+            return next_task
+
+    def get_task_position(self, task_id):
+        return self.stn.get_task_position(task_id)
+
     def get_earliest_tasks(self, n_tasks=1):
         """ Returns a list of the earliest n_tasks in the timetable
 
