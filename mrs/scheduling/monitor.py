@@ -6,6 +6,7 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.scheduling.scheduler import Scheduler
+from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
@@ -60,7 +61,11 @@ class ScheduleMonitor:
         task_idx = self.dispatchable_graph.get_task_position(task.task_id)
         next_task_id = self.dispatchable_graph.get_task_id(task_idx+1)
         if next_task_id:
-            next_task = Task.get_task(next_task_id)
+            try:
+                next_task = Task.get_task(next_task_id)
+            except DoesNotExist:
+                self.logger.warning("Task %s is not in db", next_task_id)
+                next_task = Task.create_new(task_id=next_task_id)
             return next_task
 
     def is_next_task_late(self, task, next_task):
@@ -78,6 +83,7 @@ class ScheduleMonitor:
 
         if latest_start_time < estimated_start_time:
             return True
+        return False
 
     def update_dispatchable_graph(self, dispatchable_graph):
         tasks = list()

@@ -21,11 +21,33 @@ services:
     depends_on:
       - mongo
 
+  robot_proxy_1:
+    container_name: robot_proxy_1
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_001"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
   robot_2:
     container_name: robot_2
     image: ropod-mrs
     working_dir: /mrta/mrs/
     command: ["python3", "robot.py", "robot_002"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_2:
+    container_name: robot_proxy_2
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_002"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -43,6 +65,17 @@ services:
     depends_on:
       - mongo
 
+  robot_proxy_3:
+    container_name: robot_proxy_3
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_003"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
   robot_4:
     container_name: robot_4
     image: ropod-mrs
@@ -54,11 +87,33 @@ services:
     depends_on:
       - mongo
 
+  robot_proxy_4:
+    container_name: robot_proxy_4
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_004"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
   robot_5:
     container_name: robot_5
     image: ropod-mrs
     working_dir: /mrta/mrs/
     command: ["python3", "robot.py", "robot_005"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_5:
+    container_name: robot_proxy_5
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_005"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -93,3 +148,8 @@ services:
       - robot_3
       - robot_4
       - robot_5
+      - robot_proxy_1
+      - robot_proxy_2
+      - robot_proxy_3
+      - robot_proxy_4
+      - robot_proxy_5

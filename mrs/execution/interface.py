@@ -1,12 +1,13 @@
 import logging
 
 import numpy as np
-from mrs.exceptions.execution import InconsistentSchedule
+from mrs.db.models.task import Task
+from mrs.exceptions.execution import InconsistentSchedule, InconsistentAssignment
 from mrs.exceptions.execution import MissingDispatchableGraph
+from mrs.execution.corrective_measure import CorrectiveMeasure
 from mrs.messages.task_progress import TaskProgress
 from mrs.scheduling.monitor import ScheduleMonitor
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
-from mrs.execution.corrective_measure import CorrectiveMeasure
 
 
 class ExecutorInterface:
@@ -37,6 +38,15 @@ class ExecutorInterface:
         self.logger = logging.getLogger("mrs.executor.interface.%s" % self.robot_id)
         self.logger.debug("Executor interface initialized %s", self.robot_id)
 
+    def task_cb(self, msg):
+        payload = msg['payload']
+        task = Task.from_payload(payload)
+        self.logger.critical("Received task %s", task.task_id)
+        if self.robot_id in task.assigned_robots:
+            task.update_status(TaskStatusConst.DISPATCHED)
+            self.tasks.append(task)
+            Task.freeze_task(task.task_id)
+
     def execute_action(self, task, action):
         self.logger.info("Executing action %s", action.type)
         constraint = task.get_inter_timepoint_constraint(action.estimated_duration.name)
@@ -49,7 +59,7 @@ class ExecutorInterface:
         consistent = True
         try:
             self.schedule_monitor.assign_timepoint(action_time, task.task_id, finish_node)
-        except InconsistentSchedule:
+        except InconsistentAssignment:
             consistent = False
 
         self.logger.info("Task: %s Action: %s Time: %s", task.task_id, action.type, action_time)
@@ -86,7 +96,6 @@ class ExecutorInterface:
             self.tasks.remove(task)
             self.archived_tasks.append(task)
         self.schedule_monitor.remove_task(task.task_id)
-        self.task_to_archive = task
 
     def re_allocate(self, task):
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)

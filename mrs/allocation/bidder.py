@@ -274,12 +274,12 @@ class Bidder:
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, task_id):
+    def archive_task(self, task_id, status=TaskStatusConst.COMPLETED):
         self.timetable.fetch()
         self.logger.debug("Deleting task %s", task_id)
         node_id = self.timetable.get_task_position(task_id)
         self.timetable.remove_task(node_id)
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", self.robot_id, self.timetable.dispatchable_graph)
-        # task = Task.get_task(task_id)
-        # task.update_status(TaskStatusConst.COMPLETED)
+        task = Task.get_task(task_id)
+        task.update_status(status)

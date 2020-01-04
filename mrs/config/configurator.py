@@ -50,6 +50,28 @@ class Configurator:
 
         return components
 
+    def config_robot_proxy(self, robot_id):
+        api_config = self.config_params.get('robot_proxy_api')
+        api_config['zyre']['zyre_node']['node_name'] = robot_id + "_proxy"
+        api = API(**api_config)
+        store_config = self.config_params.get('robot_proxy_store')
+        store_config['db_name'] = store_config['db_name'] + '_' + robot_id.split('_')[1]
+        store = Store(**store_config)
+
+        self.builder.register_component('api', api)
+        self.builder.register_component('robot_proxy_store', store)
+        timetable = Timetable(robot_id, self.builder.get_stp_solver())
+        timetable.fetch()
+        self.builder.register_component('timetable', timetable)
+        self.builder.register_component('robot_id', robot_id)
+
+        robot_config = self.config_params.get('robot_proxy')
+        robot_config.update(robot_id=robot_id)
+
+        components = self.builder(**robot_config)
+
+        return components
+
     def config_robot(self, robot_id):
         api_config = self.config_params.get('robot_api')
         api_config['zyre']['zyre_node']['node_name'] = robot_id
@@ -60,9 +82,6 @@ class Configurator:
 
         self.builder.register_component('api', api)
         self.builder.register_component('robot_store', store)
-        timetable = Timetable(robot_id, self.builder.get_stp_solver())
-        timetable.fetch()
-        self.builder.register_component('timetable', timetable)
         self.builder.register_component('robot_id', robot_id)
 
         robot_config = self.config_params.get('robot')

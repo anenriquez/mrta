@@ -2,11 +2,13 @@ import argparse
 import logging.config
 import time
 
+from fmlib.models.requests import TransportationRequest
 from fmlib.models.tasks import TaskPlan
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
+from mrs.db.models.task import TemporalConstraints
 from mrs.messages.task_progress import TaskProgress
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
@@ -91,10 +93,15 @@ class CCU:
             self.trigger_reallocation(next_task, task_progress.robot_id)
 
     def trigger_reallocation(self, task, robot_id):
+        self.logger.critical("Triggering reallocation")
         self.auctioneer.archive_task(task.task_id, robot_id, status=TaskStatusConst.ABORTED)
         self.dispatcher.timetable_manager.send_update_to = robot_id
-        task.save()
+        task_dict = task.to_dict()
+        request = TransportationRequest.from_payload(task_dict.get("request"))
+        constraints = TemporalConstraints.from_payload(task_dict.get("constraints"))
+        Task.create_new(task_id=task.task_id, request=request, constraints=constraints)
         task.update_status(TaskStatusConst.UNALLOCATED)
+        self.auctioneer.allocate(task)
 
     def run(self):
         try:
