@@ -60,7 +60,8 @@ ccu_api:
         - SOFT-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
-        - TASK-PROGRESS
+        - TASK-STATUS
+        - RE-ALLOCATE
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -92,8 +93,10 @@ ccu_api:
         component: 'auctioneer.soft_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
-      - msg_type: 'TASK-PROGRESS'
-        component: '.task_progress_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
+      - msg_type: 'RE-ALLOCATE'
+        component: '.re_allocate_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -109,7 +112,8 @@ robot_proxy_api:
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
         - ROBOT-POSE
-        - TASK-PROGRESS
+        - TASK-STATUS
+        - RE-ALLOCATE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -136,8 +140,10 @@ robot_proxy_api:
         component: 'bidder.task_contract_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
-      - msg_type: 'TASK-PROGRESS'
-        component: '.task_progress_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
+      - msg_type: 'RE-ALLOCATE'
+        component: '.re_allocate_cb'
 
 
 robot_api:
@@ -156,9 +162,13 @@ robot_api:
       debug_msgs: false
     acknowledge: false
     publish:
-      task-progress:
+      task-status:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-PROGRESS'
+        msg_type: 'TASK-STATUS'
+        method: shout
+      re-allocate:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'RE-ALLOCATE'
         method: shout
     callbacks:
       - msg_type: 'DISPATCH-QUEUE-UPDATE'

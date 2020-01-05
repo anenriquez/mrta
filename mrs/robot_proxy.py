@@ -5,7 +5,7 @@ import time
 from fmlib.models.robot import Robot as RobotModel
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
-from mrs.messages.task_progress import TaskProgress
+from mrs.messages.task_status import TaskStatus, ReAllocate
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
@@ -22,22 +22,24 @@ class RobotProxy:
         self.api.register_callbacks(self)
         self.logger.info("Initialized Robot %s", robot_id)
 
-    def task_progress_cb(self, msg):
+    def task_status_cb(self, msg):
         payload = msg['payload']
-        task_progress = TaskProgress.from_payload(payload)
-        task = Task.get_task(task_progress.task_id)
+        task_status = TaskStatus.from_payload(payload)
+        self.logger.debug("Received task status msg for task %s ", task_status.task_id)
 
-        if task_progress.status == TaskStatusConst.COMPLETED:
-            self.bidder.archive_task(task_progress.task_id)
-        elif task_progress.status == TaskStatusConst.UNALLOCATED:
-            self.trigger_reallocation(task)
-        elif task_progress.re_allocate_next:
-            next_task = self.bidder.timetable.get_next_task(task)
-            self.trigger_reallocation(next_task)
+        if task_status.status in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
+            self.bidder.archive_task(task_status.task_id)
 
-    def trigger_reallocation(self, task):
-        self.bidder.archive_task(task.task_id, status=TaskStatusConst.ABORTED)
-        task.save()
+        task = Task.get_task(task_status.task_id)
+        task.update_status(task_status.status)
+
+    def re_allocate_cb(self, msg):
+        payload = msg['payload']
+        re_allocate = ReAllocate.from_payload(payload)
+        self.logger.info("Triggering reallocation of task %s robot %s", re_allocate.task_id, re_allocate.robot_id)
+
+        self.bidder.archive_task(re_allocate.task_id)
+        task = Task.get_task(re_allocate.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
 
     def robot_pose_cb(self, msg):

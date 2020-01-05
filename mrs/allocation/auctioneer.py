@@ -1,9 +1,6 @@
 import logging
 from datetime import timedelta
 
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
@@ -13,6 +10,8 @@ from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 from mrs.utils.utils import is_valid_time
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -207,13 +206,11 @@ class Auctioneer(object):
         msg = self.api.create_message(task_contract)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, task_id, robot_id, status=TaskStatusConst.COMPLETED):
+    def archive_task(self, task_id, robot_id):
         self.logger.debug("Deleting task %s", task_id)
         timetable = self.timetable_manager.get_timetable(robot_id)
         node_id = timetable.get_task_position(task_id)
         timetable.remove_task(node_id)
-        task = Task.get_task(task_id)
-        task.update_status(status)
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 

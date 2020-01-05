@@ -9,7 +9,7 @@ from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.db.models.task import TemporalConstraints
-from mrs.messages.task_progress import TaskProgress
+from mrs.messages.task_status import TaskStatus, ReAllocate
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
 
@@ -77,25 +77,27 @@ class CCU:
             task.update_plan(robot_ids, task_plan)
             self.logger.debug('Task plan updated...')
 
-    def task_progress_cb(self, msg):
+    def task_status_cb(self, msg):
         payload = msg['payload']
-        task_progress = TaskProgress.from_payload(payload)
-        task = Task.get_task(task_progress.task_id)
+        task_status = TaskStatus.from_payload(payload)
+        self.logger.debug("Received task status msg for task %s by %s", task_status.task_id, task_status.robot_id)
 
-        if task_progress.status == TaskStatusConst.COMPLETED:
-            self.auctioneer.archive_task(task_progress.task_id, task_progress.robot_id)
-            self.dispatcher.timetable_manager.send_update_to = task_progress.robot_id
-        elif task_progress.status == TaskStatusConst.UNALLOCATED:
-            self.trigger_reallocation(task, task_progress.robot_id)
-        elif task_progress.re_allocate_next:
-            timetable = self.auctioneer.timetable_manager.get_timetable(task_progress.robot_id)
-            next_task = timetable.get_next_task(task)
-            self.trigger_reallocation(next_task, task_progress.robot_id)
+        if task_status.status in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
+            self.auctioneer.archive_task(task_status.task_id, task_status.robot_id)
+            self.dispatcher.timetable_manager.send_update_to = task_status.robot_id
 
-    def trigger_reallocation(self, task, robot_id):
-        self.logger.critical("Triggering reallocation")
-        self.auctioneer.archive_task(task.task_id, robot_id, status=TaskStatusConst.ABORTED)
-        self.dispatcher.timetable_manager.send_update_to = robot_id
+        task = Task.get_task(task_status.task_id)
+        task.update_status(task_status.status)
+
+    def re_allocate_cb(self, msg):
+        payload = msg['payload']
+        re_allocate = ReAllocate.from_payload(payload)
+        self.logger.info("Triggering reallocation of task %s robot %s", re_allocate.task_id, re_allocate.robot_id)
+
+        self.auctioneer.archive_task(re_allocate.task_id, re_allocate.robot_id)
+        self.dispatcher.timetable_manager.send_update_to = re_allocate.robot_id
+
+        task = Task.get_task(re_allocate.task_id)
         task_dict = task.to_dict()
         request = TransportationRequest.from_payload(task_dict.get("request"))
         constraints = TemporalConstraints.from_payload(task_dict.get("constraints"))

@@ -2,11 +2,6 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
-from pymodm.errors import DoesNotExist
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
-
 from mrs.allocation.bidding_rule import BiddingRule
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
@@ -15,6 +10,10 @@ from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
+from pymodm.errors import DoesNotExist
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -274,12 +273,10 @@ class Bidder:
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, task_id, status=TaskStatusConst.COMPLETED):
+    def archive_task(self, task_id):
         self.timetable.fetch()
         self.logger.debug("Deleting task %s", task_id)
         node_id = self.timetable.get_task_position(task_id)
         self.timetable.remove_task(node_id)
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", self.robot_id, self.timetable.dispatchable_graph)
-        task = Task.get_task(task_id)
-        task.update_status(status)

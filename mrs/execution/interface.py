@@ -1,12 +1,15 @@
 import logging
 
 import numpy as np
+from fmlib.models.tasks import TaskStatus
 from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule, InconsistentAssignment
 from mrs.exceptions.execution import MissingDispatchableGraph
 from mrs.execution.corrective_measure import CorrectiveMeasure
-from mrs.messages.task_progress import TaskProgress
+from mrs.messages.task_status import TaskStatus as TaskStatusMessage, ReAllocate
 from mrs.scheduling.monitor import ScheduleMonitor
+from pymodm.context_managers import switch_collection
+from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
@@ -68,27 +71,39 @@ class ExecutorInterface:
         if next_task:
             self.apply_corrective_measure(task, next_task, consistent)
 
-        task.status.update_progress(action.action_id, ActionStatus.COMPLETED)
+        task.update_progress(action.action_id, ActionStatus.COMPLETED)
 
     def execute_task(self, task):
         self.logger.info("Executing task %s", task.task_id)
         task.update_status(TaskStatusConst.ONGOING)
         action = task.plan[0].actions[0]
-        task.status.update_progress(action.action_id, ActionStatus.ONGOING)
+        task.update_progress(action.action_id, ActionStatus.ONGOING)
 
         for action_progress in task.status.progress.actions:
-            task.status.update_progress(action_progress.action.action_id, ActionStatus.ONGOING)
+            task.update_progress(action_progress.action.action_id, ActionStatus.ONGOING)
             self.execute_action(task, action_progress.action)
 
         task.update_status(TaskStatusConst.COMPLETED)
-        self.send_task_progress(task, TaskStatusConst.COMPLETED)
         self.remove_task(task)
+        self.send_task_status(task)
 
-    def send_task_progress(self, task, status, re_allocate_next=False):
-        self.logger.debug("Send task progress task %s", task.task_id)
-        task_progress = TaskProgress(task.task_id, self.robot_id, status, re_allocate_next)
-        task_progress_msg = self.api.create_message(task_progress)
-        self.api.publish(task_progress_msg)
+    def send_task_status(self, task):
+        try:
+            task_status = task.status
+        except DoesNotExist:
+            with switch_collection(Task, Task.Meta.archive_collection):
+                with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+                    task_status = TaskStatus.objects.get({"_id": task.task_id})
+
+        self.logger.debug("Send task status of task %s", task.task_id)
+        task_status = TaskStatusMessage(task.task_id, self.robot_id, task_status.status, task_status.delayed)
+        msg = self.api.create_message(task_status)
+        self.api.publish(msg)
+
+    def send_re_allocate_task(self, task):
+        re_allocate_task = ReAllocate(task.task_id, self.robot_id)
+        msg = self.api.create_message(re_allocate_task)
+        self.api.publish(msg)
 
     def remove_task(self, task):
         self.logger.info("Deleting task %s", task.task_id)
@@ -100,21 +115,23 @@ class ExecutorInterface:
     def re_allocate(self, task):
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
+        self.send_re_allocate_task(task)
+        self.remove_task(task)
 
     def apply_corrective_measure(self, task, next_task, consistent):
 
         if not consistent and self.corrective_measure is None:
             next_task.update_status(TaskStatusConst.ABORTED)
             self.remove_task(task)
+            self.send_task_status(task)
 
         elif (not consistent and self.corrective_measure.name == 'post-failure-re-allocate') or \
                 (self.corrective_measure.name == 'pre-failure-re-allocate') and \
                 self.schedule_monitor.is_next_task_late(task, next_task):
             task.status.delayed = True
             task.save()
+            self.send_task_status(task)
             self.re_allocate(next_task)
-            self.remove_task(next_task)
-            self.send_task_progress(task, task.status.status, re_allocate_next=True)
 
         elif consistent and self.corrective_measure == 're-schedule':
             # Re-compute dispatchable graph
@@ -135,8 +152,6 @@ class ExecutorInterface:
                     pass
                 except InconsistentSchedule:
                     self.re_allocate(task)
-                    self.send_task_progress(task, task.status.status)
-                    self.remove_task(task)
 
             if task.status.status == TaskStatusConst.SCHEDULED and task.is_executable():
                 self.execute_task(task)
