@@ -22,6 +22,13 @@ class RobotProxy:
         self.api.register_callbacks(self)
         self.logger.info("Initialized Robot %s", robot_id)
 
+    def task_cb(self, msg):
+        payload = msg['payload']
+        task = Task.from_payload(payload)
+        self.logger.critical("Received task %s", task.task_id)
+        if self.robot_id in task.assigned_robots:
+            Task.freeze_task(task.task_id)
+
     def task_status_cb(self, msg):
         payload = msg['payload']
         task_status = TaskStatus.from_payload(payload)
