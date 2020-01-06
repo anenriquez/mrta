@@ -220,14 +220,14 @@ class Task(BaseTask):
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
+        document['_id'] = document.pop('task_id')
         document["request"] = TransportationRequest.from_payload(document.pop("request"))
         task = cls.from_document(document)
         task.save()
         return task
 
     def to_dict(self):
-        dict_repr = self.to_son().to_dict()
-        dict_repr.pop("_cls")
+        dict_repr = super().to_dict()
         dict_repr["request"] = self.request.to_dict()
         return dict_repr
 
