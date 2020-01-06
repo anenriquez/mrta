@@ -1,5 +1,9 @@
 import logging
+from datetime import datetime
 from datetime import timedelta
+
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task
@@ -10,8 +14,6 @@ from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 from mrs.utils.utils import is_valid_time
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -154,7 +156,9 @@ class Auctioneer(object):
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
         closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
-        if not is_valid_time(closure_time) and not self.alternative_timeslots:
+        if not is_valid_time(closure_time) and self.alternative_timeslots:
+            closure_time = datetime.now() + self.closure_window
+        elif not is_valid_time(closure_time) and not self.alternative_timeslots:
             self.logger.warning("Task %s cannot not be allocated at it's given temporal constraints", earliest_task.task_id)
             earliest_task.remove()
             return
