@@ -147,6 +147,5 @@ class BiddingRobot:
 
     def placed_bid(self, n_tasks):
         if len(self.bids) == 1 or len(self.no_bids) == n_tasks:
-            print("Robot {} placed bids".format(self.robot_id))
             return True
         return False

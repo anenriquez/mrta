@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from datetime import timedelta
 
 from ropod.structs.task import TaskStatus as TaskStatusConst
@@ -56,10 +57,6 @@ class Auctioneer(object):
         self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
         self.timetable_manager.register_robot(robot_id)
-
-    @property
-    def n_robots(self):
-        return len(self.robot_ids)
 
     def set_zero_timepoint(self, time_):
         self.timetable_manager.zero_timepoint = time_
@@ -159,7 +156,9 @@ class Auctioneer(object):
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
         closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
-        if not is_valid_time(closure_time) and not self.alternative_timeslots:
+        if not is_valid_time(closure_time) and self.alternative_timeslots:
+            closure_time = datetime.now() + self.closure_window
+        elif not is_valid_time(closure_time) and not self.alternative_timeslots:
             self.logger.warning("Task %s cannot not be allocated at it's given temporal constraints", earliest_task.task_id)
             earliest_task.remove()
             return
@@ -211,14 +210,13 @@ class Auctioneer(object):
         msg = self.api.create_message(task_contract)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, archive_task):
-        self.logger.debug("Deleting task %s", archive_task.task_id)
-        timetable = self.timetable_manager.get_timetable(archive_task.robot_id)
-        timetable.remove_task(archive_task.node_id)
-        task = Task.get_task(archive_task.task_id)
-        task.update_status(TaskStatusConst.COMPLETED)
-        self.logger.debug("STN robot %s: %s", archive_task.robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", archive_task.robot_id, timetable.dispatchable_graph)
+    def archive_task(self, task_id, robot_id):
+        self.logger.debug("Deleting task %s", task_id)
+        timetable = self.timetable_manager.get_timetable(robot_id)
+        node_id = timetable.get_task_position(task_id)
+        timetable.remove_task(node_id)
+        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

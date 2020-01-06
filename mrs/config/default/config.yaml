@@ -4,11 +4,12 @@ ccu_store:
   db_name: ccu_store
   port: 27017
 
-robot_store:
-  db_name: robot_store
+robot_proxy_store:
+  db_name: robot_proxy_store
   port: 27017
 
-experiment_store:
+robot_store:
+  db_name: robot_store
   port: 27017
 
 fleet:
@@ -29,77 +30,24 @@ ccu:
   dispatcher:
     freeze_window: 5 # seconds
 
-robot:
+robot_proxy:
   bidder:
     bidding_rule:
       robustness: srea  # has to be the same as the stp_solver
       temporal: completion_time
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
+
+robot:
   executor_interface:
-    corrective_measure: re-allocate
+    corrective_measure: pre-failure-re-allocate
     time_resolution: 0.5 # minutes
     max_seed: 2147483647
     delay_n_standard_dev: 1
-
-robot_api:
-  version: 0.1.0
-  middleware:
-    - zyre
-  zyre:
-    zyre_node:
-      node_name: proxy
-      interface: null
-      groups:
-        - TASK-ALLOCATION
-      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-        - TASK-ANNOUNCEMENT
-        - TASK-CONTRACT
-        - DISPATCH-QUEUE-UPDATE
-        - TASK
-        - ROBOT-POSE
-      debug_msgs: false
-    acknowledge: false
-    publish:
-      bid:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'BID'
-        method: whisper
-      no-bid:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'BID'
-        method: whisper
-      soft-bid:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'BID'
-        method: whisper
-      task-contract-acknowledgement:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
-        method: shout
-      archive-task:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'ARCHIVE-TASK'
-        method: shout
-    callbacks:
-      - msg_type: 'TASK-ANNOUNCEMENT'
-        component: 'bidder.task_announcement_cb'
-      - msg_type: 'TASK-CONTRACT'
-        component: 'bidder.task_contract_cb'
-      - msg_type: 'DISPATCH-QUEUE-UPDATE'
-        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
-      - msg_type: 'TASK'
-        component: 'executor_interface.task_cb'
-      - msg_type: 'TASK'
-        component: '.task_cb'
-      - msg_type: 'ROBOT-POSE'
-        component: '.robot_pose_cb'
 
 ccu_api:
   version: 0.1.0
   middleware:
     - zyre
-    #- rest
-    #- ros
   zyre:
     zyre_node:
       node_name: fms_zyre_api
@@ -112,7 +60,8 @@ ccu_api:
         - SOFT-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
-        - ARCHIVE-TASK
+        - TASK-STATUS
+        - RE-ALLOCATE
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -144,8 +93,88 @@ ccu_api:
         component: 'auctioneer.soft_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
-      - msg_type: 'ARCHIVE-TASK'
-        component: '.archive_task_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
+      - msg_type: 'RE-ALLOCATE'
+        component: '.re_allocate_cb'
+
+robot_proxy_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: proxy
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK-ANNOUNCEMENT
+        - TASK-CONTRACT
+        - ROBOT-POSE
+        - TASK-STATUS
+        - RE-ALLOCATE
+      debug_msgs: false
+    acknowledge: false
+    publish:
+      bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'BID'
+        method: whisper
+      no-bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'NO-BID'
+        method: whisper
+      soft-bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'SOFT-BID'
+        method: whisper
+      task-contract-acknowledgement:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        method: shout
+    callbacks:
+      - msg_type: 'TASK-ANNOUNCEMENT'
+        component: 'bidder.task_announcement_cb'
+      - msg_type: 'TASK-CONTRACT'
+        component: 'bidder.task_contract_cb'
+      - msg_type: 'ROBOT-POSE'
+        component: '.robot_pose_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
+      - msg_type: 'RE-ALLOCATE'
+        component: '.re_allocate_cb'
+
+
+robot_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: proxy
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - DISPATCH-QUEUE-UPDATE
+        - TASK
+      debug_msgs: false
+    acknowledge: false
+    publish:
+      task-status:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-STATUS'
+        method: shout
+      re-allocate:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'RE-ALLOCATE'
+        method: shout
+    callbacks:
+      - msg_type: 'DISPATCH-QUEUE-UPDATE'
+        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
+      - msg_type: 'TASK'
+        component: 'executor_interface.task_cb'
 
 logger:
   version: 1

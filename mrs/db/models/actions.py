@@ -7,6 +7,12 @@ from fmlib.utils.messages import Document
 class GoTo(GoToBase):
     estimated_duration = fields.EmbeddedDocumentField(InterTimepointConstraint)
 
+    def get_node_names(self):
+        if self.type == "ROBOT-TO-PICKUP":
+            return "start", "pickup"
+        elif self.type == "PICKUP-TO-DELIVERY":
+            return "pickup", "delivery"
+
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)

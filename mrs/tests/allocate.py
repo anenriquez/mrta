@@ -45,12 +45,16 @@ class AllocationTest(RopodPyre):
 
     def clean_stores(self):
         fleet = self.config_params.get('fleet')
+        robot_proxy_store_config = self.config_params.get("robot_proxy_store")
         robot_store_config = self.config_params.get("robot_store")
+        store_configs = {'robot_proxy_store': robot_proxy_store_config,
+                         'robot_store': robot_store_config}
 
         for robot_id in fleet:
-            robot_store_config.update({'db_name': 'robot_store_' + robot_id.split('_')[1]})
-            store = MongoStore(**robot_store_config)
-            self.clean_store(store)
+            for store_name, config in store_configs.items():
+                config.update({'db_name': store_name + '_' + robot_id.split('_')[1]})
+                store = MongoStore(**config)
+                self.clean_store(store)
 
         ccu_store_config = self.config_params.get('ccu_store')
         store = MongoStore(**ccu_store_config)
@@ -62,7 +66,7 @@ class AllocationTest(RopodPyre):
         for robot_id, pose in robot_poses.items():
             msg['payload']['robotId'] = robot_id
             msg['payload']['pose'] = pose
-            self.whisper(msg, peer=robot_id)
+            self.whisper(msg, peer=robot_id + "_proxy")
             self.logger.info("Send init pose to %s: ", robot_id)
 
     def load_tasks(self, dataset_module, dataset_name, **kwargs):
