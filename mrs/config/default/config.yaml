@@ -109,6 +109,7 @@ robot_proxy_api:
       groups:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
         - ROBOT-POSE
@@ -144,6 +145,8 @@ robot_proxy_api:
         component: '.task_status_cb'
       - msg_type: 'RE-ALLOCATE'
         component: '.re_allocate_cb'
+      - msg_type: 'TASK'
+        component: '.task_cb'
 
 
 robot_api:

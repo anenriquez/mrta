@@ -176,7 +176,7 @@ class Bidder:
         try:
             task = self.timetable.get_task(insertion_point)
             if task.frozen:
-                self.logger.debug("Task % is frozen. "
+                self.logger.debug("Task %s is frozen. "
                                   "Not computing bid for this insertion point %s", task.task_id, insertion_point)
                 return False
             return True
