@@ -54,6 +54,7 @@ class Bidder:
 
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
+        self.received_stn_update = False
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
@@ -83,10 +84,11 @@ class Bidder:
             n_tasks_before = len(self.timetable.stn.get_tasks())
             n_tasks_after = len(self.bid_placed.stn.get_tasks())
 
-            if TaskContract.is_valid(n_tasks_before, n_tasks_after):
+            if TaskContract.is_valid(n_tasks_before, n_tasks_after) and not self.received_stn_update:
                 self.allocate_to_robot(task_contract.task_id)
                 self.send_contract_acknowledgement(task_contract, n_tasks_after, accept=True)
             else:
+                self.received_stn_update = False
                 self.logger.warning("A task was removed before the round was completed, "
                                     "as a result, the bid placed %s is no longer valid ",
                                     self.bid_placed)
@@ -274,9 +276,13 @@ class Bidder:
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def archive_task(self, task_id):
-        self.timetable.fetch()
         self.logger.debug("Deleting task %s", task_id)
-        node_id = self.timetable.get_task_position(task_id)
-        self.timetable.remove_task(node_id)
+        self.timetable.fetch()
+        task_node_ids = self.timetable.get_task_node_ids(task_id)
+        if len(task_node_ids) < 3:
+            self.timetable.stn.remove_node_ids(task_node_ids)
+        else:
+            node_id = self.timetable.get_task_position(task_id)
+            self.timetable.stn.remove_task(node_id)
+        self.timetable.store()
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", self.robot_id, self.timetable.dispatchable_graph)

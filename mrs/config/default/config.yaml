@@ -39,7 +39,8 @@ robot_proxy:
 
 robot:
   executor_interface:
-    corrective_measure: pre-failure-re-allocate
+    reaction_type: preventive
+    reaction: re-schedule
     time_resolution: 0.5 # minutes
     max_seed: 2147483647
     delay_n_standard_dev: 1
@@ -62,6 +63,7 @@ ccu_api:
         - START-TEST
         - TASK-STATUS
         - RE-ALLOCATE
+        - ASSIGNMENT-UPDATE
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -97,6 +99,8 @@ ccu_api:
         component: '.task_status_cb'
       - msg_type: 'RE-ALLOCATE'
         component: '.re_allocate_cb'
+      - msg_type: 'ASSIGNMENT-UPDATE'
+        component: 'dispatcher.schedule_monitor.assignment_update_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -115,6 +119,7 @@ robot_proxy_api:
         - ROBOT-POSE
         - TASK-STATUS
         - RE-ALLOCATE
+        - ASSIGNMENT-UPDATE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -147,6 +152,8 @@ robot_proxy_api:
         component: '.re_allocate_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
+      - msg_type: 'ASSIGNMENT-UPDATE'
+        component: '.assignment_update_cb'
 
 
 robot_api:
@@ -172,6 +179,10 @@ robot_api:
       re-allocate:
         groups: ['TASK-ALLOCATION']
         msg_type: 'RE-ALLOCATE'
+        method: shout
+      assignment-update:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ASSIGNMENT-UPDATE'
         method: shout
     callbacks:
       - msg_type: 'DISPATCH-QUEUE-UPDATE'

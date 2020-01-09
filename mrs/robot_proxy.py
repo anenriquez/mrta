@@ -3,10 +3,12 @@ import logging.config
 import time
 
 from fmlib.models.robot import Robot as RobotModel
+from ropod.structs.task import TaskStatus as TaskStatusConst
+
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
+from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.task_status import TaskStatus, ReAllocate
-from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 class RobotProxy:
@@ -53,6 +55,28 @@ class RobotProxy:
         payload = msg.get("payload")
         self.logger.debug("Robot %s received pose", self.robot_id)
         self.robot_model.update_position(**payload.get("pose"))
+
+    def assignment_update_cb(self, msg):
+        payload = msg['payload']
+        assignment_update = AssignmentUpdate.from_payload(payload)
+        self.logger.critical("Assignment Update received")
+        stn = self.bidder.timetable.stn
+
+        for a in assignment_update.assignments:
+            stn = self.assign_timepoint(stn, a)
+
+        self.logger.info("Updated STN: %s", stn)
+
+        self.bidder.timetable.stn = stn
+        self.bidder.timetable.store()
+
+    def assign_timepoint(self, stn, assignment):
+        stn.assign_timepoint(assignment.assigned_time, assignment.task_id, assignment.node_type)
+        stn.execute_timepoint(assignment.task_id, assignment.node_type)
+        stn.execute_incoming_edge(assignment.task_id, assignment.node_type)
+        stn.remove_old_timepoints()
+        self.bidder.received_stn_update = True
+        return stn
 
     def run(self):
         try:

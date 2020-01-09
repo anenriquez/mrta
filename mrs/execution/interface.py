@@ -2,15 +2,17 @@ import logging
 
 import numpy as np
 from fmlib.models.tasks import TaskStatus
-from mrs.db.models.task import Task
-from mrs.exceptions.execution import InconsistentSchedule, InconsistentAssignment
-from mrs.exceptions.execution import MissingDispatchableGraph
-from mrs.execution.corrective_measure import CorrectiveMeasure
-from mrs.messages.task_status import TaskStatus as TaskStatusMessage, ReAllocate
-from mrs.scheduling.monitor import ScheduleMonitor
 from pymodm.context_managers import switch_collection
 from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
+
+from mrs.db.models.task import Task
+from mrs.exceptions.execution import InconsistentSchedule, InconsistentAssignment
+from mrs.exceptions.execution import MissingDispatchableGraph
+from mrs.execution.delay_management import DelayManagement, Preventive, Corrective
+from mrs.messages.assignment_update import AssignmentUpdate
+from mrs.messages.task_status import TaskStatus as TaskStatusMessage, ReAllocate
+from mrs.scheduling.monitor import ScheduleMonitor
 
 
 class ExecutorInterface:
@@ -24,13 +26,10 @@ class ExecutorInterface:
 
         self.tasks = list()
         self.archived_tasks = list()
-        self.task_to_archive = None
 
-        corrective_measure_name = kwargs.get('corrective_measure')
-        if corrective_measure_name:
-            self.corrective_measure = CorrectiveMeasure(corrective_measure_name, allocation_method)
-        else:
-            self.corrective_measure = None
+        reaction_name = kwargs.get('reaction')
+        reaction_type = kwargs.get('reaction_type')
+        self.delay_management = DelayManagement(reaction_name, reaction_type, allocation_method)
 
         time_resolution = kwargs.get('time_resolution', 0.5)
         self.schedule_monitor = ScheduleMonitor(robot_id, stp_solver, time_resolution)
@@ -57,35 +56,28 @@ class ExecutorInterface:
 
         start_node, finish_node = action.get_node_names()
 
-        prev_action_time = self.schedule_monitor.dispatchable_graph.get_time(task.task_id, start_node)
-        action_time = prev_action_time + duration
-        consistent = True
+        prev_action_time = self.schedule_monitor.stn.get_time(task.task_id, start_node)
+        assigned_time = prev_action_time + duration
         try:
-            self.schedule_monitor.assign_timepoint(action_time, task.task_id, finish_node)
+            self.schedule_monitor.assign_timepoint(assigned_time, task.task_id, finish_node)
+            assignment_is_consistent = True
         except InconsistentAssignment:
-            consistent = False
+            assignment_is_consistent = False
 
-        self.logger.info("Task: %s Action: %s Time: %s", task.task_id, action.type, action_time)
+        self.schedule_monitor.execute_timepoint(task.task_id, finish_node)
+        self.schedule_monitor.execute_edge(task.task_id, start_node, finish_node)
 
-        next_task = self.schedule_monitor.get_next_task(task)
-        if next_task:
-            self.apply_corrective_measure(task, next_task, consistent)
+        self.logger.info("Task: %s Action: %s Time: %s", task.task_id, action.type, assigned_time)
+        self.manage_delay(task, assignment_is_consistent)
 
         task.update_progress(action.action_id, ActionStatus.COMPLETED)
 
-    def execute_task(self, task):
-        self.logger.info("Executing task %s", task.task_id)
+    def start_execution(self, task):
+        self.logger.info("Start executing task %s", task.task_id)
         task.update_status(TaskStatusConst.ONGOING)
         action = task.plan[0].actions[0]
         task.update_progress(action.action_id, ActionStatus.ONGOING)
-
-        for action_progress in task.status.progress.actions:
-            task.update_progress(action_progress.action.action_id, ActionStatus.ONGOING)
-            self.execute_action(task, action_progress.action)
-
-        task.update_status(TaskStatusConst.COMPLETED)
-        self.remove_task(task)
-        self.send_task_status(task)
+        self.schedule_monitor.execute_timepoint(task.task_id, "start")
 
     def send_task_status(self, task):
         try:
@@ -118,28 +110,45 @@ class ExecutorInterface:
         self.send_re_allocate_task(task)
         self.remove_task(task)
 
-    def apply_corrective_measure(self, task, next_task, consistent):
+    def manage_delay(self, task, assignment_is_consistent):
+        """ React to a possible delay:
+            - apply a reaction (preventive or corrective)
+            - if no reaction is configured and the current task is inconsistent, abort the next task.
 
-        if not consistent and self.corrective_measure is None:
-            next_task.update_status(TaskStatusConst.ABORTED)
-            self.remove_task(task)
-            self.send_task_status(task)
+        A preventive reaction prevents delay of next_task. Applied BEFORE current task becomes inconsistent
+        A corrective reaction prevents delay of next task. Applied AFTER current task becomes inconsistent
 
-        elif (not consistent and self.corrective_measure.name == 'post-failure-re-allocate') or \
-                (self.corrective_measure.name == 'pre-failure-re-allocate') and \
+        task (Task) : current task
+        next_task (Task): next to be executed
+        consistent (boolean): whether or not the current task is consistent with its temporal constraints
+        """
+
+        if isinstance(self.delay_management.reaction, Preventive) or \
+                isinstance(self.delay_management.reaction, Corrective) and not assignment_is_consistent:
+            self.react_to_possible_delay(task)
+
+        else:
+            next_task = self.schedule_monitor.get_next_task(task)
+            if next_task:
+                next_task.update_status(TaskStatusConst.ABORTED)
+                self.remove_task(task)
+                self.send_task_status(task)
+
+    def react_to_possible_delay(self, task):
+        next_task = self.schedule_monitor.get_next_task(task)
+
+        if next_task and self.delay_management.reaction.name == "re-allocate" and \
                 self.schedule_monitor.is_next_task_late(task, next_task):
-            task.status.delayed = True
-            task.save()
+            task.mark_as_delayed()
             self.send_task_status(task)
             self.re_allocate(next_task)
 
-        elif consistent and self.corrective_measure == 're-schedule':
-            # Re-compute dispatchable graph
-            pass
-
-        elif not consistent and self.corrective_measure == 're-schedule':
-            # Re-compute dispatchable graph and re-allocate next task
-            pass
+        elif self.delay_management.reaction.name == "re-schedule":
+            self.logger.info("Send AssignmentUpdate msg")
+            assignment_update = AssignmentUpdate(self.robot_id, self.schedule_monitor.scheduler.assignments)
+            self.schedule_monitor.scheduler.clean_assignments()
+            msg = self.api.create_message(assignment_update)
+            self.api.publish(msg)
 
     def run(self):
         for task in self.tasks:
@@ -154,4 +163,22 @@ class ExecutorInterface:
                     self.re_allocate(task)
 
             if task.status.status == TaskStatusConst.SCHEDULED and task.is_executable():
-                self.execute_task(task)
+                self.start_execution(task)
+
+            if task.status.status == TaskStatusConst.ONGOING:
+                current_action = task.status.progress.current_action
+                current_action_progress = task.status.progress.get_action(current_action.action_id)
+
+                if (current_action_progress.status == ActionStatus.ONGOING) or\
+                        (current_action_progress.status == ActionStatus.PLANNED and not
+                            self.delay_management.reaction.name == "re-schedule") or \
+                        (current_action_progress.status == ActionStatus.PLANNED and
+                            self.delay_management.reaction.name == "re-schedule" and self.schedule_monitor.queue_update_received):
+                    self.schedule_monitor.queue_update_received = False
+                    task.update_progress(current_action.action_id, ActionStatus.ONGOING)
+                    self.execute_action(task, current_action)
+                elif current_action_progress.status == ActionStatus.COMPLETED:
+                    task.update_status(TaskStatusConst.COMPLETED)
+                    self.remove_task(task)
+                    self.send_task_status(task)
+

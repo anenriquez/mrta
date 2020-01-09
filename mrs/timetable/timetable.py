@@ -49,6 +49,13 @@ class Timetable(object):
         self.zero_timepoint.timestamp = time_
         logger.debug("Zero timepoint updated to: %s", self.zero_timepoint)
 
+    def compute_dispatchable_graph(self, stn):
+        try:
+            dispatchable_graph = self.stp.solve(stn)
+            return dispatchable_graph
+        except NoSTPSolution:
+            raise NoSTPSolution()
+
     def solve_stp(self, task, insertion_point):
         stn_task = self.to_stn_task(task, insertion_point)
         stn = copy.deepcopy(self.stn)
@@ -167,6 +174,9 @@ class Timetable(object):
         else:
             raise TaskNotFound(position)
 
+    def get_task_node_ids(self, task_id):
+        return self.stn.get_task_node_ids(task_id)
+
     def get_next_task(self, task):
         task_idx = self.dispatchable_graph.get_task_position(task.task_id)
         next_task_id = self.dispatchable_graph.get_task_id(task_idx+1)
@@ -216,12 +226,10 @@ class Timetable(object):
         self.dispatchable_graph.remove_task(position)
         self.store()
 
-    def get_sub_d_graph(self, n_tasks):
-        stn = self.stp.get_stn()
-        sub_graph = self.dispatchable_graph.get_subgraph(n_tasks=n_tasks)
-        stn.add_nodes_from(sub_graph.nodes(data=True))
-        stn.add_edges_from(sub_graph.edges(data=True))
-        return stn
+    def remove_node_ids(self, task_node_ids):
+        self.stn.remove_node_ids(task_node_ids)
+        self.dispatchable_graph.remove_node_ids(task_node_ids)
+        self.store()
 
     def to_dict(self):
         timetable_dict = dict()
@@ -242,7 +250,6 @@ class Timetable(object):
         timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
         timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
         timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
-        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
 
         return timetable
 
@@ -250,8 +257,6 @@ class Timetable(object):
 
         timetable = TimetableMongo(self.robot_id,
                                    self.zero_timepoint.to_datetime(),
-                                   self.dispatchable_graph.temporal_metric,
-                                   self.dispatchable_graph.risk_metric,
                                    self.stn.to_dict(),
                                    self.dispatchable_graph.to_dict())
         timetable.save()
@@ -262,8 +267,6 @@ class Timetable(object):
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
             self.zero_timepoint = TimeStamp.from_datetime(timetable_mongo.zero_timepoint)
-            self.dispatchable_graph.temporal_metric = timetable_mongo.temporal_metric
-            self.dispatchable_graph.risk_metric = timetable_mongo.risk_metric
         except DoesNotExist:
             logging.debug("The timetable of robot %s is empty", self.robot_id)
             # Resetting values
