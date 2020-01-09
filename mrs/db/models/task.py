@@ -139,6 +139,10 @@ class Task(BaseTask):
         task.frozen = True
         task.save()
 
+    def mark_as_delayed(self):
+        self.status.delayed = True
+        self.save()
+
     def get_timepoint_constraint(self, name):
         return [constraint for constraint in self.constraints.timepoint_constraints
                 if constraint.name == name].pop()
