@@ -23,7 +23,6 @@ class Corrective(Reaction):
 
     actions = {'tessi': ['re-allocate'],
                'tessi-srea': ['re-allocate'],
-               'tessi-drea': ['re-allocate'],
                'tessi-dsc': ['re-allocate']
                }
 
@@ -37,7 +36,6 @@ class Preventive(Reaction):
 
     actions = {'tessi': ['re-allocate'],
                'tessi-srea': ['re-allocate', 're-schedule'],
-               'tessi-drea': ['re-allocate', 're-schedule'],
                'tessi-dsc': ['re-allocate']
                }
 
@@ -45,12 +43,30 @@ class Preventive(Reaction):
         super().__init__(name, allocation_method)
 
 
-class DelayManagement:
+class ReactionFactory:
 
-    def __init__(self, reaction_name, reaction_type, allocation_method):
-        if reaction_type == "preventive":
-            self.reaction = Preventive(reaction_name, allocation_method)
-        elif reaction_type == "corrective":
-            self.reaction = Corrective(reaction_name, allocation_method)
-        else:
+    def __init__(self):
+        self._reactions = dict()
+
+    def register_reaction(self, reaction_type, reaction):
+        self._reactions[reaction_type] = reaction
+
+    def get_reaction(self, reaction_type):
+        reaction = self._reactions.get(reaction_type)
+        if not reaction:
+            raise ValueError(reaction_type)
+        return reaction
+
+
+reaction_factory = ReactionFactory()
+reaction_factory.register_reaction('corrective', Corrective)
+reaction_factory.register_reaction('preventive', Preventive)
+
+
+class DelayManagement:
+    def __init__(self, reaction_type, reaction_name, allocation_method):
+        try:
+            reaction_cls = reaction_factory.get_reaction(reaction_type)
+            self.reaction = reaction_cls(reaction_name, allocation_method)
+        except ValueError:
             self.reaction = None

@@ -39,8 +39,9 @@ robot_proxy:
 
 robot:
   executor_interface:
-    reaction_type: preventive
-    reaction: re-schedule
+    delay_management:
+      reaction_type: preventive
+      reaction_name: re-schedule
     time_resolution: 0.5 # minutes
     max_seed: 2147483647
     delay_n_standard_dev: 1

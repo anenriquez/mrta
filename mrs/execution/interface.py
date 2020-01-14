@@ -27,9 +27,8 @@ class ExecutorInterface:
         self.tasks = list()
         self.archived_tasks = list()
 
-        reaction_name = kwargs.get('reaction')
-        reaction_type = kwargs.get('reaction_type')
-        self.delay_management = DelayManagement(reaction_name, reaction_type, allocation_method)
+        delay_management = kwargs.get('delay_management', {'reaction_type': None, 'reaction_name': None})
+        self.delay_management = DelayManagement(**delay_management, allocation_method=allocation_method)
 
         time_resolution = kwargs.get('time_resolution', 0.5)
         self.schedule_monitor = ScheduleMonitor(robot_id, stp_solver, time_resolution)
