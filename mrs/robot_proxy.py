@@ -9,6 +9,7 @@ from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.task_status import TaskStatus, ReAllocate
+from stn.exceptions.stp import NoSTPSolution
 
 
 class RobotProxy:
@@ -67,7 +68,18 @@ class RobotProxy:
 
         self.logger.info("Updated STN: %s", stn)
 
-        self.bidder.timetable.stn = stn
+        try:
+            dispatchable_graph = self.bidder.timetable.compute_dispatchable_graph(stn)
+            self.logger.info("Updated DispatchableGraph %s: ", dispatchable_graph)
+            self.bidder.timetable.stn = stn
+            self.bidder.timetable.dispatchable_graph = dispatchable_graph
+        except NoSTPSolution:
+            next_task = self.bidder.timetable.get_task(position=2)
+            self.logger.warning("Temporal network becomes inconsistent "
+                                "Aborting allocation of task %s", next_task.task_id)
+            next_task.update_status(TaskStatusConst.ABORTED)
+            self.bidder.timetable.remove_task(next_task.task_id)
+
         self.bidder.timetable.store()
 
     def assign_timepoint(self, stn, assignment):

@@ -5,6 +5,7 @@ from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.messages.assignment_update import AssignmentUpdate
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
 class ScheduleMonitor:
@@ -47,12 +48,16 @@ class ScheduleMonitor:
             self.logger.info("Updated DispatchableGraph %s: ", dispatchable_graph)
             timetable.stn = stn
             timetable.dispatchable_graph = dispatchable_graph
-            self.timetable_manager.timetables.update({assignment_update.robot_id: timetable})
-            timetable.store()
-            self.timetable_manager.send_update_to = assignment_update.robot_id
         except NoSTPSolution:
-            self.logger.warning("Temporal network becomes inconsistent")
-            # TODO: Abort or trigger re-allocation of next task
+            next_task = timetable.get_task(position=2)
+            self.logger.warning("Temporal network becomes inconsistent "
+                                "Aborting allocation of task %s", next_task.task_id)
+            next_task.update_status(TaskStatusConst.ABORTED)
+            timetable.remove_task(next_task.task_id)
+
+        self.timetable_manager.timetables.update({assignment_update.robot_id: timetable})
+        timetable.store()
+        self.timetable_manager.send_update_to = assignment_update.robot_id
 
     @staticmethod
     def assign_timepoint(stn, assignment):
@@ -61,5 +66,3 @@ class ScheduleMonitor:
         stn.execute_incoming_edge(assignment.task_id, assignment.node_type)
         stn.remove_old_timepoints()
         return stn
-
-
