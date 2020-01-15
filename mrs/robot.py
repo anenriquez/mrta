@@ -36,7 +36,11 @@ class Robot:
         payload = msg['payload']
         self.logger.critical("Received dispatch queue update")
         d_queue_update = DispatchQueueUpdate.from_payload(payload)
-        d_queue_update.update_timetable(self.timetable)
+        if self.reaction_name == "re-schedule":
+            d_queue_update.update_timetable(self.timetable, replace=True)
+        else:
+            d_queue_update.update_timetable(self.timetable, replace=False)
+
         self.logger.debug("STN update %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph update %s", self.timetable.dispatchable_graph)
         self.queue_update_received = True
