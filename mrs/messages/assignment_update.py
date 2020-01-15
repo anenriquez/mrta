@@ -2,10 +2,11 @@ from mrs.utils.as_dict import AsDictMixin
 
 
 class Assignment(AsDictMixin):
-    def __init__(self, task_id, assigned_time, node_type):
+    def __init__(self, task_id, assigned_time, node_type, is_consistent=True):
         self.task_id = task_id
         self.assigned_time = assigned_time
         self.node_type = node_type
+        self.is_consistent = is_consistent
 
 
 class AssignmentUpdate(AsDictMixin):

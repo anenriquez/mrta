@@ -83,7 +83,7 @@ class InterTimepointConstraint(EmbeddedMongoModel):
         return round(sample)
 
     def sample_duration(self, random_state, delay_n_standard_dev):
-        return self.sample(random_state) + delay_n_standard_dev*self.standard_dev
+        return self.sample(random_state) + (delay_n_standard_dev*self.standard_dev)
 
     @classmethod
     def from_payload(cls, payload):

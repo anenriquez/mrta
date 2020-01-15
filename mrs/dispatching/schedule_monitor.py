@@ -54,7 +54,8 @@ class ScheduleMonitor:
             self.logger.warning("Temporal network becomes inconsistent")
             # TODO: Abort or trigger re-allocation of next task
 
-    def assign_timepoint(self, stn, assignment):
+    @staticmethod
+    def assign_timepoint(stn, assignment):
         stn.assign_timepoint(assignment.assigned_time, assignment.task_id, assignment.node_type)
         stn.execute_timepoint(assignment.task_id, assignment.node_type)
         stn.execute_incoming_edge(assignment.task_id, assignment.node_type)

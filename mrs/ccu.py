@@ -92,7 +92,7 @@ class CCU:
     def re_allocate_cb(self, msg):
         payload = msg['payload']
         re_allocate = ReAllocate.from_payload(payload)
-        self.logger.info("Triggering reallocation of task %s robot %s", re_allocate.task_id, re_allocate.robot_id)
+        self.logger.critical("Triggering reallocation of task %s robot %s", re_allocate.task_id, re_allocate.robot_id)
 
         self.auctioneer.archive_task(re_allocate.task_id, re_allocate.robot_id)
         self.dispatcher.timetable_manager.send_update_to = re_allocate.robot_id

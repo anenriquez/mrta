@@ -38,13 +38,14 @@ robot_proxy:
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
 
 robot:
-  executor_interface:
-    delay_management:
-      reaction_type: preventive
-      reaction_name: re-schedule
-    time_resolution: 0.5 # minutes
+  executor:
     max_seed: 2147483647
     delay_n_standard_dev: 1
+  schedule_monitor:
+    time_resolution: 0.5 # minutes
+    delay_manager:
+      reaction_type: preventive
+      reaction_name: re-allocate
 
 ccu_api:
   version: 0.1.0
@@ -187,9 +188,9 @@ robot_api:
         method: shout
     callbacks:
       - msg_type: 'DISPATCH-QUEUE-UPDATE'
-        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
+        component: '.dispatch_queue_update_cb'
       - msg_type: 'TASK'
-        component: 'executor_interface.task_cb'
+        component: '.task_cb'
 
 logger:
   version: 1

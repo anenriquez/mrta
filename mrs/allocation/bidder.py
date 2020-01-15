@@ -278,11 +278,5 @@ class Bidder:
     def archive_task(self, task_id):
         self.logger.debug("Deleting task %s", task_id)
         self.timetable.fetch()
-        task_node_ids = self.timetable.get_task_node_ids(task_id)
-        if len(task_node_ids) < 3:
-            self.timetable.stn.remove_node_ids(task_node_ids)
-        else:
-            node_id = self.timetable.get_task_position(task_id)
-            self.timetable.stn.remove_task(node_id)
-        self.timetable.store()
+        self.timetable.remove_task(task_id)
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
