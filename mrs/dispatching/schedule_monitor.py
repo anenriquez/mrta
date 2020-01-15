@@ -2,10 +2,14 @@ import logging
 from datetime import timedelta
 
 from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
+
+from mrs.messages.assignment_update import AssignmentUpdate
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
 class ScheduleMonitor:
-    def __init__(self, freeze_window):
+    def __init__(self, timetable_manager, freeze_window):
         """ Monitors the schedulability of tasks
 
         Args:
@@ -16,6 +20,7 @@ class ScheduleMonitor:
 
         """
         self.logger = logging.getLogger('mrs.schedule_monitor')
+        self.timetable_manager = timetable_manager
         self.freeze_window = timedelta(seconds=freeze_window)
         self.logger.debug("Schedule Monitor started")
 
@@ -25,3 +30,39 @@ class ScheduleMonitor:
             return True
         return False
 
+    def assignment_update_cb(self, msg):
+        payload = msg['payload']
+        assignment_update = AssignmentUpdate.from_payload(payload)
+        self.logger.info("Assignment Update received")
+        timetable = self.timetable_manager.get_timetable(assignment_update.robot_id)
+        stn = timetable.stn
+        # TODO: Solve stp of substn
+
+        for a in assignment_update.assignments:
+            stn = self.assign_timepoint(stn, a)
+
+        self.logger.info("Updated STN: %s", stn)
+
+        try:
+            dispatchable_graph = timetable.compute_dispatchable_graph(stn)
+            self.logger.info("Updated DispatchableGraph %s: ", dispatchable_graph)
+            timetable.stn = stn
+            timetable.dispatchable_graph = dispatchable_graph
+        except NoSTPSolution:
+            next_task = timetable.get_task(position=2)
+            self.logger.warning("Temporal network becomes inconsistent "
+                                "Aborting allocation of task %s", next_task.task_id)
+            next_task.update_status(TaskStatusConst.ABORTED)
+            timetable.remove_task(next_task.task_id)
+
+        self.timetable_manager.timetables.update({assignment_update.robot_id: timetable})
+        timetable.store()
+        self.timetable_manager.send_update_to = assignment_update.robot_id
+
+    @staticmethod
+    def assign_timepoint(stn, assignment):
+        stn.assign_timepoint(assignment.assigned_time, assignment.task_id, assignment.node_type)
+        stn.execute_timepoint(assignment.task_id, assignment.node_type)
+        stn.execute_incoming_edge(assignment.task_id, assignment.node_type)
+        stn.remove_old_timepoints()
+        return stn

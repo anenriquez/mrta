@@ -38,11 +38,14 @@ robot_proxy:
     auctioneer_name: fms_zyre_api # This is completely Zyre dependent
 
 robot:
-  executor_interface:
-    corrective_measure: pre-failure-re-allocate
-    time_resolution: 0.5 # minutes
+  executor:
     max_seed: 2147483647
     delay_n_standard_dev: 1
+  schedule_monitor:
+    time_resolution: 0.5 # minutes
+    delay_manager:
+      reaction_type: preventive
+      reaction_name: re-allocate
 
 ccu_api:
   version: 0.1.0
@@ -62,6 +65,7 @@ ccu_api:
         - START-TEST
         - TASK-STATUS
         - RE-ALLOCATE
+        - ASSIGNMENT-UPDATE
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -97,6 +101,8 @@ ccu_api:
         component: '.task_status_cb'
       - msg_type: 'RE-ALLOCATE'
         component: '.re_allocate_cb'
+      - msg_type: 'ASSIGNMENT-UPDATE'
+        component: 'dispatcher.schedule_monitor.assignment_update_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -115,6 +121,7 @@ robot_proxy_api:
         - ROBOT-POSE
         - TASK-STATUS
         - RE-ALLOCATE
+        - ASSIGNMENT-UPDATE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -147,6 +154,8 @@ robot_proxy_api:
         component: '.re_allocate_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
+      - msg_type: 'ASSIGNMENT-UPDATE'
+        component: '.assignment_update_cb'
 
 
 robot_api:
@@ -173,11 +182,15 @@ robot_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'RE-ALLOCATE'
         method: shout
+      assignment-update:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ASSIGNMENT-UPDATE'
+        method: shout
     callbacks:
       - msg_type: 'DISPATCH-QUEUE-UPDATE'
-        component: 'executor_interface.schedule_monitor.dispatch_queue_update_cb'
+        component: '.dispatch_queue_update_cb'
       - msg_type: 'TASK'
-        component: 'executor_interface.task_cb'
+        component: '.task_cb'
 
 logger:
   version: 1

@@ -30,7 +30,7 @@ class Dispatcher(object):
 
         self.stp_solver = stp_solver
         self.timetable_manager = timetable_manager
-        self.schedule_monitor = ScheduleMonitor(freeze_window)
+        self.schedule_monitor = ScheduleMonitor(self.timetable_manager, freeze_window)
 
         self.robot_ids = list()
 
@@ -83,8 +83,11 @@ class Dispatcher(object):
 
     def send_d_graph_update(self, timetable, robot_id):
         self.logger.debug("Sending DGraphUpdate to %s", robot_id)
-        sub_dispatchable_graph = timetable.get_sub_d_graph(self.timetable_manager.n_tasks_queue)
-        dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.zero_timepoint, sub_dispatchable_graph)
+        sub_stn = timetable.stn.get_subgraph(self.timetable_manager.n_tasks_queue)
+        sub_dispatchable_graph = timetable.dispatchable_graph.get_subgraph(self.timetable_manager.n_tasks_queue)
+        dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.zero_timepoint,
+                                                    sub_stn,
+                                                    sub_dispatchable_graph)
         msg = self.api.create_message(dispatch_queue_update)
         self.api.publish(msg, peer=robot_id)
 

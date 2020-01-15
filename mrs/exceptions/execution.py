@@ -17,16 +17,18 @@ class InconsistentSchedule(Exception):
 
 class InconsistentAssignment(Exception):
 
-    def __init__(self, assigned_time, dispatchable_graph):
-        """ Trying to assign assigned_time to a timepoint in dispatchable graph makes the temporal
+    def __init__(self, assigned_time, task_id, node_type):
+        """ Trying to assign assigned_time to the node_type of task_id makes the temporal
         network inconsistent
 
         assigned_time (float): time relative to the zero timepoint
-        dispatchable_graph (stn): dispatchable graph with assigned_time assigned
+        task_id (UUID): id that uniquely identifies the task
+        node_type(str): type of the node (start, pickup, delivery)
         """
-        Exception.__init__(self, assigned_time, dispatchable_graph)
+        Exception.__init__(self, assigned_time, task_id, node_type)
         self.assigned_time = assigned_time
-        self.dispatchable_graph = dispatchable_graph
+        self.task_id = task_id
+        self.node_type = node_type
 
 
 class MissingDispatchableGraph(Exception):

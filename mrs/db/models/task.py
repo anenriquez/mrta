@@ -83,7 +83,7 @@ class InterTimepointConstraint(EmbeddedMongoModel):
         return round(sample)
 
     def sample_duration(self, random_state, delay_n_standard_dev):
-        return self.sample(random_state) + delay_n_standard_dev*self.standard_dev
+        return self.sample(random_state) + (delay_n_standard_dev*self.standard_dev)
 
     @classmethod
     def from_payload(cls, payload):
@@ -138,6 +138,10 @@ class Task(BaseTask):
         task = cls.get_task(task_id)
         task.frozen = True
         task.save()
+
+    def mark_as_delayed(self):
+        self.status.delayed = True
+        self.save()
 
     def get_timepoint_constraint(self, name):
         return [constraint for constraint in self.constraints.timepoint_constraints

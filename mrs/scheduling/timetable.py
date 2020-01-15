@@ -5,6 +5,7 @@ from datetime import timedelta, datetime
 from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
+from stn.methods.fpc import get_minimal_network
 from stn.task import InterTimepointConstraint as STNInterTimepointConstraint
 from stn.task import Task as STNTask
 from stn.task import TimepointConstraint as STNTimepointConstraint
@@ -13,6 +14,7 @@ from mrs.db.models.task import Task
 from mrs.db.models.task import TimepointConstraint
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import TaskNotFound
+from mrs.exceptions.execution import InconsistentAssignment
 
 logger = logging.getLogger("mrs.timetable")
 
@@ -49,6 +51,13 @@ class Timetable(object):
         self.zero_timepoint.timestamp = time_
         logger.debug("Zero timepoint updated to: %s", self.zero_timepoint)
 
+    def compute_dispatchable_graph(self, stn):
+        try:
+            dispatchable_graph = self.stp.solve(stn)
+            return dispatchable_graph
+        except NoSTPSolution:
+            raise NoSTPSolution()
+
     def solve_stp(self, task, insertion_point):
         stn_task = self.to_stn_task(task, insertion_point)
         stn = copy.deepcopy(self.stn)
@@ -59,6 +68,16 @@ class Timetable(object):
 
         except NoSTPSolution:
             raise NoSTPSolution()
+
+    def assign_timepoint(self, assigned_time, task_id, node_type):
+        stn = copy.deepcopy(self.stn)
+        minimal_network = get_minimal_network(stn)
+        if minimal_network:
+            minimal_network.assign_timepoint(assigned_time, task_id, node_type)
+            if self.stp.is_consistent(minimal_network):
+                self.stn.assign_timepoint(assigned_time, task_id, node_type)
+                return
+        raise InconsistentAssignment(assigned_time, task_id, node_type)
 
     def to_stn_task(self, task, insertion_point):
         self.update_pickup_constraint(task, insertion_point)
@@ -167,15 +186,28 @@ class Timetable(object):
         else:
             raise TaskNotFound(position)
 
+    def get_task_node_ids(self, task_id):
+        return self.stn.get_task_node_ids(task_id)
+
     def get_next_task(self, task):
-        task_idx = self.dispatchable_graph.get_task_position(task.task_id)
-        next_task_id = self.dispatchable_graph.get_task_id(task_idx+1)
-        if next_task_id:
-            next_task = Task.get_task(next_task_id)
+        task_last_node = self.stn.get_task_node_ids(task.task_id)[-1]
+        if self.stn.has_node(task_last_node + 1):
+            next_task_id = self.stn.nodes[task_last_node + 1]['data'].task_id
+            try:
+                next_task = Task.get_task(next_task_id)
+            except DoesNotExist:
+                logging.warning("Task %s is not in db", next_task_id)
+                next_task = Task.create_new(task_id=next_task_id)
             return next_task
 
     def get_task_position(self, task_id):
         return self.stn.get_task_position(task_id)
+
+    def task_exists(self, task_id):
+        task_nodes = self.stn.get_task_node_ids(task_id)
+        if task_nodes:
+            return True
+        return False
 
     def get_earliest_tasks(self, n_tasks=1):
         """ Returns a list of the earliest n_tasks in the timetable
@@ -211,17 +243,21 @@ class Timetable(object):
         delivery_time = self.zero_timepoint + timedelta(seconds=r_delivery_time)
         return delivery_time
 
-    def remove_task(self, position=1):
-        self.stn.remove_task(position)
-        self.dispatchable_graph.remove_task(position)
+    def remove_task(self, task_id):
+        task_node_ids = self.get_task_node_ids(task_id)
+        if len(task_node_ids) < 3:
+            self.stn.remove_node_ids(task_node_ids)
+            self.dispatchable_graph.remove_node_ids(task_node_ids)
+        else:
+            node_id = self.get_task_position(task_id)
+            self.stn.remove_task(node_id)
+            self.dispatchable_graph.remove_task(node_id)
         self.store()
 
-    def get_sub_d_graph(self, n_tasks):
-        stn = self.stp.get_stn()
-        sub_graph = self.dispatchable_graph.get_subgraph(n_tasks=n_tasks)
-        stn.add_nodes_from(sub_graph.nodes(data=True))
-        stn.add_edges_from(sub_graph.edges(data=True))
-        return stn
+    def remove_node_ids(self, task_node_ids):
+        self.stn.remove_node_ids(task_node_ids)
+        self.dispatchable_graph.remove_node_ids(task_node_ids)
+        self.store()
 
     def to_dict(self):
         timetable_dict = dict()
@@ -242,7 +278,6 @@ class Timetable(object):
         timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
         timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
         timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
-        timetable.schedule = stn_cls.from_dict(timetable_dict['schedule'])
 
         return timetable
 
@@ -250,8 +285,6 @@ class Timetable(object):
 
         timetable = TimetableMongo(self.robot_id,
                                    self.zero_timepoint.to_datetime(),
-                                   self.dispatchable_graph.temporal_metric,
-                                   self.dispatchable_graph.risk_metric,
                                    self.stn.to_dict(),
                                    self.dispatchable_graph.to_dict())
         timetable.save()
@@ -262,8 +295,6 @@ class Timetable(object):
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
             self.zero_timepoint = TimeStamp.from_datetime(timetable_mongo.zero_timepoint)
-            self.dispatchable_graph.temporal_metric = timetable_mongo.temporal_metric
-            self.dispatchable_graph.risk_metric = timetable_mongo.risk_metric
         except DoesNotExist:
             logging.debug("The timetable of robot %s is empty", self.robot_id)
             # Resetting values

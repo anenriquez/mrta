@@ -3,10 +3,13 @@ import logging.config
 import time
 
 from fmlib.models.robot import Robot as RobotModel
+from ropod.structs.task import TaskStatus as TaskStatusConst
+
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
+from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.task_status import TaskStatus, ReAllocate
-from ropod.structs.task import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
 
 
 class RobotProxy:
@@ -53,6 +56,39 @@ class RobotProxy:
         payload = msg.get("payload")
         self.logger.debug("Robot %s received pose", self.robot_id)
         self.robot_model.update_position(**payload.get("pose"))
+
+    def assignment_update_cb(self, msg):
+        payload = msg['payload']
+        assignment_update = AssignmentUpdate.from_payload(payload)
+        self.logger.critical("Assignment Update received")
+        stn = self.bidder.timetable.stn
+
+        for a in assignment_update.assignments:
+            stn = self.assign_timepoint(stn, a)
+
+        self.logger.info("Updated STN: %s", stn)
+
+        try:
+            dispatchable_graph = self.bidder.timetable.compute_dispatchable_graph(stn)
+            self.logger.info("Updated DispatchableGraph %s: ", dispatchable_graph)
+            self.bidder.timetable.stn = stn
+            self.bidder.timetable.dispatchable_graph = dispatchable_graph
+        except NoSTPSolution:
+            next_task = self.bidder.timetable.get_task(position=2)
+            self.logger.warning("Temporal network becomes inconsistent "
+                                "Aborting allocation of task %s", next_task.task_id)
+            next_task.update_status(TaskStatusConst.ABORTED)
+            self.bidder.timetable.remove_task(next_task.task_id)
+
+        self.bidder.timetable.store()
+
+    def assign_timepoint(self, stn, assignment):
+        stn.assign_timepoint(assignment.assigned_time, assignment.task_id, assignment.node_type)
+        stn.execute_timepoint(assignment.task_id, assignment.node_type)
+        stn.execute_incoming_edge(assignment.task_id, assignment.node_type)
+        stn.remove_old_timepoints()
+        self.bidder.received_stn_update = True
+        return stn
 
     def run(self):
         try:

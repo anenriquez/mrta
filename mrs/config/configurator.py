@@ -6,7 +6,7 @@ from mrs.config.params import ConfigParams
 from planner.planner import Planner
 
 from mrs.config.mrta import MRTAFactory
-from mrs.timetable.timetable import Timetable
+from mrs.scheduling.timetable import Timetable
 
 
 class Configurator:
@@ -82,6 +82,9 @@ class Configurator:
 
         self.builder.register_component('api', api)
         self.builder.register_component('robot_store', store)
+        timetable = Timetable(robot_id, self.builder.get_stp_solver())
+        timetable.fetch()
+        self.builder.register_component('timetable', timetable)
         self.builder.register_component('robot_id', robot_id)
 
         robot_config = self.config_params.get('robot')

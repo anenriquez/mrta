@@ -213,8 +213,7 @@ class Auctioneer(object):
     def archive_task(self, task_id, robot_id):
         self.logger.debug("Deleting task %s", task_id)
         timetable = self.timetable_manager.get_timetable(robot_id)
-        node_id = timetable.get_task_position(task_id)
-        timetable.remove_task(node_id)
+        timetable.remove_task(task_id)
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
         self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
 

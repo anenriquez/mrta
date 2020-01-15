@@ -5,13 +5,15 @@ from stn.stp import STP
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
-from mrs.execution.interface import ExecutorInterface
-from mrs.timetable.manager import TimetableManager
+from mrs.execution.executor import Executor
+from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.scheduling.timetable_manager import TimetableManager
 
 _component_modules = {'auctioneer': Auctioneer,
                       'dispatcher': Dispatcher,
                       'bidder': Bidder,
-                      'executor_interface': ExecutorInterface}
+                      'executor': Executor,
+                      'schedule_monitor': ScheduleMonitor}
 
 
 class MRTAFactory:
