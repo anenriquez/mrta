@@ -1,25 +1,26 @@
 class AlternativeTimeSlot(Exception):
 
-    def __init__(self, bid, time_to_allocate):
+    def __init__(self, bid, tasks_to_allocate):
         """
         Raised when a task could not be allocated at the desired time slot.
 
         bid (obj): winning bid for the alternative timeslot
-        time_to_allocate (float)
+        tasks_to_allocate (dict): Remaining tasks to allocate
         """
-        Exception.__init__(self, bid, time_to_allocate)
+        Exception.__init__(self, bid, tasks_to_allocate)
         self.bid = bid
-        self.time_to_allocate = time_to_allocate
+        self.tasks_to_allocate = tasks_to_allocate
 
 
 class NoAllocation(Exception):
 
-    def __init__(self, round_id):
+    def __init__(self, round_id, tasks_to_allocate):
         """ Raised when no allocation was possible in round_id
 
         """
-        Exception.__init__(self, round_id)
+        Exception.__init__(self, round_id, tasks_to_allocate)
         self.round_id = round_id
+        self.tasks_to_allocate = tasks_to_allocate
 
 
 class NoSTPSolution(Exception):

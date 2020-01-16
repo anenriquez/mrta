@@ -43,7 +43,7 @@ class Auctioneer(object):
         self.pre_task_actions = dict()
         self.winning_bid = None
         self.waiting_for_user_confirmation = list()
-        self.round = Round(self.robot_ids)
+        self.round = Round(self.robot_ids, self.tasks_to_allocate)
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -61,12 +61,6 @@ class Auctioneer(object):
     def set_zero_timepoint(self, time_):
         self.timetable_manager.zero_timepoint = time_
 
-    def update_tasks_to_allocate(self):
-        tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
-        self.tasks_to_allocate = dict()
-        for task in tasks:
-            self.tasks_to_allocate[task.task_id] = task
-
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
             self.announce_task()
@@ -76,24 +70,22 @@ class Auctioneer(object):
                 round_result = self.round.get_result()
                 self.process_round_result(round_result)
 
-            except NoAllocation as exception:
-                self.logger.warning("No allocation made in round %s ", exception.round_id)
-                self.update_tasks_to_allocate()
+            except NoAllocation as e:
+                self.logger.warning("No allocation made in round %s ", e.round_id)
+                self.tasks_to_allocate = e.tasks_to_allocate
                 self.round.finish()
 
-            except AlternativeTimeSlot as exception:
-                self.process_alternative_timeslot(exception)
+            except AlternativeTimeSlot as e:
+                self.process_alternative_timeslot(e)
 
     def process_round_result(self, round_result):
-        bid, time_to_allocate = round_result
-        self.winning_bid = bid
-        self.announce_winner(bid.task_id, bid.robot_id)
+        self.winning_bid, self.tasks_to_allocate = round_result
+        self.announce_winner(self.winning_bid.task_id, self.winning_bid.robot_id)
 
     def process_alternative_timeslot(self, exception):
         bid = exception.bid
-        time_to_allocate = exception.time_to_allocate
-        alternative_start_time = bid.alternative_start_time
-        alternative_allocation = (bid.task_id, [bid.robot_id], alternative_start_time)
+        self.tasks_to_allocate = exception.tasks_to_allocate
+        alternative_allocation = (bid.task_id, [bid.robot_id], bid.alternative_start_time)
 
         self.logger.debug("Alternative timeslot for task %s: robot %s, alternative start time: %s ", bid.task_id,
                           bid.robot_id, bid.alternative_start_time)
@@ -149,21 +141,23 @@ class Auctioneer(object):
 
     def announce_task(self):
         self.timetable_manager.fetch_timetables()
-        self.update_tasks_to_allocate()
-        if not self.tasks_to_allocate:
-            return
 
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
         closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
+
         if not is_valid_time(closure_time) and self.alternative_timeslots:
             closure_time = datetime.now() + self.closure_window
+
         elif not is_valid_time(closure_time) and not self.alternative_timeslots:
-            self.logger.warning("Task %s cannot not be allocated at it's given temporal constraints", earliest_task.task_id)
+            self.logger.warning("Task %s cannot not be allocated at it's given temporal constraints",
+                                earliest_task.task_id)
             earliest_task.remove()
+            self.tasks_to_allocate.pop(earliest_task.task_id)
             return
 
         self.round = Round(self.robot_ids,
+                           self.tasks_to_allocate,
                            n_tasks=len(tasks),
                            closure_time=closure_time,
                            alternative_timeslots=self.alternative_timeslots)
@@ -175,7 +169,7 @@ class Auctioneer(object):
 
         msg = self.api.create_message(task_announcement)
 
-        self.logger.debug("Auctioneer announces tasks %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
+        self.logger.debug("Auctioneer announces tasks %s", [task.task_id for task in tasks])
 
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
@@ -194,12 +188,12 @@ class Auctioneer(object):
 
     def task_contract_acknowledgement_cb(self, msg):
         payload = msg['payload']
-        task_contract_acknowledgement = TaskContractAcknowledgment.from_payload(payload)
-        n_tasks_before = len(self.timetable_manager.get_timetable(task_contract_acknowledgement.robot_id).get_tasks())
+        task_contract_ack = TaskContractAcknowledgment.from_payload(payload)
+        n_tasks_before = len(self.timetable_manager.get_timetable(task_contract_ack.robot_id).get_tasks())
 
-        if task_contract_acknowledgement.accept and \
-                TaskContract.is_valid(n_tasks_before, task_contract_acknowledgement.n_tasks):
-            self.logger.debug("Concluding allocation of task %s", task_contract_acknowledgement.task_id)
+        if task_contract_ack.accept and \
+                TaskContract.is_valid(n_tasks_before, task_contract_ack.n_tasks):
+            self.logger.debug("Concluding allocation of task %s", task_contract_ack.task_id)
             self.process_allocation()
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
