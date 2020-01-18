@@ -4,16 +4,17 @@ import time
 
 from fmlib.models.robot import Robot as RobotModel
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
 
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
+from mrs.execution.delay_recovery import get_recovery_method
 from mrs.messages.assignment_update import AssignmentUpdate
-from mrs.messages.task_status import TaskStatus, ReAllocate
-from stn.exceptions.stp import NoSTPSolution
+from mrs.messages.task_status import TaskStatus
 
 
 class RobotProxy:
-    def __init__(self, robot_id, api, robot_proxy_store, bidder, **kwargs):
+    def __init__(self, robot_id, api, robot_proxy_store, bidder, delay_recovery, **kwargs):
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
 
         self.robot_id = robot_id
@@ -21,6 +22,7 @@ class RobotProxy:
         self.robot_proxy_store = robot_proxy_store
         self.bidder = bidder
         self.robot_model = RobotModel.create_new(robot_id)
+        self.recovery_method = get_recovery_method(kwargs.get("allocation_method"), **delay_recovery)
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized Robot %s", robot_id)
@@ -28,28 +30,30 @@ class RobotProxy:
     def task_cb(self, msg):
         payload = msg['payload']
         task = Task.from_payload(payload)
-        self.logger.critical("Received task %s", task.task_id)
         if self.robot_id in task.assigned_robots:
+            self.logger.critical("Received task %s", task.task_id)
             Task.freeze_task(task.task_id)
 
     def task_status_cb(self, msg):
         payload = msg['payload']
         task_status = TaskStatus.from_payload(payload)
-        self.logger.debug("Received task status msg for task %s ", task_status.task_id)
+        if task_status.robot_id == self.robot_id:
+            self.logger.debug("Received task status % for task %s ", task_status.status, task_status.task_id)
+            task = Task.get_task(task_status.task_id)
 
-        if task_status.status in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
-            self.bidder.archive_task(task_status.task_id)
+            if task_status.status in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
+                self.bidder.remove_task(task)
+                task.update_status(task_status.status)
 
-        task = Task.get_task(task_status.task_id)
-        task.update_status(task_status.status)
+            elif task_status.status == TaskStatusConst.UNALLOCATED:
+                self.re_allocate(task)
 
-    def re_allocate_cb(self, msg):
-        payload = msg['payload']
-        re_allocate = ReAllocate.from_payload(payload)
-        self.logger.info("Triggering reallocation of task %s robot %s", re_allocate.task_id, re_allocate.robot_id)
+            else:
+                task.update_status(task_status.status)
 
-        self.bidder.archive_task(re_allocate.task_id)
-        task = Task.get_task(re_allocate.task_id)
+    def re_allocate(self, task):
+        self.logger.warning("Re-allocating task %s", task.task_id)
+        self.bidder.remove_task(task)
         task.update_status(TaskStatusConst.UNALLOCATED)
 
     def robot_pose_cb(self, msg):
@@ -60,35 +64,42 @@ class RobotProxy:
     def assignment_update_cb(self, msg):
         payload = msg['payload']
         assignment_update = AssignmentUpdate.from_payload(payload)
-        self.logger.critical("Assignment Update received")
+        self.logger.debug("Assignment Update received")
         stn = self.bidder.timetable.stn
 
         for a in assignment_update.assignments:
-            stn = self.assign_timepoint(stn, a)
+            stn.assign_timepoint(a.assigned_time, a.task_id, a.node_type, force=True)
+            stn.execute_timepoint(a.task_id, a.node_type)
+            stn.execute_incoming_edge(a.task_id, a.node_type)
+            stn.remove_old_timepoints()
 
-        self.logger.info("Updated STN: %s", stn)
+        last_assignment = assignment_update.assignments.pop()
+        last_executed_task = Task.get_task(last_assignment.task_id)
+
+        self.logger.debug("Updated STN: %s", stn)
+        self.bidder.timetable.stn = stn
+        self.bidder.timetable.store()
 
         try:
             dispatchable_graph = self.bidder.timetable.compute_dispatchable_graph(stn)
-            self.logger.info("Updated DispatchableGraph %s: ", dispatchable_graph)
-            self.bidder.timetable.stn = stn
+            self.logger.debug("Updated DispatchableGraph %s: ", dispatchable_graph)
             self.bidder.timetable.dispatchable_graph = dispatchable_graph
         except NoSTPSolution:
-            next_task = self.bidder.timetable.get_task(position=2)
-            self.logger.warning("Temporal network becomes inconsistent "
-                                "Aborting allocation of task %s", next_task.task_id)
-            next_task.update_status(TaskStatusConst.ABORTED)
-            self.bidder.timetable.remove_task(next_task.task_id)
+            self.logger.warning("Temporal network becomes inconsistent")
+            next_task = self.bidder.timetable.get_next_task(last_executed_task)
+            if next_task:
+                self.recover(next_task)
 
         self.bidder.timetable.store()
 
-    def assign_timepoint(self, stn, assignment):
-        stn.assign_timepoint(assignment.assigned_time, assignment.task_id, assignment.node_type)
-        stn.execute_timepoint(assignment.task_id, assignment.node_type)
-        stn.execute_incoming_edge(assignment.task_id, assignment.node_type)
-        stn.remove_old_timepoints()
-        self.bidder.received_stn_update = True
-        return stn
+    def recover(self, task):
+        if self.recovery_method.name.endswith("abort"):
+            self.logger.warning("Aborting allocation of task %s", task.task_id)
+            task.update_status(TaskStatusConst.ABORTED)
+            self.bidder.remove_task(task)
+
+        elif self.recovery_method.name.endswith("re-allocate"):
+            self.re_allocate(task)
 
     def run(self):
         try:

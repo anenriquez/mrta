@@ -244,14 +244,29 @@ class Timetable(object):
         return delivery_time
 
     def remove_task(self, task_id):
-        task_node_ids = self.get_task_node_ids(task_id)
-        if len(task_node_ids) < 3:
+        self.remove_task_from_stn(task_id)
+        self.remove_task_from_dispatchable_graph(task_id)
+
+    def remove_task_from_stn(self, task_id):
+        task_node_ids = self.stn.get_task_node_ids(task_id)
+        if 0 < len(task_node_ids) < 3:
             self.stn.remove_node_ids(task_node_ids)
-            self.dispatchable_graph.remove_node_ids(task_node_ids)
-        else:
-            node_id = self.get_task_position(task_id)
+        elif len(task_node_ids) == 3:
+            node_id = self.stn.get_task_position(task_id)
             self.stn.remove_task(node_id)
+        else:
+            logging.warning("Task %s is not in timetable", task_id)
+        self.store()
+
+    def remove_task_from_dispatchable_graph(self, task_id):
+        task_node_ids = self.dispatchable_graph.get_task_node_ids(task_id)
+        if 0 < len(task_node_ids) < 3:
+            self.dispatchable_graph.remove_node_ids(task_node_ids)
+        elif len(task_node_ids) == 3:
+            node_id = self.dispatchable_graph.get_task_position(task_id)
             self.dispatchable_graph.remove_task(node_id)
+        else:
+            logging.warning("Task %s is not in timetable", task_id)
         self.store()
 
     def remove_node_ids(self, task_node_ids):

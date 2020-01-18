@@ -21,7 +21,7 @@ class RecoveryMethod:
         next_task = timetable.get_next_task(task)
 
         if next_task and (self.name == "re-allocate" and self.is_next_task_late(timetable, task, next_task)) \
-                or self.name == "re-schedule" \
+                or self.name.startswith("re-schedule") \
                 or next_task and self.name == "abort" and self.is_next_task_late(timetable, task, next_task):
             return True
         return False
@@ -90,7 +90,7 @@ class Preventive(RecoveryMethod):
     """ Maps allocation methods with their available preventive measures """
 
     reactions = {'tessi': ["re-allocate", "abort"],
-                 'tessi-srea': ["re-allocate", "re-schedule", "abort"],
+                 'tessi-srea': ["re-allocate", "re-schedule-re-allocate", "re-schedule-abort", "abort"],
                  'tessi-dsc': ["re-allocate", "abort"],
                  }
 
@@ -120,31 +120,11 @@ class RecoveryMethodFactory:
         return recovery_method
 
 
-reaction_factory = RecoveryMethodFactory()
-reaction_factory.register_recovery_method('corrective', Corrective)
-reaction_factory.register_recovery_method('preventive', Preventive)
+recovery_method_factory = RecoveryMethodFactory()
+recovery_method_factory.register_recovery_method('corrective', Corrective)
+recovery_method_factory.register_recovery_method('preventive', Preventive)
 
 
-# class TimetableRecovery:
-#     def __init__(self, recovery_type, recovery_name, allocation_method):
-#         try:
-#             recovery_cls = reaction_factory.get_recovery_method(recovery_type)
-#             self.recovery = recovery_cls(recovery_name, allocation_method)
-#         except ValueError:
-#             self.logger.error("Recovery type %s is not available", recovery_type)
-#
-#         self.logger = logging.getLogger('mrs.timetable.recovery.%s' % self.timetable.robot_id)
-#         self.logger.debug("Timetable recovery initialized %s", self.timetable.robot_id)
-#
-#     def react(self, timetable, task, last_assignment):
-#         """ React to a possible delay:
-#             - apply a recovery (preventive or corrective)
-#
-#         A preventive recovery prevents delay of next_task. Applied BEFORE current task becomes inconsistent
-#         A corrective recovery prevents delay of next task. Applied AFTER current task becomes inconsistent
-#
-#         task (Task) : current task
-#         last_assignment (Assignment): last assignment
-#         """
-#
-#         return self.recovery.recover(task, last_assignment)
+def get_recovery_method(allocation_method, type_, method):
+    recovery_method_cls = recovery_method_factory.get_recovery_method(type_)
+    return recovery_method_cls(method, allocation_method)

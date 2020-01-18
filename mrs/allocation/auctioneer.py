@@ -42,6 +42,7 @@ class Auctioneer(object):
         self.allocations = list()
         self.pre_task_actions = dict()
         self.winning_bid = None
+        self.deleted_a_task = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids, self.tasks_to_allocate)
 
@@ -162,6 +163,7 @@ class Auctioneer(object):
                            closure_time=closure_time,
                            alternative_timeslots=self.alternative_timeslots)
 
+        self.deleted_a_task.clear()
         task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.zero_timepoint)
 
         self.logger.debug("Starting round: %s", self.round.id)
@@ -189,27 +191,34 @@ class Auctioneer(object):
     def task_contract_acknowledgement_cb(self, msg):
         payload = msg['payload']
         task_contract_ack = TaskContractAcknowledgment.from_payload(payload)
-        n_tasks_before = len(self.timetable_manager.get_timetable(task_contract_ack.robot_id).get_tasks())
 
-        if task_contract_ack.accept and \
-                TaskContract.is_valid(n_tasks_before, task_contract_ack.n_tasks):
+        if task_contract_ack.accept and task_contract_ack.robot_id not in self.deleted_a_task:
             self.logger.debug("Concluding allocation of task %s", task_contract_ack.task_id)
             self.process_allocation()
+        elif task_contract_ack.accept and task_contract_ack.robot_id in self.deleted_a_task:
+            # TODO: Send msg to delete last allocation
+            self.logger.warning("Round %s has to be repeated. Invalidating previous contract", self.round.id)
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
         self.round.finish()
 
     def announce_winner(self, task_id, robot_id):
-        task_contract = TaskContract(task_id, robot_id)
-        msg = self.api.create_message(task_contract)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
+        # Send TaskContract only if the timetable of robot_id has not changed since the round opened
+        if robot_id not in self.deleted_a_task:
+            task_contract = TaskContract(task_id, robot_id)
+            msg = self.api.create_message(task_contract)
+            self.api.publish(msg, groups=['TASK-ALLOCATION'])
+        else:
+            self.logger.warning("Round %s has to be repeated", self.round.id)
+            self.round.finish()
 
-    def archive_task(self, task_id, robot_id):
-        self.logger.debug("Deleting task %s", task_id)
-        timetable = self.timetable_manager.get_timetable(robot_id)
-        timetable.remove_task(task_id)
-        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+    def remove_task(self, task):
+        self.logger.debug("Deleting task %s", task.task_id)
+        timetable = self.timetable_manager.get_timetable(task.assigned_robots[0])
+        timetable.remove_task(task.task_id)
+        self.deleted_a_task.append(task.assigned_robots[0])
+        self.logger.debug("STN robot %s: %s", task.assigned_robots[0], timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", task.assigned_robots[0], timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

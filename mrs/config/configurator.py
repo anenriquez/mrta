@@ -29,6 +29,7 @@ class Configurator:
         planner_config = self.config_params.get('planner')
         planner = Planner(**planner_config)
         builder.register_component('planner', planner)
+        builder.register_component('delay_recovery', self.config_params.get('delay_recovery'))
         return builder
 
     def config_ccu(self):

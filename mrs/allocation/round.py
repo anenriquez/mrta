@@ -131,9 +131,9 @@ class Round(object):
 
             return round_result
 
-        except NoAllocation:
+        except NoAllocation as e:
             self.logger.warning("No allocation made in round %s ", self.id)
-            raise NoAllocation(self.id, self.tasks_to_allocate)
+            raise NoAllocation(e.round_id, e.tasks_to_allocate)
 
     def finish(self):
         self.opened = False
@@ -170,7 +170,7 @@ class Round(object):
                 lowest_bid = copy.deepcopy(bid)
 
         if lowest_bid is None:
-            raise NoAllocation(self.id)
+            raise NoAllocation(self.id, self.tasks_to_allocate)
 
         return lowest_bid
 

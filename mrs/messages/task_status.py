@@ -11,16 +11,3 @@ class TaskStatus(AsDictMixin):
     @property
     def meta_model(self):
         return "task-status"
-
-
-class ReAllocate(AsDictMixin):
-    def __init__(self, task_id, robot_id):
-        self.task_id = task_id
-        self.robot_id = robot_id
-
-    @property
-    def meta_model(self):
-        return "re-allocate"
-
-
-
