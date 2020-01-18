@@ -7,7 +7,7 @@ from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
-from mrs.scheduling.timetable_manager import TimetableManager
+from mrs.timetable.timetable_manager import TimetableManager
 
 _component_modules = {'auctioneer': Auctioneer,
                       'dispatcher': Dispatcher,

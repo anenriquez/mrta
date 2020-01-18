@@ -3,7 +3,7 @@ import logging
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.exceptions.allocation import InvalidAllocation
-from mrs.scheduling.timetable import Timetable
+from mrs.timetable.timetable import Timetable
 
 
 class TimetableManager(object):

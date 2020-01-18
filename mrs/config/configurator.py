@@ -6,7 +6,7 @@ from mrs.config.params import ConfigParams
 from planner.planner import Planner
 
 from mrs.config.mrta import MRTAFactory
-from mrs.scheduling.timetable import Timetable
+from mrs.timetable.timetable import Timetable
 
 
 class Configurator:
