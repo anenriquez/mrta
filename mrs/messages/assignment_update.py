@@ -8,6 +8,15 @@ class Assignment(AsDictMixin):
         self.node_type = node_type
         self.is_consistent = is_consistent
 
+    def __str__(self):
+        to_print = ""
+        to_print += "Assignment (task_id: {}, assigned_time: {}, node_type: {}, " \
+                    "is_consistent:{}".format(self.task_id,
+                                              self.assigned_time,
+                                              self.node_type,
+                                              self.is_consistent)
+        return to_print
+
 
 class AssignmentUpdate(AsDictMixin):
     def __init__(self, robot_id, assignments):

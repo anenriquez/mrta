@@ -3,12 +3,12 @@ import logging
 from ropod.structs.status import ActionStatus
 
 
-class Reaction:
+class RecoveryMethod:
 
-    options = ["re-allocate", "re-schedule", "abort"]
+    options = ["re-allocate", "re-schedule-re-allocate", "re-schedule-abort", "abort"]
 
     def __init__(self, name):
-        self.logger = logging.getLogger('mrs.reaction')
+        self.logger = logging.getLogger('mrs.recovery.method')
         self.name = self.validate_name(name)
 
     def validate_name(self, name):
@@ -17,7 +17,7 @@ class Reaction:
             raise ValueError(name)
         return name
 
-    def react(self, timetable, task, last_assignment):
+    def recover(self, timetable, task, last_assignment):
         next_task = timetable.get_next_task(task)
 
         if next_task and (self.name == "re-allocate" and self.is_next_task_late(timetable, task, next_task)) \
@@ -62,7 +62,7 @@ class Reaction:
             return False
 
 
-class Corrective(Reaction):
+class Corrective(RecoveryMethod):
 
     """ Maps allocation methods with their available corrective measures """
 
@@ -76,16 +76,16 @@ class Corrective(Reaction):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def react(self, timetable, task, last_assignment):
+    def recover(self, timetable, task, last_assignment):
         """ React only if the last assignment was inconsistent
         """
         if last_assignment.is_consistent:
             return False
-        elif not last_assignment.is_consistent and super().react(timetable, task, last_assignment):
+        elif not last_assignment.is_consistent and super().recover(timetable, task, last_assignment):
             return True
 
 
-class Preventive(Reaction):
+class Preventive(RecoveryMethod):
 
     """ Maps allocation methods with their available preventive measures """
 
@@ -99,54 +99,52 @@ class Preventive(Reaction):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def react(self, timetable, task, last_assignment):
+    def recover(self, timetable, task, last_assignment):
         """ React both, when the last_assignment was consistent and when it was inconsistent
         """
-        return super().react(timetable, task, last_assignment)
+        return super().recover(timetable, task, last_assignment)
 
 
-class ReactionFactory:
+class RecoveryMethodFactory:
 
     def __init__(self):
-        self._reactions = dict()
+        self._recovery_methods = dict()
 
-    def register_reaction(self, reaction_type, reaction):
-        self._reactions[reaction_type] = reaction
+    def register_recovery_method(self, recovery_type, recovery_method):
+        self._recovery_methods[recovery_type] = recovery_method
 
-    def get_reaction(self, reaction_type):
-        reaction = self._reactions.get(reaction_type)
-        if not reaction:
-            raise ValueError(reaction_type)
-        return reaction
-
-
-reaction_factory = ReactionFactory()
-reaction_factory.register_reaction('corrective', Corrective)
-reaction_factory.register_reaction('preventive', Preventive)
+    def get_recovery_method(self, recovery_type):
+        recovery_method = self._recovery_methods.get(recovery_type)
+        if not recovery_method:
+            raise ValueError(recovery_type)
+        return recovery_method
 
 
-class DelayManager:
-    def __init__(self, timetable, reaction_type, reaction_name, allocation_method):
-        self.timetable = timetable
-        try:
-            reaction_cls = reaction_factory.get_reaction(reaction_type)
-            self.reaction = reaction_cls(reaction_name, allocation_method)
-        except ValueError:
-            self.logger.error("Reaction type %s is not available", reaction_type)
+reaction_factory = RecoveryMethodFactory()
+reaction_factory.register_recovery_method('corrective', Corrective)
+reaction_factory.register_recovery_method('preventive', Preventive)
 
-        self.logger = logging.getLogger('mrs.delay.manager.%s' % self.timetable.robot_id)
-        self.logger.debug("DelayManager initialized %s", self.timetable.robot_id)
 
-    def react(self, task, last_assignment):
-        """ React to a possible delay:
-            - apply a reaction (preventive or corrective)
-            - if no reaction is configured and the current task is inconsistent, abort the next task.
-
-        A preventive reaction prevents delay of next_task. Applied BEFORE current task becomes inconsistent
-        A corrective reaction prevents delay of next task. Applied AFTER current task becomes inconsistent
-
-        task (Task) : current task
-        last_assignment (Assignment): last assignment
-        """
-
-        return self.reaction.react(self.timetable, task, last_assignment)
+# class TimetableRecovery:
+#     def __init__(self, recovery_type, recovery_name, allocation_method):
+#         try:
+#             recovery_cls = reaction_factory.get_recovery_method(recovery_type)
+#             self.recovery = recovery_cls(recovery_name, allocation_method)
+#         except ValueError:
+#             self.logger.error("Recovery type %s is not available", recovery_type)
+#
+#         self.logger = logging.getLogger('mrs.timetable.recovery.%s' % self.timetable.robot_id)
+#         self.logger.debug("Timetable recovery initialized %s", self.timetable.robot_id)
+#
+#     def react(self, timetable, task, last_assignment):
+#         """ React to a possible delay:
+#             - apply a recovery (preventive or corrective)
+#
+#         A preventive recovery prevents delay of next_task. Applied BEFORE current task becomes inconsistent
+#         A corrective recovery prevents delay of next task. Applied AFTER current task becomes inconsistent
+#
+#         task (Task) : current task
+#         last_assignment (Assignment): last assignment
+#         """
+#
+#         return self.recovery.recover(task, last_assignment)
