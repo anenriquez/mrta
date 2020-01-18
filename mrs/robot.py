@@ -12,7 +12,7 @@ from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
-from mrs.messages.task_status import TaskStatus as TaskStatusMessage, ReAllocate
+from mrs.messages.task_status import TaskStatus as TaskStatusMessage
 
 
 class Robot:
@@ -36,7 +36,7 @@ class Robot:
         payload = msg['payload']
         self.logger.critical("Received dispatch queue update")
         d_queue_update = DispatchQueueUpdate.from_payload(payload)
-        if self.reaction_name == "re-schedule":
+        if self.recovery_method.startswith("re-schedule"):
             d_queue_update.update_timetable(self.timetable, replace=True)
         else:
             d_queue_update.update_timetable(self.timetable, replace=False)
@@ -48,8 +48,8 @@ class Robot:
     def task_cb(self, msg):
         payload = msg['payload']
         task = Task.from_payload(payload)
-        self.logger.critical("Received task %s", task.task_id)
         if self.robot_id in task.assigned_robots:
+            self.logger.critical("Received task %s", task.task_id)
             task.update_status(TaskStatusConst.DISPATCHED)
             Task.freeze_task(task.task_id)
 
@@ -66,27 +66,22 @@ class Robot:
         msg = self.api.create_message(task_status)
         self.api.publish(msg)
 
-    def send_re_allocate_task(self, task):
-        re_allocate_task = ReAllocate(task.task_id, self.robot_id)
-        msg = self.api.create_message(re_allocate_task)
-        self.api.publish(msg)
-
     def send_assignment_update(self):
-        self.logger.info("Send AssignmentUpdate msg")
+        self.logger.critical("Send AssignmentUpdate msg")
         assignment_update = AssignmentUpdate(self.robot_id, self.assignments)
         msg = self.api.create_message(assignment_update)
         self.api.publish(msg)
         self.assignments = list()
 
     @property
-    def reaction_name(self):
-        return self.schedule_monitor.delay_manager.reaction.name
+    def recovery_method(self):
+        return self.schedule_monitor.recovery_method.name
 
     def re_allocate(self, task):
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
-        self.send_re_allocate_task(task)
+        self.send_task_status(task)
 
     def abort(self, task):
         task.update_status(TaskStatusConst.ABORTED)
@@ -104,38 +99,40 @@ class Robot:
         self.executor.start_execution(task)
 
     def continue_execution(self, task):
-        current_action = task.status.progress.current_action
-        current_action_progress = task.status.progress.get_action(current_action.action_id)
+        cur_action = task.status.progress.current_action
+        cur_action_prog = task.status.progress.get_action(cur_action.action_id)
 
-        if (current_action_progress.status == ActionStatus.ONGOING) or\
-                (current_action_progress.status == ActionStatus.PLANNED and not self.reaction_name == "re-schedule") or \
-                (current_action_progress.status == ActionStatus.PLANNED and self.reaction_name == "re-schedule"
+        if (cur_action_prog.status == ActionStatus.ONGOING) or\
+                (cur_action_prog.status == ActionStatus.PLANNED and not self.recovery_method.startswith("re-schedule"))\
+                or \
+                (cur_action_prog.status == ActionStatus.PLANNED and self.recovery_method.startswith("re-schedule")
                  and self.queue_update_received):
 
             self.queue_update_received = False
-            assignment = self.executor.execute_action(task, current_action)
+            assignment = self.executor.execute_action(task, cur_action)
             self.assignments.append(assignment)
 
-            if self.schedule_monitor.react(task, assignment):
-                self.react(task)
+            if self.schedule_monitor.recover(task, assignment):
+                self.logger.debug("Applying recovery method: %s", self.recovery_method)
+                self.recover(task)
 
-        elif current_action_progress.status == ActionStatus.COMPLETED:
+        elif cur_action_prog.status == ActionStatus.COMPLETED:
             self.logger.debug("Completing execution of task %s", task.task_id)
             task.update_status(TaskStatusConst.COMPLETED)
             self.timetable.remove_task(task.task_id)
             self.send_task_status(task)
 
-    def react(self, task):
-        if self.reaction_name == "re-allocate":
+    def recover(self, task):
+        if self.recovery_method == "re-allocate":
             task.mark_as_delayed()
             self.send_task_status(task)
             next_task = self.timetable.get_next_task(task)
             self.re_allocate(next_task)
 
-        elif self.reaction_name == "re-schedule":
+        elif self.recovery_method.startswith("re-schedule"):
             self.send_assignment_update()
 
-        elif self.reaction_name == "abort":
+        elif self.recovery_method == "abort":
             next_task = self.timetable.get_next_task(task)
             self.abort(next_task)
 

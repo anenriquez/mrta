@@ -22,6 +22,9 @@ fleet:
 allocation_method: tessi-srea
 planner:
   map_name: brsu
+delay_recovery:
+  type_: preventive
+  method: re-allocate
 
 ccu:
   auctioneer:
@@ -43,9 +46,6 @@ robot:
     delay_n_standard_dev: 1
   schedule_monitor:
     time_resolution: 0.5 # minutes
-    delay_manager:
-      reaction_type: preventive
-      reaction_name: re-allocate
 
 ccu_api:
   version: 0.1.0
@@ -64,7 +64,6 @@ ccu_api:
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - START-TEST
         - TASK-STATUS
-        - RE-ALLOCATE
         - ASSIGNMENT-UPDATE
     acknowledge: false
     debug_messages:
@@ -99,10 +98,8 @@ ccu_api:
         component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'TASK-STATUS'
         component: '.task_status_cb'
-      - msg_type: 'RE-ALLOCATE'
-        component: '.re_allocate_cb'
       - msg_type: 'ASSIGNMENT-UPDATE'
-        component: 'dispatcher.schedule_monitor.assignment_update_cb'
+        component: '.assignment_update_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -120,7 +117,6 @@ robot_proxy_api:
         - TASK-CONTRACT
         - ROBOT-POSE
         - TASK-STATUS
-        - RE-ALLOCATE
         - ASSIGNMENT-UPDATE
       debug_msgs: false
     acknowledge: false
@@ -150,8 +146,6 @@ robot_proxy_api:
         component: '.robot_pose_cb'
       - msg_type: 'TASK-STATUS'
         component: '.task_status_cb'
-      - msg_type: 'RE-ALLOCATE'
-        component: '.re_allocate_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
       - msg_type: 'ASSIGNMENT-UPDATE'

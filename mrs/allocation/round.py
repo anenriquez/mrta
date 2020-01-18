@@ -13,10 +13,11 @@ from mrs.messages.bid import SoftBid, NoBid, BiddingRobot
 
 class Round(object):
 
-    def __init__(self, robot_ids, **kwargs):
+    def __init__(self, robot_ids, tasks_to_allocate, **kwargs):
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
         self.robot_ids = robot_ids
+        self.tasks_to_allocate = tasks_to_allocate
 
         self.n_tasks = kwargs.get('n_tasks')
         self.closure_time = kwargs.get('closure_time')
@@ -123,16 +124,16 @@ class Round(object):
 
         try:
             winning_bid = self.elect_winner()
-            round_result = (winning_bid, self.time_to_allocate)
+            round_result = (winning_bid, self.tasks_to_allocate)
 
             if isinstance(winning_bid, SoftBid):
-                raise AlternativeTimeSlot(winning_bid, self.time_to_allocate)
+                raise AlternativeTimeSlot(winning_bid, self.tasks_to_allocate)
 
             return round_result
 
-        except NoAllocation:
+        except NoAllocation as e:
             self.logger.warning("No allocation made in round %s ", self.id)
-            raise NoAllocation(self.id)
+            raise NoAllocation(e.round_id, e.tasks_to_allocate)
 
     def finish(self):
         self.opened = False
@@ -145,10 +146,12 @@ class Round(object):
                 task = Task.get_task(task_id)
                 if self.alternative_timeslots:
                     task.set_soft_constraints()
+                    self.tasks_to_allocate[task.task_id] = task
                     self.logger.debug("Setting soft constraints for task %s", task_id)
                 else:
-                    self.logger.warning("Task %s could not be allocated", task_id)
                     task.remove()
+                    self.tasks_to_allocate.pop(task.task_id)
+                    self.logger.warning("Task %s could not be allocated", task_id)
 
     def elect_winner(self):
         """ Elects the winner of the round
@@ -167,7 +170,7 @@ class Round(object):
                 lowest_bid = copy.deepcopy(bid)
 
         if lowest_bid is None:
-            raise NoAllocation(self.id)
+            raise NoAllocation(self.id, self.tasks_to_allocate)
 
         return lowest_bid
 

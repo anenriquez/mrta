@@ -2,6 +2,11 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
+from pymodm.errors import DoesNotExist
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.allocation.bidding_rule import BiddingRule
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
@@ -10,10 +15,6 @@ from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
-from pymodm.errors import DoesNotExist
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -46,7 +47,6 @@ class Bidder:
         self.planner = kwargs.get('planner')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
-        self.logger.debug("Initial timetable %s", self.timetable.stn)
 
         robustness = bidding_rule.get('robustness')
         temporal = bidding_rule.get('temporal')
@@ -54,7 +54,7 @@ class Bidder:
 
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
-        self.received_stn_update = False
+        self.deleted_a_task = False
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
@@ -72,6 +72,8 @@ class Bidder:
         self.logger.debug("Received TASK-ANNOUNCEMENT msg round %s", task_announcement.round_id)
         self.timetable.fetch()
         self.timetable.zero_timepoint = task_announcement.zero_timepoint
+        self.logger.debug("Current stn: %s", self.timetable.stn)
+        self.logger.debug("Current dispatchable graph: %s", self.timetable.dispatchable_graph)
         self.compute_bids(task_announcement)
 
     def task_contract_cb(self, msg):
@@ -81,23 +83,22 @@ class Bidder:
         if task_contract.robot_id == self.robot_id:
             self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
             self.timetable.fetch()
-            n_tasks_before = len(self.timetable.stn.get_tasks())
-            n_tasks_after = len(self.bid_placed.stn.get_tasks())
 
-            if TaskContract.is_valid(n_tasks_before, n_tasks_after) and not self.received_stn_update:
+            if not self.deleted_a_task:
                 self.allocate_to_robot(task_contract.task_id)
-                self.send_contract_acknowledgement(task_contract, n_tasks_after, accept=True)
+                self.send_contract_acknowledgement(task_contract, accept=True)
             else:
-                self.received_stn_update = False
                 self.logger.warning("A task was removed before the round was completed, "
                                     "as a result, the bid placed %s is no longer valid ",
                                     self.bid_placed)
-                self.send_contract_acknowledgement(task_contract, n_tasks_after, accept=False)
+                self.send_contract_acknowledgement(task_contract, accept=False)
 
     def compute_bids(self, task_announcement):
         bids = list()
         no_bids = list()
         round_id = task_announcement.round_id
+        self.deleted_a_task = False
+        self.bid_placed = None
 
         for task in task_announcement.tasks:
             self.logger.debug("Computing bid of task %s", task.task_id)
@@ -251,7 +252,6 @@ class Bidder:
         # TODO: Refactor timetable update
         self.timetable.stn = self.bid_placed.stn
         self.timetable.dispatchable_graph = self.bid_placed.dispatchable_graph
-
         self.timetable.store()
 
         self.logger.debug("Robot %s allocated task %s", self.robot_id, task_id)
@@ -265,18 +265,19 @@ class Bidder:
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
 
-    def send_contract_acknowledgement(self, task_contract, n_tasks, accept=True):
+    def send_contract_acknowledgement(self, task_contract, accept=True):
         task_contract_acknowledgement = TaskContractAcknowledgment(task_contract.task_id,
                                                                    task_contract.robot_id,
-                                                                   n_tasks,
                                                                    accept)
         msg = self.api.create_message(task_contract_acknowledgement)
 
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
-    def archive_task(self, task_id):
-        self.logger.debug("Deleting task %s", task_id)
+    def remove_task(self, task):
+        self.logger.debug("Deleting task %s", task.task_id)
         self.timetable.fetch()
-        self.timetable.remove_task(task_id)
+        self.timetable.remove_task(task.task_id)
+        self.deleted_a_task = True
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", self.robot_id, self.timetable.dispatchable_graph)

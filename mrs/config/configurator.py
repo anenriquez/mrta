@@ -6,7 +6,7 @@ from mrs.config.params import ConfigParams
 from planner.planner import Planner
 
 from mrs.config.mrta import MRTAFactory
-from mrs.scheduling.timetable import Timetable
+from mrs.timetable.timetable import Timetable
 
 
 class Configurator:
@@ -29,6 +29,7 @@ class Configurator:
         planner_config = self.config_params.get('planner')
         planner = Planner(**planner_config)
         builder.register_component('planner', planner)
+        builder.register_component('delay_recovery', self.config_params.get('delay_recovery'))
         return builder
 
     def config_ccu(self):

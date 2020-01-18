@@ -3,7 +3,7 @@ import logging
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.exceptions.allocation import InvalidAllocation
-from mrs.scheduling.timetable import Timetable
+from mrs.timetable.timetable import Timetable
 
 
 class TimetableManager(object):
@@ -13,9 +13,7 @@ class TimetableManager(object):
     def __init__(self, stp_solver, **kwargs):
         self.logger = logging.getLogger("mrs.timetable.manager")
         self.timetables = dict()
-        self.n_tasks_queue = kwargs.get('n_tasks_queue', 3)
         self.stp_solver = stp_solver
-        self.send_update_to = None
 
         self.logger.debug("TimetableManager started")
 
@@ -58,8 +56,6 @@ class TimetableManager(object):
             timetable.stn = stn
             timetable.dispatchable_graph = dispatchable_graph
             self.timetables.update({robot_id: timetable})
-            if insertion_point <= self.n_tasks_queue:
-                self.send_update_to = robot_id
 
         except NoSTPSolution:
             self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id, insertion_point)
