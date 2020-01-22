@@ -13,7 +13,7 @@ class DispatchQueueUpdate(AsDictMixin):
         self.dispatchable_graph = dispatchable_graph
 
     def update_timetable(self, timetable, replace=False):
-        stn_cls = timetable.stp.get_stn()
+        stn_cls = timetable.stp_solver.get_stn()
         stn = stn_cls.from_dict(self.stn)
         dispatchable_graph = stn_cls.from_dict(self.dispatchable_graph)
         timetable.zero_timepoint = self.zero_timepoint

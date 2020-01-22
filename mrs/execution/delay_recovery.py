@@ -125,6 +125,7 @@ recovery_method_factory.register_recovery_method('corrective', Corrective)
 recovery_method_factory.register_recovery_method('preventive', Preventive)
 
 
-def get_recovery_method(allocation_method, type_, method):
-    recovery_method_cls = recovery_method_factory.get_recovery_method(type_)
-    return recovery_method_cls(method, allocation_method)
+class DelayRecovery:
+    def __init__(self, allocation_method, type_, method, **kwargs):
+        cls_ = recovery_method_factory.get_recovery_method(type_)
+        self.method = cls_(method, allocation_method)

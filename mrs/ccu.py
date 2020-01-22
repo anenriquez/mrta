@@ -3,47 +3,53 @@ import logging.config
 import time
 
 from fmlib.models.tasks import TaskPlan
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
-
+from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
-from mrs.execution.delay_recovery import get_recovery_method
+from mrs.dispatching.dispatcher import Dispatcher
+from mrs.execution.delay_recovery import DelayRecovery
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.messages.task_status import TaskStatus
+from mrs.timetable.timetable_manager import TimetableManager
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+from stn.exceptions.stp import NoSTPSolution
 
 
 class CCU:
+
+    _component_modules = {'timetable_manager': TimetableManager,
+                          'auctioneer': Auctioneer,
+                          'dispatcher': Dispatcher,
+                          'planner': Planner,
+                          'delay_recovery': DelayRecovery}
+
     def __init__(self, config_file=None):
         self.logger = logging.getLogger("mrs.ccu")
         self.logger.info("Configuring CCU...")
 
-        components = self.get_components(config_file)
+        self.components = self.get_components(config_file)
 
-        self.auctioneer = components.get('auctioneer')
-        self.dispatcher = components.get('dispatcher')
-        self.planner = components.get('planner')
-        self.timetable_manager = components.get('timetable_manager')
+        self.auctioneer = self.components.get('auctioneer')
+        self.dispatcher = self.components.get('dispatcher')
+        self.planner = self.components.get('planner')
+        self.timetable_manager = self.components.get('timetable_manager')
+        self.recovery_method = self.components.get("delay_recovery").method
 
-        allocation_method = components.get("allocation_method")
-        delay_recovery = components.get("delay_recovery")
-        self.recovery_method = get_recovery_method(allocation_method, **delay_recovery)
-
-        self.api = components.get('api')
-        self.ccu_store = components.get('ccu_store')
+        self.api = self.components.get('api')
+        self.ccu_store = self.components.get('ccu_store')
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized CCU")
 
         self.task_plans = dict()
 
-    @staticmethod
-    def get_components(config_file):
-        config = Configurator(config_file)
+    def get_components(self, config_file):
+        config = Configurator(config_file, component_modules=self._component_modules)
         return config.config_ccu()
 
     def start_test_cb(self, msg):

@@ -1,7 +1,6 @@
 import logging
 
 from mrs.exceptions.execution import InconsistentSchedule
-from mrs.execution.delay_recovery import get_recovery_method
 from mrs.execution.scheduler import Scheduler
 
 
@@ -15,7 +14,7 @@ class ScheduleMonitor:
 
         self.timetable = timetable
 
-        self.recovery_method = get_recovery_method(allocation_method, **delay_recovery)
+        self.recovery_method = delay_recovery.method
 
         self.scheduler = Scheduler(robot_id, timetable, time_resolution)
 

@@ -11,7 +11,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
-from mrs.config.configurator import Configurator
+from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
 from mrs.tests.fixtures.utils import get_msg_fixture
@@ -28,8 +28,14 @@ class AllocationTest(RopodPyre):
 
         super().__init__(zyre_config, acknowledge=False)
 
-        self.config_params = Configurator(config_file).config_params
+        if config_file is None:
+            self._config_params = ConfigParams.default()
+        else:
+            self._config_params = ConfigParams.from_file(config_file)
+
         self.logger = logging.getLogger('mrs.allocate')
+        logger_config = self._config_params.get('logger')
+        logging.config.dictConfig(logger_config)
 
         self.tasks = list()
         self.allocations = dict()
@@ -44,9 +50,9 @@ class AllocationTest(RopodPyre):
         self.logger.info("Store %s cleaned", store_interface._store.db_name)
 
     def clean_stores(self):
-        fleet = self.config_params.get('fleet')
-        robot_proxy_store_config = self.config_params.get("robot_proxy_store")
-        robot_store_config = self.config_params.get("robot_store")
+        fleet = self._config_params.get('fleet')
+        robot_proxy_store_config = self._config_params.get("robot_proxy_store")
+        robot_store_config = self._config_params.get("robot_store")
         store_configs = {'robot_proxy_store': robot_proxy_store_config,
                          'robot_store': robot_store_config}
 
@@ -56,7 +62,7 @@ class AllocationTest(RopodPyre):
                 store = MongoStore(**config)
                 self.clean_store(store)
 
-        ccu_store_config = self.config_params.get('ccu_store')
+        ccu_store_config = self._config_params.get('ccu_store')
         store = MongoStore(**ccu_store_config)
         self.clean_store(store)
 

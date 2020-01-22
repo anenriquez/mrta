@@ -3,29 +3,37 @@ import logging.config
 import time
 
 from fmlib.models.robot import Robot as RobotModel
+from mrs.allocation.bidder import Bidder
+from mrs.execution.delay_recovery import DelayRecovery
+from mrs.timetable.timetable import Timetable
+from planner.planner import Planner
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
-from mrs.execution.delay_recovery import get_recovery_method
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.task_status import TaskStatus
+
+_component_modules = {'timetable': Timetable,
+                      'bidder': Bidder,
+                      'planner': Planner,
+                      'delay_recovery': DelayRecovery}
 
 
 class RobotProxy:
     def __init__(self, robot_id, api, robot_proxy_store, bidder, delay_recovery, **kwargs):
-        self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
+        self.logger = logging.getLogger('mrs.robot.proxy%s' % robot_id)
 
         self.robot_id = robot_id
         self.api = api
         self.robot_proxy_store = robot_proxy_store
         self.bidder = bidder
         self.robot_model = RobotModel.create_new(robot_id)
-        self.recovery_method = get_recovery_method(kwargs.get("allocation_method"), **delay_recovery)
+        self.recovery_method = delay_recovery.method
 
         self.api.register_callbacks(self)
-        self.logger.info("Initialized Robot %s", robot_id)
+        self.logger.info("Initialized RobotProxy %s", robot_id)
 
     def task_cb(self, msg):
         payload = msg['payload']
@@ -118,7 +126,7 @@ if __name__ == '__main__':
     parser.add_argument('robot_id', type=str, help='example: robot_001')
     args = parser.parse_args()
 
-    config = Configurator(args.file)
+    config = Configurator(args.file, component_modules=_component_modules)
     components = config.config_robot_proxy(args.robot_id)
 
     robot = RobotProxy(**components)
