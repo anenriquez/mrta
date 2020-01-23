@@ -3,6 +3,10 @@ import logging.config
 import time
 
 from fmlib.models.tasks import TaskStatus
+from mrs.execution.delay_recovery import DelayRecovery
+from mrs.execution.executor import Executor
+from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.timetable.timetable import Timetable
 from pymodm.context_managers import switch_collection
 from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
@@ -13,6 +17,11 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.messages.task_status import TaskStatus as TaskStatusMessage
+
+_component_modules = {'timetable': Timetable,
+                      'executor': Executor,
+                      'schedule_monitor': ScheduleMonitor,
+                      'delay_recovery': DelayRecovery}
 
 
 class Robot:
@@ -164,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('robot_id', type=str, help='example: robot_001')
     args = parser.parse_args()
 
-    config = Configurator(args.file)
+    config = Configurator(args.file, component_modules=_component_modules)
     components = config.config_robot(args.robot_id)
 
     robot = Robot(**components)

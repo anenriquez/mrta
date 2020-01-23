@@ -2,100 +2,76 @@ import logging.config
 
 from fmlib.api import API
 from fmlib.config.builders import Store
+from mrs.config.builder import MRTABuilder
 from mrs.config.params import ConfigParams
-from planner.planner import Planner
-
-from mrs.config.mrta import MRTAFactory
-from mrs.timetable.timetable import Timetable
 
 
 class Configurator:
-    def __init__(self, config_file=None):
+    def __init__(self, config_file=None, **kwargs):
 
         if config_file is None:
-            self.config_params = ConfigParams.default()
+            self._config_params = ConfigParams.default()
         else:
-            self.config_params = ConfigParams.from_file(config_file)
+            self._config_params = ConfigParams.from_file(config_file)
 
         self.logger = logging.getLogger('mrs')
-        logger_config = self.config_params.get('logger')
+        logger_config = self._config_params.get('logger')
         logging.config.dictConfig(logger_config)
 
-        allocation_method = self.config_params.get('allocation_method')
-        self.builder = self.init_builder(allocation_method)
+        allocation_method = self._config_params.get('allocation_method')
+        self._factory = MRTABuilder(allocation_method, **kwargs)
 
-    def init_builder(self, allocation_method, **kwargs):
-        builder = MRTAFactory(allocation_method, **kwargs)
-        planner_config = self.config_params.get('planner')
-        planner = Planner(**planner_config)
-        builder.register_component('planner', planner)
-        builder.register_component('delay_recovery', self.config_params.get('delay_recovery'))
-        return builder
+        self._components = dict()
 
-    def config_ccu(self):
-        api_config = self.config_params.get('ccu_api')
-        api = API(**api_config)
-        store_config = self.config_params.get('ccu_store')
-        store = Store(**store_config)
+    def configure(self, **config):
+        components = self._factory(**config)
+        self._components.update(**components)
+        self.register_fleet()
 
-        self.builder.register_component('api', api)
-        self.builder.register_component('ccu_store', store)
-
-        components = self.builder(**self.config_params.get('ccu'))
-
-        fleet = self.config_params.get('fleet')
-        for component_name, component in components.items():
+    def register_fleet(self):
+        fleet = self._config_params.get('fleet')
+        for component_name, component in self._components.items():
             if hasattr(component, 'register_robot'):
                 for robot_id in fleet:
                     component.register_robot(robot_id)
 
-        return components
+    def register_robot_id(self, robot_id):
+        self._factory.register_component('robot_id', robot_id)
+
+    def register_api(self, component_name, **kwargs):
+        robot_id = kwargs.get("robot_id")
+        api_config = self._config_params.get(component_name + '_api')
+
+        if robot_id and component_name == 'robot_proxy':
+            api_config['zyre']['zyre_node']['node_name'] = robot_id + '_proxy'
+        elif robot_id and component_name == 'robot':
+            api_config['zyre']['zyre_node']['node_name'] = robot_id
+
+        self._factory.register_component('api', API(**api_config))
+
+    def register_store(self, component_name, **kwargs):
+        robot_id = kwargs.get("robot_id")
+        store_config = self._config_params.get(component_name + '_store')
+        if robot_id:
+            store_config['db_name'] = store_config['db_name'] + '_' + robot_id.split('_')[1]
+        self._factory.register_component(component_name + '_store', Store(**store_config))
+
+    def config_ccu(self):
+        self.register_api('ccu')
+        self.register_store('ccu')
+        self.configure(**self._config_params)
+        return self._components
 
     def config_robot_proxy(self, robot_id):
-        api_config = self.config_params.get('robot_proxy_api')
-        api_config['zyre']['zyre_node']['node_name'] = robot_id + "_proxy"
-        api = API(**api_config)
-        store_config = self.config_params.get('robot_proxy_store')
-        store_config['db_name'] = store_config['db_name'] + '_' + robot_id.split('_')[1]
-        store = Store(**store_config)
-
-        self.builder.register_component('api', api)
-        self.builder.register_component('robot_proxy_store', store)
-        timetable = Timetable(robot_id, self.builder.get_stp_solver())
-        timetable.fetch()
-        self.builder.register_component('timetable', timetable)
-        self.builder.register_component('robot_id', robot_id)
-
-        robot_config = self.config_params.get('robot_proxy')
-        robot_config.update(robot_id=robot_id)
-
-        components = self.builder(**robot_config)
-
-        return components
+        self.register_api('robot_proxy', robot_id=robot_id)
+        self.register_store('robot_proxy', robot_id=robot_id)
+        self.register_robot_id(robot_id)
+        self.configure(**self._config_params)
+        return self._components
 
     def config_robot(self, robot_id):
-        api_config = self.config_params.get('robot_api')
-        api_config['zyre']['zyre_node']['node_name'] = robot_id
-        api = API(**api_config)
-        store_config = self.config_params.get('robot_store')
-        store_config['db_name'] = store_config['db_name'] + '_' + robot_id.split('_')[1]
-        store = Store(**store_config)
-
-        self.builder.register_component('api', api)
-        self.builder.register_component('robot_store', store)
-        timetable = Timetable(robot_id, self.builder.get_stp_solver())
-        timetable.fetch()
-        self.builder.register_component('timetable', timetable)
-        self.builder.register_component('robot_id', robot_id)
-
-        robot_config = self.config_params.get('robot')
-        robot_config.update(robot_id=robot_id)
-
-        components = self.builder(**robot_config)
-
-        return components
-
-
-
-
-
+        self.register_api('robot', robot_id=robot_id)
+        self.register_store('robot', robot_id=robot_id)
+        self.register_robot_id(robot_id)
+        self.configure(**self._config_params)
+        return self._components

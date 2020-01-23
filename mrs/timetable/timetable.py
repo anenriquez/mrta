@@ -32,13 +32,13 @@ class Timetable(object):
 
     """
 
-    def __init__(self, robot_id, stp):
+    def __init__(self, robot_id, stp_solver, **kwargs):
         self.robot_id = robot_id
-        self.stp = stp  # Simple Temporal Problem
+        self.stp_solver = stp_solver  # Simple Temporal Problem
         self.zero_timepoint = self.initialize_zero_timepoint()
 
-        self.stn = self.stp.get_stn()
-        self.dispatchable_graph = self.stp.get_stn()
+        self.stn = self.stp_solver.get_stn()
+        self.dispatchable_graph = self.stp_solver.get_stn()
 
     @staticmethod
     def initialize_zero_timepoint():
@@ -53,7 +53,7 @@ class Timetable(object):
 
     def compute_dispatchable_graph(self, stn):
         try:
-            dispatchable_graph = self.stp.solve(stn)
+            dispatchable_graph = self.stp_solver.solve(stn)
             return dispatchable_graph
         except NoSTPSolution:
             raise NoSTPSolution()
@@ -63,7 +63,7 @@ class Timetable(object):
         stn = copy.deepcopy(self.stn)
         stn.add_task(stn_task, insertion_point)
         try:
-            dispatchable_graph = self.stp.solve(stn)
+            dispatchable_graph = self.stp_solver.solve(stn)
             return stn, dispatchable_graph
 
         except NoSTPSolution:
@@ -74,7 +74,7 @@ class Timetable(object):
         minimal_network = get_minimal_network(stn)
         if minimal_network:
             minimal_network.assign_timepoint(assigned_time, task_id, node_type)
-            if self.stp.is_consistent(minimal_network):
+            if self.stp_solver.is_consistent(minimal_network):
                 self.stn.assign_timepoint(assigned_time, task_id, node_type)
                 return
         raise InconsistentAssignment(assigned_time, task_id, node_type)
@@ -284,10 +284,10 @@ class Timetable(object):
         return timetable_dict
 
     @staticmethod
-    def from_dict(timetable_dict, stp):
+    def from_dict(timetable_dict, stp_solver):
         robot_id = timetable_dict['robot_id']
-        timetable = Timetable(robot_id, stp)
-        stn_cls = timetable.stp.get_stn()
+        timetable = Timetable(robot_id, stp_solver)
+        stn_cls = timetable.stp_solver.get_stn()
 
         zero_timepoint = timetable_dict.get('zero_timepoint')
         timetable.zero_timepoint = TimeStamp.from_str(zero_timepoint)
@@ -311,7 +311,7 @@ class Timetable(object):
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
             self.zero_timepoint = TimeStamp.from_datetime(timetable_mongo.zero_timepoint)
         except DoesNotExist:
-            logging.debug("The timetable of robot %s is empty", self.robot_id)
+            # logging.debug("The timetable of robot %s is empty", self.robot_id)
             # Resetting values
-            self.stn = self.stp.get_stn()
-            self.dispatchable_graph = self.stp.get_stn()
+            self.stn = self.stp_solver.get_stn()
+            self.dispatchable_graph = self.stp_solver.get_stn()

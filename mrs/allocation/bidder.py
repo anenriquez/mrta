@@ -43,7 +43,7 @@ class Bidder:
         self.stp_solver = stp_solver
         self.timetable = timetable
         self.api = kwargs.get('api')
-        self.ccu_store = kwargs.get('ccu_store')
+        self.robot_store = kwargs.get('robot_store')
         self.planner = kwargs.get('planner')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
@@ -60,11 +60,11 @@ class Bidder:
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
-        ccu_store = kwargs.get('ccu_store')
+        robot_store = kwargs.get('robot_store')
         if api:
             self.api = api
-        if ccu_store:
-            self.ccu_store = ccu_store
+        if robot_store:
+            self.robot_store = robot_store
 
     def task_announcement_cb(self, msg):
         payload = msg['payload']
