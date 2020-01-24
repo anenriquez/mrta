@@ -1,12 +1,7 @@
 import argparse
 import logging.config
-import time
 
 from fmlib.models.tasks import TaskStatus
-from mrs.execution.delay_recovery import DelayRecovery
-from mrs.execution.executor import Executor
-from mrs.execution.schedule_monitor import ScheduleMonitor
-from mrs.timetable.timetable import Timetable
 from pymodm.context_managers import switch_collection
 from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
@@ -14,11 +9,17 @@ from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
+from mrs.execution.delay_recovery import DelayRecovery
+from mrs.execution.executor import Executor
+from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.messages.task_status import TaskStatus as TaskStatusMessage
+from mrs.simulation.simulator import SimulatorInterface, Simulator
+from mrs.timetable.timetable import Timetable
 
-_component_modules = {'timetable': Timetable,
+_component_modules = {'simulator': Simulator,
+                      'timetable': Timetable,
                       'executor': Executor,
                       'schedule_monitor': ScheduleMonitor,
                       'delay_recovery': DelayRecovery}
@@ -34,6 +35,9 @@ class Robot:
         self.schedule_monitor = schedule_monitor
 
         self.timetable = schedule_monitor.timetable
+        self.timetable.fetch()
+        self.simulator_interface = SimulatorInterface(kwargs.get('simulator'))
+
         self.assignments = list()
         self.queue_update_received = False
 
@@ -149,18 +153,21 @@ class Robot:
         try:
             self.api.start()
             while True:
-                tasks = Task.get_tasks_by_robot(self.robot_id)
-
-                for task in tasks:
-                    if task.status.status == TaskStatusConst.DISPATCHED and self.queue_update_received:
-                        self.schedule(task)
-                    if task.status.status == TaskStatusConst.SCHEDULED and task.is_executable():
-                        self.start_execution(task)
-                    if task.status.status == TaskStatusConst.ONGOING:
-                        self.continue_execution(task)
+                self.simulator_interface.run()
+                try:
+                    tasks = Task.get_tasks_by_robot(self.robot_id)
+                    for task in tasks:
+                        if task.status.status == TaskStatusConst.DISPATCHED and self.queue_update_received:
+                            self.schedule(task)
+                        if task.status.status == TaskStatusConst.SCHEDULED and self.executor.is_executable(
+                                task.start_time):
+                            self.start_execution(task)
+                        if task.status.status == TaskStatusConst.ONGOING:
+                            self.continue_execution(task)
+                except DoesNotExist:
+                    pass
 
                 self.api.run()
-                time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
             self.api.shutdown()

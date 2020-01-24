@@ -29,7 +29,7 @@ class Dispatcher(object):
 
         self.stp_solver = stp_solver
         self.timetable_manager = timetable_manager
-        self.schedule_monitor = ScheduleMonitor(self.timetable_manager, freeze_window)
+        self.schedule_monitor = ScheduleMonitor(self.timetable_manager, freeze_window, **kwargs)
 
         self.robot_ids = list()
 
@@ -53,13 +53,12 @@ class Dispatcher(object):
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            tasks = timetable.get_earliest_tasks()
-            for task in tasks:
-                if task.status.status == TaskStatusConst.PLANNED:
-                    start_time = timetable.get_start_time(task.task_id)
-                    if self.schedule_monitor.is_schedulable(start_time):
-                        Task.freeze_task(task.task_id)
-                        self.dispatch_task(task, robot_id)
+            task = timetable.get_earliest_task()
+            if task and task.status.status == TaskStatusConst.PLANNED:
+                start_time = timetable.get_start_time(task.task_id)
+                if self.schedule_monitor.is_schedulable(start_time):
+                    Task.freeze_task(task.task_id)
+                    self.dispatch_task(task, robot_id)
 
     def dispatch_task(self, task, robot_id):
         """

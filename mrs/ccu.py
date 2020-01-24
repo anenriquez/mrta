@@ -1,8 +1,12 @@
 import argparse
 import logging.config
-import time
 
 from fmlib.models.tasks import TaskPlan
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
@@ -13,16 +17,14 @@ from mrs.execution.delay_recovery import DelayRecovery
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.messages.task_status import TaskStatus
+from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.timetable_manager import TimetableManager
-from planner.planner import Planner
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
 
 
 class CCU:
 
-    _component_modules = {'timetable_manager': TimetableManager,
+    _component_modules = {'simulator': Simulator,
+                          'timetable_manager': TimetableManager,
                           'auctioneer': Auctioneer,
                           'dispatcher': Dispatcher,
                           'planner': Planner,
@@ -39,6 +41,7 @@ class CCU:
         self.planner = self.components.get('planner')
         self.timetable_manager = self.components.get('timetable_manager')
         self.recovery_method = self.components.get("delay_recovery").method
+        self.simulator_interface = SimulatorInterface(self.components.get('simulator'))
 
         self.api = self.components.get('api')
         self.ccu_store = self.components.get('ccu_store')
@@ -105,7 +108,7 @@ class CCU:
         sub_dispatchable_graph = timetable.dispatchable_graph.get_subgraph(DispatchQueueUpdate.n_tasks)
         self.logger.debug("Sub stn: %s", sub_stn)
         self.logger.debug("Sub dispatchable graph: %s", sub_dispatchable_graph)
-        dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.zero_timepoint,
+        dispatch_queue_update = DispatchQueueUpdate(self.timetable_manager.ztp,
                                                     sub_stn,
                                                     sub_dispatchable_graph)
         msg = self.api.create_message(dispatch_queue_update)
@@ -186,11 +189,11 @@ class CCU:
             self.api.start()
 
             while True:
+                self.simulator_interface.run()
                 self.auctioneer.run()
                 self.dispatcher.run()
                 self.process_allocation()
                 self.api.run()
-                time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()
             self.logger.info('FMS is shutting down')

@@ -193,8 +193,7 @@ class Task(BaseTask):
                 if constraint.earliest_time < earliest_time:
                     earliest_time = constraint.earliest_time
                     earliest_task = task
-        if earliest_task:
-            return Task.get_task(earliest_task.task_id)
+        return earliest_task
 
     def remove(self):
         self.status.archive()
