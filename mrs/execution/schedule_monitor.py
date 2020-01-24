@@ -13,6 +13,7 @@ class ScheduleMonitor:
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
 
         self.timetable = timetable
+        self.timetable.fetch()
 
         self.recovery_method = delay_recovery.method
 

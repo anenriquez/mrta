@@ -8,8 +8,6 @@ from fmlib.models.tasks import TaskStatus
 from pymodm.context_managers import switch_collection
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-from ropod.utils.uuid import generate_uuid
 
 from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
@@ -76,20 +74,15 @@ class AllocationTest(RopodPyre):
             self.logger.info("Send init pose to %s: ", robot_id)
 
     def load_tasks(self, dataset_module, dataset_name, **kwargs):
-        self.tasks = load_tasks_to_db(dataset_module, dataset_name, **kwargs)
+        sim_config = self._config_params.get('simulator')
+        if sim_config:
+            self.tasks = load_tasks_to_db(dataset_module, dataset_name, initial_time=sim_config.get('initial_time'))
+        else:
+            self.tasks = load_tasks_to_db(dataset_module, dataset_name)
 
     def trigger(self):
-        test_msg = dict()
-        test_msg['header'] = dict()
-        test_msg['payload'] = dict()
-        test_msg['header']['type'] = 'START-TEST'
-        test_msg['header']['metamodel'] = 'ropod-msg-schema.json'
-        test_msg['header']['msgId'] = generate_uuid()
-        test_msg['header']['timestamp'] = TimeStamp().to_str()
-
-        test_msg['payload']['metamodel'] = 'ropod-bid_round-schema.json'
-
-        self.shout(test_msg)
+        msg = get_msg_fixture('start_test.json')
+        self.shout(msg)
         self.logger.info("Test triggered")
 
     def receive_msg_cb(self, msg_content):
@@ -141,7 +134,6 @@ if __name__ == '__main__':
         test.setup(args.robot_poses_file)
         test.trigger()
         while not test.terminated:
-            time.sleep(0.5)
             test.check_unsuccessful_allocations()
     except (KeyboardInterrupt, SystemExit):
         print('Task request test interrupted; exiting')

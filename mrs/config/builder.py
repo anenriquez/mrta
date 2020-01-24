@@ -1,20 +1,23 @@
 import logging
 
+from planner.planner import Planner
+from stn.stp import STP
+
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.timetable.timetable_manager import TimetableManager
-from planner.planner import Planner
-from stn.stp import STP
 
 
 class MRTABuilder:
 
-    _component_modules = {'timetable': Timetable,
+    _component_modules = {'simulator': Simulator,
+                          'timetable': Timetable,
                           'timetable_manager': TimetableManager,
                           'planner': Planner,
                           'delay_recovery': DelayRecovery,
@@ -25,7 +28,8 @@ class MRTABuilder:
                           'schedule_monitor': ScheduleMonitor,
                           }
 
-    _config_order = ['timetable',
+    _config_order = ['simulator',
+                     'timetable',
                      'timetable_manager',
                      'planner',
                      'delay_recovery',

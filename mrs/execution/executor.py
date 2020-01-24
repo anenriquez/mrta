@@ -3,15 +3,17 @@ import logging
 import numpy as np
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
+from mrs.db.models.task import TimepointConstraint
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.assignment_update import Assignment
-from mrs.db.models.task import TimepointConstraint
-from datetime import datetime
-import time
+from mrs.simulation.simulator import SimulatorInterface
 
 
-class Executor:
+class Executor(SimulatorInterface):
     def __init__(self, robot_id, timetable, max_seed, **kwargs):
+        simulator = kwargs.get('simulator')
+        super().__init__(simulator)
+
         self.robot_id = robot_id
         self.timetable = timetable
 
@@ -22,6 +24,11 @@ class Executor:
 
         self.logger = logging.getLogger("mrs.executor.%s" % self.robot_id)
         self.logger.debug("Executor initialized %s", self.robot_id)
+
+    def is_executable(self, start_time):
+        if start_time < self.get_current_time():
+            return True
+        return False
 
     def start_execution(self, task):
         self.logger.info("Start executing task %s", task.task_id)
@@ -45,8 +52,9 @@ class Executor:
 
         # wait until assigned_time is present time
         # TODO: Refactor execution to be controlled by while in robot.py
-        while datetime.now() < assigned_time:
-            time.sleep(0.1)
+        while self.get_current_time() < assigned_time:
+            # time.sleep(0.01)
+            self.run()
 
         self.execute(task.task_id, start_node, finish_node)
 

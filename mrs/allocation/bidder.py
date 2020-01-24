@@ -42,6 +42,7 @@ class Bidder:
         self.robot_id = robot_id
         self.stp_solver = stp_solver
         self.timetable = timetable
+        self.timetable.fetch()
         self.api = kwargs.get('api')
         self.robot_store = kwargs.get('robot_store')
         self.planner = kwargs.get('planner')
@@ -70,8 +71,6 @@ class Bidder:
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
         self.logger.debug("Received TASK-ANNOUNCEMENT msg round %s", task_announcement.round_id)
-        self.timetable.fetch()
-        self.timetable.zero_timepoint = task_announcement.zero_timepoint
         self.logger.debug("Current stn: %s", self.timetable.stn)
         self.logger.debug("Current dispatchable graph: %s", self.timetable.dispatchable_graph)
         self.compute_bids(task_announcement)
@@ -82,7 +81,6 @@ class Bidder:
 
         if task_contract.robot_id == self.robot_id:
             self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
-            self.timetable.fetch()
 
             if not self.deleted_a_task:
                 self.allocate_to_robot(task_contract.task_id)
@@ -140,7 +138,7 @@ class Bidder:
         best_bid = None
         n_tasks = len(self.timetable.get_tasks())
 
-        # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the zero_timepoint)
+        # Add task to the STN from insertion_point 1 onwards (insertion_point 0 is reserved for the ztp)
         for insertion_point in range(1, n_tasks+2):
             self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
             if not self.insert_in(insertion_point):
@@ -276,7 +274,6 @@ class Bidder:
 
     def remove_task(self, task):
         self.logger.debug("Deleting task %s", task.task_id)
-        self.timetable.fetch()
         self.timetable.remove_task(task.task_id)
         self.deleted_a_task = True
         self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)

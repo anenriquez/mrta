@@ -14,33 +14,32 @@ class TimetableManager(object):
         self.logger = logging.getLogger("mrs.timetable.manager")
         self.timetables = dict()
         self.stp_solver = stp_solver
+        self.simulator = kwargs.get('simulator')
 
         self.logger.debug("TimetableManager started")
 
     @property
-    def zero_timepoint(self):
+    def ztp(self):
         if self.timetables:
             any_timetable = next(iter(self.timetables.values()))
-            return any_timetable.zero_timepoint
+            return any_timetable.ztp
         else:
             self.logger.error("The zero timepoint has not been initialized")
 
-    @zero_timepoint.setter
-    def zero_timepoint(self, time_):
+    @ztp.setter
+    def ztp(self, time_):
         for robot_id, timetable in self.timetables.items():
             timetable.update_zero_timepoint(time_)
 
     def get_timetable(self, robot_id):
-        timetable = self.timetables.get(robot_id)
-        timetable.fetch()
-        self.timetables.update({robot_id: timetable})
-        return timetable
+        return self.timetables.get(robot_id)
 
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
-        timetable = Timetable(robot_id, self.stp_solver)
+        timetable = Timetable(robot_id, self.stp_solver, simulator=self.simulator)
         timetable.fetch()
         self.timetables[robot_id] = timetable
+        timetable.store()
 
     def fetch_timetables(self):
         for robot_id, timetable in self.timetables.items():
@@ -48,7 +47,6 @@ class TimetableManager(object):
 
     def update_timetable(self, robot_id, insertion_point, temporal_metric, task):
         timetable = self.timetables.get(robot_id)
-        timetable.fetch()
 
         try:
             stn, dispatchable_graph = timetable.solve_stp(task, insertion_point)

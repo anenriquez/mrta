@@ -1,21 +1,22 @@
 import argparse
 import logging.config
-import time
 
 from fmlib.models.robot import Robot as RobotModel
-from mrs.allocation.bidder import Bidder
-from mrs.execution.delay_recovery import DelayRecovery
-from mrs.timetable.timetable import Timetable
 from planner.planner import Planner
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from stn.exceptions.stp import NoSTPSolution
 
+from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
+from mrs.execution.delay_recovery import DelayRecovery
 from mrs.messages.assignment_update import AssignmentUpdate
 from mrs.messages.task_status import TaskStatus
+from mrs.simulation.simulator import Simulator, SimulatorInterface
+from mrs.timetable.timetable import Timetable
 
-_component_modules = {'timetable': Timetable,
+_component_modules = {'simulator': Simulator,
+                      'timetable': Timetable,
                       'bidder': Bidder,
                       'planner': Planner,
                       'delay_recovery': DelayRecovery}
@@ -31,6 +32,7 @@ class RobotProxy:
         self.bidder = bidder
         self.robot_model = RobotModel.create_new(robot_id)
         self.recovery_method = delay_recovery.method
+        self.simulator_interface = SimulatorInterface(kwargs.get('simulator'))
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized RobotProxy %s", robot_id)
@@ -113,7 +115,7 @@ class RobotProxy:
         try:
             self.api.start()
             while True:
-                time.sleep(0.5)
+                self.simulator_interface.run()
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
             self.api.shutdown()

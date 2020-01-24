@@ -1,19 +1,20 @@
 import copy
 import logging
 import time
-from datetime import datetime
 
 from ropod.utils.uuid import generate_uuid
 
-from mrs.db.models.task import Task
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import SoftBid, NoBid, BiddingRobot
+from mrs.simulation.simulator import SimulatorInterface
 
 
-class Round(object):
+class Round(SimulatorInterface):
 
     def __init__(self, robot_ids, tasks_to_allocate, **kwargs):
+        simulator = kwargs.get('simulator')
+        super().__init__(simulator)
 
         self.logger = logging.getLogger('mrs.auctioneer.round')
         self.robot_ids = robot_ids
@@ -29,7 +30,7 @@ class Round(object):
         self.received_bids = dict()
         self.received_no_bids = dict()
         self.bidding_robots = {robot_id: BiddingRobot(robot_id) for robot_id in self.robot_ids}
-        self.start_time = time.time()
+        self.start_time = self.get_current_time().timestamp()
         self.time_to_allocate = None
 
     def start(self):
@@ -48,7 +49,7 @@ class Round(object):
                     (or an exception has been raised)
 
         """
-        open_time = datetime.now()
+        open_time = self.get_current_time()
         self.logger.debug("Round  %s opened at %s and will close at %s",
                           self.id, open_time, self.closure_time)
 
@@ -97,7 +98,7 @@ class Round(object):
         return False
 
     def time_to_close(self):
-        current_time = datetime.now()
+        current_time = self.get_current_time()
 
         if current_time > self.closure_time or self.all_robots_placed_bid():
             self.logger.debug("Closing round %s at %s", self.id, current_time)
@@ -143,7 +144,7 @@ class Round(object):
     def get_result_no_bids(self):
         for task_id, n_no_bids in self.received_no_bids.items():
             if task_id not in self.received_bids:
-                task = Task.get_task(task_id)
+                task = self.tasks_to_allocate.get(task_id)
                 if self.alternative_timeslots:
                     task.set_soft_constraints()
                     self.tasks_to_allocate[task.task_id] = task
