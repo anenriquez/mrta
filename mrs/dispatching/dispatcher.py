@@ -1,9 +1,9 @@
 
 import logging
 
+from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
-from mrs.db.models.task import Task
 from mrs.dispatching.schedule_monitor import ScheduleMonitor
 
 
@@ -53,12 +53,15 @@ class Dispatcher(object):
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            task = timetable.get_earliest_task()
-            if task and task.status.status == TaskStatusConst.PLANNED:
-                start_time = timetable.get_start_time(task.task_id)
-                if self.schedule_monitor.is_schedulable(start_time):
-                    task.freeze()
-                    self.dispatch_task(task, robot_id)
+            try:
+                task = timetable.get_earliest_task()
+                if task and task.status.status == TaskStatusConst.PLANNED:
+                    start_time = timetable.get_start_time(task.task_id)
+                    if self.schedule_monitor.is_schedulable(start_time):
+                        task.freeze()
+                        self.dispatch_task(task, robot_id)
+            except DoesNotExist:
+                pass
 
     def dispatch_task(self, task, robot_id):
         """
