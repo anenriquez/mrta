@@ -133,11 +133,9 @@ class Task(BaseTask):
         self.constraints.hard = False
         self.save()
 
-    @classmethod
-    def freeze_task(cls, task_id):
-        task = cls.get_task(task_id)
-        task.frozen = True
-        task.save()
+    def freeze(self):
+        self.frozen = True
+        self.save()
 
     def mark_as_delayed(self):
         self.status.delayed = True

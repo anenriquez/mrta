@@ -5,6 +5,7 @@ from fmlib.utils.messages import Document
 
 
 class GoTo(GoToBase):
+    task_id = fields.UUIDField()
     estimated_duration = fields.EmbeddedDocumentField(InterTimepointConstraint)
 
     def get_node_names(self):

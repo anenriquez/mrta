@@ -1,4 +1,3 @@
-from mrs.db.models.actions import GoTo
 from mrs.utils.as_dict import AsDictMixin
 
 
@@ -59,12 +58,9 @@ class NoBid(BidBase):
 
 
 class Bid(BidBase):
-    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, pre_task_action):
-        self.insertion_point = insertion_point
+    def __init__(self, task_id, robot_id, round_id, metrics):
         self.metrics = metrics
-        self.pre_task_action = pre_task_action
-        self._stn = None
-        self._dispatchable_graph = None
+        self._allocation_info = None
         super().__init__(task_id, robot_id, round_id)
 
     def __str__(self):
@@ -82,21 +78,17 @@ class Bid(BidBase):
             return False
         return self.metrics == other.metrics
 
-    @property
-    def stn(self):
-        return self._stn
+    def set_stn(self, stn):
+        self._allocation_info.stn = stn
 
-    @stn.setter
-    def stn(self, stn):
-        self._stn = stn
+    def set_dispatchable_graph(self, dispatchable_graph):
+        self._allocation_info.dispatchable_graph = dispatchable_graph
 
-    @property
-    def dispatchable_graph(self):
-        return self._dispatchable_graph
+    def get_allocation_info(self):
+        return self._allocation_info
 
-    @dispatchable_graph.setter
-    def dispatchable_graph(self, dispatchable_graph):
-        self._dispatchable_graph = dispatchable_graph
+    def set_allocation_info(self, allocation_info):
+        self._allocation_info = allocation_info
 
     @property
     def meta_model(self):
@@ -106,13 +98,12 @@ class Bid(BidBase):
     def to_attrs(cls, dict_repr):
         attrs = super().to_attrs(dict_repr)
         attrs.update(metrics=Metrics.from_dict(dict_repr.get("metrics")))
-        attrs.update(pre_task_action=GoTo.from_payload(dict_repr.get("pre_task_action")))
         return attrs
 
 
 class SoftBid(Bid):
-    def __init__(self, task_id, robot_id, round_id, insertion_point, metrics, pre_task_action, alternative_start_time):
-        super().__init__(task_id, robot_id, round_id, insertion_point, metrics, pre_task_action)
+    def __init__(self, task_id, robot_id, round_id, metrics, alternative_start_time):
+        super().__init__(task_id, robot_id, round_id, metrics)
         self.alternative_start_time = alternative_start_time
 
     def __str__(self):

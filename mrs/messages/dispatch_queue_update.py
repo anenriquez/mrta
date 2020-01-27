@@ -52,8 +52,8 @@ class DispatchQueueUpdate(AsDictMixin):
             merged_graph.add_edges_from(task_graph.edges(data=True))
 
         for i in merged_graph.nodes():
-            if i != 0 and previous_graph.has_node(i + 1) and not previous_graph.has_edge(i, i + 1):
-                previous_graph.add_constraint(i, i + 1)
+            if i != 0 and merged_graph.has_node(i+1) and not merged_graph.has_edge(i, i + 1):
+                merged_graph.add_constraint(i, i + 1)
 
         return merged_graph
 

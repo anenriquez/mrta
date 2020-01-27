@@ -85,21 +85,27 @@ class CCU:
     def process_allocation(self):
         while self.auctioneer.allocations and self.auctioneer.round.finished:
             task_id, robot_ids = self.auctioneer.allocations.pop(0)
-            task = Task.get_task(task_id)
+            self.logger.critical("Processing allocation of task: %s", task_id)
+            task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
-            self.update_task_plan(task, robot_ids)
+            self.update_task_plan(robot_ids)
 
             for robot_id in robot_ids:
-                timetable = self.timetable_manager.get_timetable(robot_id)
-                if timetable.get_task_position(task.task_id) <= DispatchQueueUpdate.n_tasks:
-                    self.send_d_graph_update(robot_id)
+                # TODO: Send g_graph only if it is diff from previous version
+                self.send_d_graph_update(robot_id)
 
-    def update_task_plan(self, task, robot_ids):
-        task_plan = self.task_plans[task.task_id]
-        pre_task_action = self.auctioneer.pre_task_actions.get(task.task_id)
-        task_plan.actions.insert(0, pre_task_action)
-        task.update_plan(robot_ids, task_plan)
-        self.logger.debug('Task plan updated...')
+    def update_task_plan(self, robot_ids):
+        for pre_task_action in self.auctioneer.pre_task_actions:
+            task = Task.get_task(pre_task_action.task_id)
+            task_plan = self.task_plans[task.task_id]
+            if [action for action in task_plan.actions if action.type == "ROBOT-TO-PICKUP"]:
+                task_plan.actions[0] = pre_task_action
+            else:
+                task_plan.actions.insert(0, pre_task_action)
+
+            task.update_plan(robot_ids, task_plan)
+            self.logger.debug('Task plan of task %s updated', task.task_id)
+        self.auctioneer.pre_task_actions = list()
 
     def send_d_graph_update(self, robot_id):
         timetable = self.timetable_manager.get_timetable(robot_id)
