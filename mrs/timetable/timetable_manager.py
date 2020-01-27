@@ -45,19 +45,23 @@ class TimetableManager(object):
         for robot_id, timetable in self.timetables.items():
             timetable.fetch()
 
-    def update_timetable(self, robot_id, insertion_point, temporal_metric, task):
+    def update_timetable(self, robot_id, allocation_info, temporal_metric, task):
         timetable = self.timetables.get(robot_id)
-
         try:
-            stn, dispatchable_graph = timetable.solve_stp(task, insertion_point)
+            for stn_task in allocation_info.stn_tasks:
+                if stn_task.task_id == task.task_id:
+                    timetable.insert_task(stn_task, allocation_info.insertion_point)
+                else:
+                    timetable.stn.update_task(stn_task)
+
+            dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             dispatchable_graph.temporal_metric = temporal_metric
-            timetable.stn = stn
             timetable.dispatchable_graph = dispatchable_graph
             self.timetables.update({robot_id: timetable})
 
         except NoSTPSolution:
             self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id, insertion_point)
-            raise InvalidAllocation(task.task_id, robot_id, insertion_point)
+            raise InvalidAllocation(task.task_id, robot_id, allocation_info.insertion_point)
 
         timetable.store()
 

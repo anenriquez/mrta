@@ -43,6 +43,7 @@ class Timetable(SimulatorInterface):
 
         self.stn = self.stp_solver.get_stn()
         self.dispatchable_graph = self.stp_solver.get_stn()
+        self.stn_tasks = dict()
 
     def update_ztp(self, time_):
         self.ztp.timestamp = time_
@@ -55,16 +56,8 @@ class Timetable(SimulatorInterface):
         except NoSTPSolution:
             raise NoSTPSolution()
 
-    def solve_stp(self, task, insertion_point):
-        stn_task = self.to_stn_task(task, insertion_point)
-        stn = copy.deepcopy(self.stn)
-        stn.add_task(stn_task, insertion_point)
-        try:
-            dispatchable_graph = self.stp_solver.solve(stn)
-            return stn, dispatchable_graph
-
-        except NoSTPSolution:
-            raise NoSTPSolution()
+    def insert_task(self, stn_task, insertion_point):
+        self.stn.add_task(stn_task, insertion_point)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
         stn = copy.deepcopy(self.stn)
@@ -83,6 +76,18 @@ class Timetable(SimulatorInterface):
         stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
         stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
         return stn_task
+
+    def update_stn_task(self, task, insertion_point):
+        self.update_start_constraint(task, insertion_point)
+        stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
+        stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
+        return stn_task
+
+    def get_stn_task(self, task_id):
+        return self.stn_tasks.get(task_id)
+
+    def add_stn_task(self, stn_task):
+        self.stn_tasks[stn_task.task_id] = stn_task
 
     def update_pickup_constraint(self, task, insertion_point):
         hard_pickup_constraint = task.get_timepoint_constraint("pickup")

@@ -12,6 +12,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
+from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.tests.fixtures.utils import get_msg_fixture
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.utils import load_yaml_file
@@ -34,6 +35,9 @@ class AllocationTest(RopodPyre):
         self.logger = logging.getLogger('mrs.allocate')
         logger_config = self._config_params.get('logger')
         logging.config.dictConfig(logger_config)
+
+        simulator = Simulator(**self._config_params.get("simulator"))
+        self.simulator_interface = SimulatorInterface(simulator)
 
         self.tasks = list()
         self.allocations = dict()
@@ -95,7 +99,7 @@ class AllocationTest(RopodPyre):
             task_contract = TaskContract.from_payload(msg["payload"])
             self.allocations[task_contract.task_id] = task_contract.robot_id
             self.logger.debug("Allocation: (%s, %s)", task_contract.task_id, task_contract.robot_id)
-            self.check_termination_test()
+            # self.check_termination_test()
 
     def check_termination_test(self):
         if len(self.allocations) == len(self.tasks):
@@ -113,6 +117,22 @@ class AllocationTest(RopodPyre):
                         self.logger.debug("Allocation: (%s, None)", task.task_id)
                         self.check_termination_test()
 
+    def run(self):
+        try:
+            test.start()
+            time.sleep(2)
+            test.setup(args.robot_poses_file)
+            test.trigger()
+            while not test.terminated:
+                self.simulator_interface.run()
+                print(self.simulator_interface.get_current_time())
+                # test.check_unsuccessful_allocations()
+        except (KeyboardInterrupt, SystemExit):
+            print('Task request test interrupted; exiting')
+
+        print("Exiting test...")
+        test.shutdown()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -127,16 +147,24 @@ if __name__ == '__main__':
 
     test = AllocationTest(args.file)
     test.load_tasks(args.dataset_module, args.dataset_name)
+    test.run()
 
-    try:
-        test.start()
-        time.sleep(20)
-        test.setup(args.robot_poses_file)
-        test.trigger()
-        while not test.terminated:
-            test.check_unsuccessful_allocations()
-    except (KeyboardInterrupt, SystemExit):
-        print('Task request test interrupted; exiting')
-
-    print("Exiting test...")
-    test.shutdown()
+    # config_params = ConfigParams.default()
+    # simulator = Simulator(**config_params.get("simulator"))
+    # simulator_interface = SimulatorInterface(simulator)
+    #
+    # try:
+    #     test.start()
+    #     time.sleep(20)
+    #     test.setup(args.robot_poses_file)
+    #     test.trigger()
+    #     while not test.terminated:
+    #         print("---")
+    #         simulator_interface.run()
+    #         print(simulator_interface.get_current_time())
+    #         # test.check_unsuccessful_allocations()
+    # except (KeyboardInterrupt, SystemExit):
+    #     print('Task request test interrupted; exiting')
+    #
+    # print("Exiting test...")
+    # test.shutdown()
