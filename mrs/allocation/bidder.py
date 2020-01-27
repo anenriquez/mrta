@@ -162,7 +162,7 @@ class Bidder:
                 pre_task_actions.append(self.get_pre_task_action(next_task, prev_location))
 
                 stn_task = self.timetable.update_stn_task(next_task, insertion_point+1)
-                self.timetable.stn.update_task(stn_task)
+                self.timetable.update_task(stn_task)
                 stn_tasks.append(stn_task)
             except TaskNotFound as e:
                 pass

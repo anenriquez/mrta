@@ -17,8 +17,6 @@ from mrs.exceptions.allocation import TaskNotFound
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.simulation.simulator import SimulatorInterface
 
-logger = logging.getLogger("mrs.timetable")
-
 
 class Timetable(SimulatorInterface):
     """
@@ -45,9 +43,12 @@ class Timetable(SimulatorInterface):
         self.dispatchable_graph = self.stp_solver.get_stn()
         self.stn_tasks = dict()
 
+        self.logger = logging.getLogger("mrs.timetable.%s" % self.robot_id)
+        self.logger.debug("Timetable %s started", self.robot_id)
+
     def update_ztp(self, time_):
         self.ztp.timestamp = time_
-        logger.debug("Zero timepoint updated to: %s", self.ztp)
+        self.logger.debug("Zero timepoint updated to: %s", self.ztp)
 
     def compute_dispatchable_graph(self, stn):
         try:
@@ -58,6 +59,9 @@ class Timetable(SimulatorInterface):
 
     def insert_task(self, stn_task, insertion_point):
         self.stn.add_task(stn_task, insertion_point)
+
+    def update_task(self, stn_task):
+        self.stn.update_task(stn_task)
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
         stn = copy.deepcopy(self.stn)
@@ -198,7 +202,7 @@ class Timetable(SimulatorInterface):
             try:
                 next_task = Task.get_task(next_task_id)
             except DoesNotExist:
-                logging.warning("Task %s is not in db", next_task_id)
+                self.logger.warning("Task %s is not in db", next_task_id)
                 next_task = Task.create_new(task_id=next_task_id)
             return next_task
 
@@ -218,7 +222,7 @@ class Timetable(SimulatorInterface):
                 task = Task.get_task(task_id)
                 return task
             except DoesNotExist:
-                logging.warning("Task %s is not in db", task_id)
+                self.logger.warning("Task %s is not in db", task_id)
 
     def get_r_time(self, task_id, node_type='start', lower_bound=True):
         r_time = self.dispatchable_graph.get_time(task_id, node_type, lower_bound)
@@ -251,7 +255,7 @@ class Timetable(SimulatorInterface):
             node_id = self.stn.get_task_position(task_id)
             self.stn.remove_task(node_id)
         else:
-            logging.warning("Task %s is not in timetable", task_id)
+            self.logger.warning("Task %s is not in timetable", task_id)
         self.store()
 
     def remove_task_from_dispatchable_graph(self, task_id):
@@ -262,7 +266,7 @@ class Timetable(SimulatorInterface):
             node_id = self.dispatchable_graph.get_task_position(task_id)
             self.dispatchable_graph.remove_task(node_id)
         else:
-            logging.warning("Task %s is not in timetable", task_id)
+            self.logger.warning("Task %s is not in timetable", task_id)
         self.store()
 
     def remove_node_ids(self, task_node_ids):
@@ -302,13 +306,13 @@ class Timetable(SimulatorInterface):
 
     def fetch(self):
         try:
-            logging.debug("Fetching timetable of robot %s", self.robot_id)
+            self.logger.debug("Fetching timetable of robot %s", self.robot_id)
             timetable_mongo = TimetableMongo.objects.get_timetable(self.robot_id)
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
             self.ztp = TimeStamp.from_datetime(timetable_mongo.ztp)
         except DoesNotExist:
-            logging.debug("The timetable of robot %s is empty", self.robot_id)
+            self.logger.debug("The timetable of robot %s is empty", self.robot_id)
             # Resetting values
             self.stn = self.stp_solver.get_stn()
             self.dispatchable_graph = self.stp_solver.get_stn()
