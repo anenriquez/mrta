@@ -64,7 +64,7 @@ class Robot:
         if self.robot_id in task.assigned_robots:
             self.logger.critical("Received task %s", task.task_id)
             task.update_status(TaskStatusConst.DISPATCHED)
-            Task.freeze_task(task.task_id)
+            task.freeze()
 
     def send_task_status(self, task):
         try:

@@ -57,7 +57,7 @@ class Dispatcher(object):
             if task and task.status.status == TaskStatusConst.PLANNED:
                 start_time = timetable.get_start_time(task.task_id)
                 if self.schedule_monitor.is_schedulable(start_time):
-                    Task.freeze_task(task.task_id)
+                    task.freeze()
                     self.dispatch_task(task, robot_id)
 
     def dispatch_task(self, task, robot_id):
