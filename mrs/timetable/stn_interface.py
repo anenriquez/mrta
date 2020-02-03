@@ -59,29 +59,20 @@ class STNInterface:
         task.update_timepoint_constraint(**start_constraint.to_dict())
 
     def update_pickup_constraint(self, task, insertion_point):
-        print("Updating pickup constraints")
         hard_pickup_constraint = task.get_timepoint_constraint("pickup")
         pickup_time_window = hard_pickup_constraint.latest_time - hard_pickup_constraint.earliest_time
-        print("pickup_time_window: ", pickup_time_window)
 
         if not task.constraints.hard and insertion_point > 1:
-            print("Constraints are soft and insertion point is", insertion_point)
             r_earliest_delivery_time_previous_task = self.get_r_time_previous_task(insertion_point, "delivery")
-            print("r_earliest_delivery_time_previous_task: ", r_earliest_delivery_time_previous_task)
             travel_time = task.get_inter_timepoint_constraint("travel_time")
             earliest_pickup_time = r_earliest_delivery_time_previous_task + (travel_time.mean - 2*travel_time.variance**0.5)
-            print("earliest_pickup_time: ", earliest_pickup_time)
 
             latest_pickup_time = earliest_pickup_time + pickup_time_window.total_seconds()
-            print("latest_pickup_time:", latest_pickup_time)
 
             soft_pickup_constraint = TimepointConstraint(name="pickup",
                                                          earliest_time=TimepointConstraint.absolute_time(self.ztp, earliest_pickup_time),
                                                          latest_time=TimepointConstraint.absolute_time(self.ztp, latest_pickup_time))
             task.update_timepoint_constraint(**soft_pickup_constraint.to_dict())
-
-            new_pickup_constraints = task.get_timepoint_constraint("pickup")
-            print("New pickup constraints: ", new_pickup_constraints)
 
     def update_delivery_constraint(self, task):
         pickup_constraint = task.get_timepoint_constraint("pickup")

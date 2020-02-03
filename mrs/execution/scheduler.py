@@ -2,11 +2,9 @@ import logging
 from datetime import timedelta
 
 import numpy as np
-from ropod.structs.status import TaskStatus as TaskStatusConst
-
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.exceptions.execution import InconsistentSchedule
-from mrs.messages.assignment_update import Assignment
+from ropod.structs.status import TaskStatus as TaskStatusConst
 
 
 class Scheduler(object):
@@ -34,17 +32,10 @@ class Scheduler(object):
             self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
             try:
                 self.timetable.assign_timepoint(start_time, task.task_id, "start")
-                delivery_time = self.timetable.dispatchable_graph.get_time(task.task_id, 'delivery', lower_bound=False)
-
-                schedule = {'start_time': (self.timetable.zero_timepoint + timedelta(seconds=start_time)).to_datetime(),
-                            'finish_time': (self.timetable.zero_timepoint + timedelta(seconds=delivery_time)).to_datetime()}
-
-                task.update_schedule(schedule)
+                start_time = (self.timetable.zero_timepoint + timedelta(seconds=start_time)).to_datetime()
+                task.update_start_time(start_time)
                 task.update_status(TaskStatusConst.SCHEDULED)
-
-                assignment = Assignment(task.task_id, start_time, "start", is_consistent=True)
-
-                return assignment
+                return
 
             except InconsistentAssignment as e:
                 self.logger.warning("Task %s could not be scheduled at %s", e.task_id, e.assigned_time)

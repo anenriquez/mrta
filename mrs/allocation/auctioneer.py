@@ -1,11 +1,8 @@
 import logging
 from datetime import timedelta
 
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-
 from mrs.allocation.round import Round
-from mrs.db.models.task import Task
+from mrs.db.models.task import Task, TimepointConstraint
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
@@ -13,6 +10,8 @@ from mrs.messages.bid import Bid, NoBid, SoftBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 from mrs.simulation.simulator import SimulatorInterface
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -21,7 +20,7 @@ specified in the config file
 
 class Auctioneer(SimulatorInterface):
 
-    def __init__(self, stp_solver, timetable_manager, closure_window=5, freeze_window=300, **kwargs):
+    def __init__(self, stp_solver, timetable_manager, closure_window=5, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
@@ -33,8 +32,7 @@ class Auctioneer(SimulatorInterface):
 
         self.stp_solver = stp_solver
 
-        self.closure_window = timedelta(seconds=closure_window)
-        self.freeze_window = timedelta(seconds=freeze_window)
+        self.closure_window = timedelta(minutes=closure_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
         self.logger.debug("Auctioneer started")
@@ -136,19 +134,18 @@ class Auctioneer(SimulatorInterface):
             self.round.finish()
 
     def allocate(self, tasks):
-        tasks_to_allocate = dict()
         if isinstance(tasks, list):
-            self.logger.debug('Auctioneer received a list of tasks')
+            self.logger.debug("Auctioneer received a list of tasks")
             for task in tasks:
                 if not isinstance(task, Task):
                     task = Task.from_task(task)
-                tasks_to_allocate[task.task_id] = task
+                self.tasks_to_allocate[task.task_id] = task
         else:
-            self.logger.debug('Auctioneer received one task')
+            self.logger.debug("Auctioneer received one task")
             if not isinstance(tasks, Task):
                 tasks = Task.from_task(tasks)
-            tasks_to_allocate[tasks.task_id] = tasks
-        self.tasks_to_allocate = tasks_to_allocate
+            self.tasks_to_allocate[tasks.task_id] = tasks
+        self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
 
     def announce_task(self):
         tasks = list(self.tasks_to_allocate.values())
@@ -156,6 +153,7 @@ class Auctioneer(SimulatorInterface):
         closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
 
         if not self.is_valid_time(closure_time) and self.alternative_timeslots:
+            # Closure window should be long enough to allow robots to bid (tune if necessary)
             closure_time = self.get_current_time() + self.closure_window
 
         elif not self.is_valid_time(closure_time) and not self.alternative_timeslots:
@@ -173,6 +171,10 @@ class Auctioneer(SimulatorInterface):
                            simulator=self.simulator)
 
         self.deleted_a_task.clear()
+        for task in tasks:
+            if not task.constraints.hard:
+                self.update_soft_constraints(task)
+
         task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.ztp)
 
         self.logger.debug("Starting round: %s", self.round.id)
@@ -184,6 +186,17 @@ class Auctioneer(SimulatorInterface):
 
         self.round.start()
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
+
+    def update_soft_constraints(self, task):
+        hard_pickup_constraint = task.get_timepoint_constraint("pickup")
+        pickup_time_window = hard_pickup_constraint.latest_time - hard_pickup_constraint.earliest_time
+
+        earliest_pickup_time = self.get_current_time() + timedelta(minutes=5)
+        latest_pickup_time = earliest_pickup_time + pickup_time_window
+        soft_pickup_constraint = TimepointConstraint(name="pickup",
+                                                     earliest_time=earliest_pickup_time,
+                                                     latest_time=latest_pickup_time)
+        task.update_timepoint_constraint(**soft_pickup_constraint.to_dict())
 
     def bid_cb(self, msg):
         payload = msg['payload']
@@ -220,15 +233,6 @@ class Auctioneer(SimulatorInterface):
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
             self.round.finish()
-
-    def remove_task(self, task):
-        self.logger.debug("Deleting task %s", task.task_id)
-        timetable = self.timetable_manager.get_timetable(task.assigned_robots[0])
-        timetable.remove_task(task.task_id)
-        self.allocated_tasks.pop(task.task_id)
-        self.deleted_a_task.append(task.assigned_robots[0])
-        self.logger.debug("STN robot %s: %s", task.assigned_robots[0], timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", task.assigned_robots[0], timetable.dispatchable_graph)
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph

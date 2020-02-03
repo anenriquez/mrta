@@ -17,7 +17,7 @@ class RecoveryMethod:
             raise ValueError(name)
         return name
 
-    def recover(self, timetable, task, last_assignment):
+    def recover(self, timetable, task, is_consistent):
         next_task = timetable.get_next_task(task)
 
         if next_task and (self.name == "re-allocate" and self.is_next_task_late(timetable, task, next_task)) \
@@ -76,12 +76,12 @@ class Corrective(RecoveryMethod):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def recover(self, timetable, task, last_assignment):
+    def recover(self, timetable, task, is_consistent):
         """ React only if the last assignment was inconsistent
         """
-        if last_assignment.is_consistent:
+        if is_consistent:
             return False
-        elif not last_assignment.is_consistent and super().recover(timetable, task, last_assignment):
+        elif not is_consistent and super().recover(timetable, task, is_consistent):
             return True
 
 
@@ -99,10 +99,10 @@ class Preventive(RecoveryMethod):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def recover(self, timetable, task, last_assignment):
-        """ React both, when the last_assignment was consistent and when it was inconsistent
+    def recover(self, timetable, task, is_consistent):
+        """ React both, when the last assignment was consistent and when it was inconsistent
         """
-        return super().recover(timetable, task, last_assignment)
+        return super().recover(timetable, task, is_consistent)
 
 
 class RecoveryMethodFactory:

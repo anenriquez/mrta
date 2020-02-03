@@ -33,11 +33,12 @@ delay_recovery:
   method: re-allocate
 
 auctioneer:
-  closure_window: 5 # seconds
+  closure_window: 5 # minutes
   alternative_timeslots: True
 
 dispatcher:
-  freeze_window: 5 # seconds
+  freeze_window: 0.1 # minutes
+  n_queued_tasks: 3
 
 bidder:
   bidding_rule:
@@ -63,13 +64,15 @@ ccu_api:
       groups:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - START-TEST
         - BID
         - NO-BID
         - SOFT-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
-        - START-TEST
-        - TASK-STATUS
-        - ASSIGNMENT-UPDATE
+        - TASK-PROGRESS
+        - RE-ALLOCATE
+        - ABORT
+        - RE-SCHEDULE
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -90,6 +93,10 @@ ccu_api:
         msg_type: 'DISPATCH-QUEUE-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
+      remove-task:
+        msg_type: 'REMOVE-TASK'
+        groups: ['TASK-ALLOCATION']
+        method: whisper
     callbacks:
       - msg_type: 'START-TEST'
         component: '.start_test_cb'
@@ -101,10 +108,14 @@ ccu_api:
         component: 'auctioneer.soft_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
-      - msg_type: 'TASK-STATUS'
-        component: '.task_status_cb'
-      - msg_type: 'ASSIGNMENT-UPDATE'
-        component: '.assignment_update_cb'
+      - msg_type: 'TASK-PROGRESS'
+        component: 'timetable_monitor.task_progress_cb'
+      - msg_type: 'RE-ALLOCATE'
+        component: 'timetable_monitor.re_allocate_cb'
+      - msg_type: 'ABORT'
+        component: 'timetable_monitor.abort_cb'
+      - msg_type: 'RE-SCHEDULE'
+        component: 'timetable_monitor.re_schedule_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -121,8 +132,8 @@ robot_proxy_api:
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
         - ROBOT-POSE
-        - TASK-STATUS
-        - ASSIGNMENT-UPDATE
+        - TASK-PROGRESS
+        - REMOVE-TASK
       debug_msgs: false
     acknowledge: false
     publish:
@@ -149,12 +160,12 @@ robot_proxy_api:
         component: 'bidder.task_contract_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
-      - msg_type: 'TASK-STATUS'
-        component: '.task_status_cb'
+      - msg_type: 'REMOVE-TASK'
+        component: '.remove_task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
-      - msg_type: 'ASSIGNMENT-UPDATE'
-        component: '.assignment_update_cb'
+      - msg_type: 'TASK-PROGRESS'
+        component: '.task_progress_cb'
 
 
 robot_api:
@@ -173,17 +184,21 @@ robot_api:
       debug_msgs: false
     acknowledge: false
     publish:
-      task-status:
+      task-progress:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-STATUS'
+        msg_type: 'TASK-PROGRESS'
         method: shout
       re-allocate:
         groups: ['TASK-ALLOCATION']
         msg_type: 'RE-ALLOCATE'
         method: shout
-      assignment-update:
+      abort:
+        msg_type: 'ABORT'
         groups: ['TASK-ALLOCATION']
-        msg_type: 'ASSIGNMENT-UPDATE'
+        method: shout
+      re-schedule:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'RE-SCHEDULE'
         method: shout
     callbacks:
       - msg_type: 'DISPATCH-QUEUE-UPDATE'

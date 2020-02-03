@@ -1,84 +1,113 @@
 import logging
 
 import numpy as np
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
-
+from fmlib.models.actions import Action
+from fmlib.models.tasks import TaskStatus
+from mrs.db.models.task import Task
 from mrs.db.models.task import TimepointConstraint
 from mrs.exceptions.execution import InconsistentAssignment
-from mrs.messages.assignment_update import Assignment
-from mrs.simulation.simulator import SimulatorInterface
+from mrs.messages.task_progress import ActionProgress, TaskProgress
+from pymodm.context_managers import switch_collection
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
-class Executor(SimulatorInterface):
-    def __init__(self, robot_id, timetable, max_seed, **kwargs):
-        simulator = kwargs.get('simulator')
-        super().__init__(simulator)
-
+class Executor:
+    def __init__(self, robot_id, api, timetable, max_seed, **kwargs):
         self.robot_id = robot_id
+        self.api = api
         self.timetable = timetable
 
         random_seed = np.random.randint(max_seed)
         self.random_state = np.random.RandomState(random_seed)
 
         self.delay_n_standard_dev = kwargs.get('delay_n_standard_dev', 0)
+        self.current_task = None
+        self.action_progress = None
 
         self.logger = logging.getLogger("mrs.executor.%s" % self.robot_id)
         self.logger.debug("Executor initialized %s", self.robot_id)
 
-    def is_executable(self, start_time):
-        if start_time < self.get_current_time():
-            return True
-        return False
+    def send_task_progress(self, task):
+        try:
+            task_status = task.status
+        except DoesNotExist:
+            with switch_collection(Task, Task.Meta.archive_collection):
+                with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+                    task_status = TaskStatus.objects.get({"_id": task.task_id})
+
+        task_progress = TaskProgress(task.task_id, task_status.status, self.robot_id, self.action_progress)
+        self.logger.debug("Sending task progress: \n %s", task_progress)
+        msg = self.api.create_message(task_progress)
+        self.api.publish(msg)
 
     def start_execution(self, task):
-        self.logger.info("Start executing task %s", task.task_id)
-        task.update_status(TaskStatusConst.ONGOING)
+        self.logger.info("Starting execution of task %s", task.task_id)
+        # Get first action
         action = task.plan[0].actions[0]
-        task.update_progress(action.action_id, ActionStatus.ONGOING)
-        self.timetable.stn.execute_timepoint(task.task_id, "start")
 
-    def execute_action(self, task, action):
-        self.logger.debug("Current action %s: ", action.type)
-        constraint = task.get_inter_timepoint_constraint(action.estimated_duration.name)
-        duration = constraint.sample_duration(self.random_state, self.delay_n_standard_dev)
+        # Set current task and create action progress object
+        self.current_task = task
+        self.action_progress = ActionProgress(action.action_id)
 
+        # Update task
+        task.update_status(TaskStatusConst.ONGOING)
+        task.update_progress(self.action_progress.action_id, self.action_progress.status)
+
+    def execute(self):
+        action = Action.get_action(self.action_progress.action_id)
+        self.logger.debug("Current action %s: ", action)
+
+        duration = self.get_action_duration(action)
         start_node, finish_node = action.get_node_names()
-        prev_action_time = self.timetable.stn.get_time(task.task_id, start_node)
-        r_assigned_time = prev_action_time + duration
 
-        assigned_time = TimepointConstraint.absolute_time(self.timetable.zero_timepoint, r_assigned_time)
-        assignment = self.assign_timepoint(r_assigned_time, task.task_id, finish_node)
-        self.logger.info("Task: %s Action: %s Time: %s", task.task_id, action.type, assigned_time)
+        r_start_time = self.timetable.stn.get_time(self.current_task.task_id, start_node)
+        self.update_action(ActionStatus.ONGOING, r_start_time)
+        self.send_task_progress(self.current_task)
 
-        # wait until assigned_time is present time
-        # TODO: Refactor execution to be controlled by while in robot.py
-        while self.get_current_time() < assigned_time:
-            # time.sleep(0.01)
-            self.run()
+        r_finish_time = r_start_time + duration
+        self.update_action(ActionStatus.COMPLETED, r_finish_time)
 
-        self.execute(task.task_id, start_node, finish_node)
+        self.execute_stn(self.current_task.task_id, start_node, finish_node)
+        self.send_task_progress(self.current_task)
 
-        task.update_progress(action.action_id, ActionStatus.COMPLETED)
-        return assignment
+        current_action = self.current_task.status.progress.current_action
+
+        # Create action progress for new current action
+        if current_action.action_id != self.action_progress.action_id:
+            self.action_progress = ActionProgress(current_action.action_id)
+
+    def get_action_duration(self, action):
+        duration = action.estimated_duration.sample_duration(self.random_state, self.delay_n_standard_dev)
+        return duration
+
+    def update_action(self, action_status, r_time):
+        abs_time = TimepointConstraint.absolute_time(self.timetable.zero_timepoint, r_time)
+        self.action_progress.update(action_status, abs_time, r_time)
+        self.current_task.update_progress(self.action_progress.action_id, self.action_progress.status)
+
+    def complete_execution(self):
+        self.logger.debug("Completing execution of task %s", self.current_task.task_id)
+        self.current_task.update_finish_time(self.action_progress.finish_time)
+        self.current_task.update_status(TaskStatusConst.COMPLETED)
+        self.send_task_progress(self.current_task)
+        self.current_task = None
 
     def assign_timepoint(self, assigned_time, task_id, node_type):
         self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task_id, node_type)
         try:
             self.timetable.assign_timepoint(assigned_time, task_id, node_type)
-            assignment = Assignment(task_id, assigned_time, node_type, is_consistent=True)
 
         except InconsistentAssignment as e:
             self.logger.warning("Assignment of time %s to task %s node_type %s is inconsistent "
                                 "Assigning anyway.. ", e.assigned_time, e.task_id, e.node_type)
             self.timetable.stn.assign_timepoint(e.assigned_time, e.task_id, e.node_type, force=True)
-            assignment = Assignment(task_id, assigned_time, node_type, is_consistent=False)
+            self.action_progress.is_consistent = False
 
-        self.logger.debug("STN with assigned value %s", self.timetable.stn)
-        return assignment
-
-    def execute(self, task_id, start_node, finish_node):
-        self.logger.critical("Execute task %s node %s", task_id, finish_node)
+    def execute_stn(self, task_id, start_node, finish_node):
+        self.assign_timepoint(self.action_progress.r_finish_time, self.current_task.task_id, finish_node)
+        self.timetable.stn.execute_timepoint(task_id, start_node)
         self.timetable.stn.execute_timepoint(task_id, finish_node)
         start_node_idx, finish_node_idx = self.timetable.stn.get_edge_nodes_idx(task_id, start_node, finish_node)
         self.timetable.stn.execute_edge(start_node_idx, finish_node_idx)
-        self.logger.debug("STN with executed timepoint: %s",  self.timetable.stn)
+        self.logger.debug("STN: \n %s",  self.timetable.stn)

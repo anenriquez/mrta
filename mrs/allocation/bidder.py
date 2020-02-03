@@ -302,10 +302,3 @@ class Bidder:
 
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
-
-    def remove_task(self, task):
-        self.logger.debug("Deleting task %s", task.task_id)
-        self.timetable.remove_task(task.task_id)
-        self.deleted_a_task = True
-        self.logger.debug("STN robot %s: %s", self.robot_id, self.timetable.stn)
-        self.logger.debug("Dispatchable graph robot %s: %s", self.robot_id, self.timetable.dispatchable_graph)
