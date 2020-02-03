@@ -141,6 +141,14 @@ class Task(BaseTask):
         self.status.delayed = True
         self.save()
 
+    def update_start_time(self, start_time):
+        self.start_time = start_time
+        self.save()
+
+    def update_finish_time(self, finish_time):
+        self.finish_time = finish_time
+        self.save()
+
     def get_timepoint_constraint(self, name):
         return [constraint for constraint in self.constraints.timepoint_constraints
                 if constraint.name == name].pop()

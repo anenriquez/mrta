@@ -1,15 +1,15 @@
 
 import logging
+from datetime import timedelta
 
+from mrs.simulation.simulator import SimulatorInterface
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
-from mrs.dispatching.schedule_monitor import ScheduleMonitor
 
+class Dispatcher(SimulatorInterface):
 
-class Dispatcher(object):
-
-    def __init__(self, stp_solver, timetable_manager, freeze_window, **kwargs):
+    def __init__(self, stp_solver, timetable_manager, freeze_window, n_queued_tasks, **kwargs):
         """ Dispatches tasks to a multi-robot system based on temporal constraints
 
         Args:
@@ -23,13 +23,17 @@ class Dispatcher(object):
                 api (API): object that provides middleware functionality
                 robot_store (robot_store): interface to interact with the db
         """
+        simulator = kwargs.get('simulator')
+        super().__init__(simulator)
+
         self.logger = logging.getLogger('mrs.dispatcher')
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
 
         self.stp_solver = stp_solver
         self.timetable_manager = timetable_manager
-        self.schedule_monitor = ScheduleMonitor(self.timetable_manager, freeze_window, **kwargs)
+        self.freeze_window = timedelta(minutes=freeze_window)
+        self.n_queued_tasks = n_queued_tasks
 
         self.robot_ids = list()
 
@@ -50,6 +54,12 @@ class Dispatcher(object):
     def run(self):
         self.dispatch_tasks()
 
+    def is_schedulable(self, start_time):
+        current_time = self.get_current_timestamp()
+        if start_time.get_difference(current_time) < self.freeze_window:
+            return True
+        return False
+
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
@@ -57,7 +67,7 @@ class Dispatcher(object):
                 task = timetable.get_earliest_task()
                 if task and task.status.status == TaskStatusConst.PLANNED:
                     start_time = timetable.get_start_time(task.task_id)
-                    if self.schedule_monitor.is_schedulable(start_time):
+                    if self.is_schedulable(start_time):
                         task.freeze()
                         self.dispatch_task(task, robot_id)
             except DoesNotExist:
@@ -75,3 +85,10 @@ class Dispatcher(object):
         task_msg = self.api.create_message(task)
         self.api.publish(task_msg)
         task.update_status(TaskStatusConst.DISPATCHED)
+
+    def send_d_graph_update(self, robot_id):
+        self.logger.debug("Sending DGraphUpdate to %s", robot_id)
+        timetable = self.timetable_manager.get_timetable(robot_id)
+        dispatch_queue_update = timetable.get_dispatch_queue_update(self.n_queued_tasks)
+        msg = self.api.create_message(dispatch_queue_update)
+        self.api.publish(msg, peer=robot_id)

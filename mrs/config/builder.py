@@ -1,8 +1,5 @@
 import logging
 
-from planner.planner import Planner
-from stn.stp import STP
-
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.allocation.bidder import Bidder
 from mrs.dispatching.dispatcher import Dispatcher
@@ -12,6 +9,9 @@ from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.timetable.timetable_manager import TimetableManager
+from mrs.timetable.timetable_monitor import TimetableMonitor
+from planner.planner import Planner
+from stn.stp import STP
 
 
 class MRTABuilder:
@@ -26,6 +26,7 @@ class MRTABuilder:
                           'bidder': Bidder,
                           'executor': Executor,
                           'schedule_monitor': ScheduleMonitor,
+                          'timetable_monitor': TimetableMonitor,
                           }
 
     _config_order = ['simulator',
@@ -37,7 +38,9 @@ class MRTABuilder:
                      'dispatcher',
                      'bidder',
                      'executor',
-                     'schedule_monitor']
+                     'schedule_monitor',
+                     'timetable_monitor',
+                     ]
 
     """ Maps an allocation method to its stp_solver solver """
     _allocation_methods = {'tessi': 'fpc',

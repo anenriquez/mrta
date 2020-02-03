@@ -55,7 +55,7 @@ class AsDictMixin:
 
     @classmethod
     def _get_value(cls, key, value):
-        if key == 'task_id' or key == 'round_id':
+        if key == 'task_id' or key == 'round_id' or key == 'action_id':
             return from_str(value)
         elif key == 'zero_timepoint':
             return TimeStamp.from_str(value)

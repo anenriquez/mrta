@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime
 
 import simpy.rt
@@ -9,22 +10,27 @@ class Simulator:
         """ Controls the simulation time
 
         initial_time(datetime): Datetime object representing initial time
-        factor(float): Real time (in seconds) that passes between each simulation step
-                        e.g. with a factor of 0.05, a simulation step takes 0.05 seconds
+        factor(float): Time (in seconds) between each simulation step,
+                        e.g. with a factor of 0.05, a step is incremented every 0.05 seconds
         """
-        self.env = simpy.rt.RealtimeEnvironment(initial_time=initial_time.timestamp(), factor=factor, strict=False)
+        self._factor = factor
+        self._env = simpy.Environment(initial_time=initial_time.timestamp())
+        self._timer = None
         self.current_time = initial_time
 
-    def get_current_time(self):
-        return self.current_time
-
     def step(self):
-        self.current_time = datetime.fromtimestamp(self.env.now)
-        yield self.env.timeout(1)
+        self.current_time = datetime.fromtimestamp(self._env.now)
+        yield self._env.timeout(1)
 
     def run(self):
-        proc = self.env.process(self.step())
-        self.env.run(until=proc)
+        self._timer = threading.Timer(self._factor, self.run)
+        self._timer.start()
+        self._env.process(self.step())
+        self._env.run()
+
+    def stop(self):
+        if self._timer:
+            self._timer.cancel()
 
     def is_valid_time(self, time_):
         """ Returns:
@@ -39,9 +45,20 @@ class Simulator:
 class SimulatorInterface:
     def __init__(self, simulator):
         self.simulator = simulator
+        self._started = False
+
+    def start(self):
+        self._started = True
+        if self.simulator:
+            self.run()
+
+    def stop(self):
+        self._started = False
+        if self.simulator:
+            self.simulator.stop()
 
     def is_valid_time(self, time_):
-        if self.simulator is not None:
+        if self.simulator:
             return self.simulator.is_valid_time(time_)
         else:
             if time_ > datetime.now():
@@ -49,14 +66,14 @@ class SimulatorInterface:
             return False
 
     def get_current_time(self):
-        if self.simulator is not None:
-            return self.simulator.get_current_time()
+        if self.simulator:
+            return self.simulator.current_time
         else:
             return datetime.now()
 
     def get_current_timestamp(self):
-        if self.simulator is not None:
-            return TimeStamp.from_datetime(self.simulator.get_current_time())
+        if self.simulator:
+            return TimeStamp.from_datetime(self.simulator.current_time)
         else:
             return TimeStamp()
 
@@ -67,5 +84,5 @@ class SimulatorInterface:
         return ztp
 
     def run(self):
-        if self.simulator is not None:
+        if self.simulator and self._started:
             self.simulator.run()

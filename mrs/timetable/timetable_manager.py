@@ -60,7 +60,8 @@ class TimetableManager(object):
             self.timetables.update({robot_id: timetable})
 
         except NoSTPSolution:
-            self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id, insertion_point)
+            self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id,
+                                allocation_info.insertion_point)
             raise InvalidAllocation(task.task_id, robot_id, allocation_info.insertion_point)
 
         timetable.store()

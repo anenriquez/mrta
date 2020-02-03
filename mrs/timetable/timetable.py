@@ -2,23 +2,20 @@ import copy
 import logging
 from datetime import timedelta
 
+from mrs.db.models.task import Task
+from mrs.db.models.timetable import Timetable as TimetableMongo
+from mrs.exceptions.allocation import TaskNotFound
+from mrs.exceptions.execution import InconsistentAssignment
+from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
+from mrs.simulation.simulator import SimulatorInterface
+from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
-from stn.task import InterTimepointConstraint as STNInterTimepointConstraint
-from stn.task import Task as STNTask
-from stn.task import TimepointConstraint as STNTimepointConstraint
-
-from mrs.db.models.task import Task
-from mrs.db.models.task import TimepointConstraint
-from mrs.db.models.timetable import Timetable as TimetableMongo
-from mrs.exceptions.allocation import TaskNotFound
-from mrs.exceptions.execution import InconsistentAssignment
-from mrs.simulation.simulator import SimulatorInterface
 
 
-class Timetable(SimulatorInterface):
+class Timetable(STNInterface):
     """
     Each robot has a timetable, which contains temporal information about the robot's
     allocated tasks:
@@ -32,16 +29,16 @@ class Timetable(SimulatorInterface):
     """
 
     def __init__(self, robot_id, stp_solver, **kwargs):
-        simulator = kwargs.get('simulator')
-        super().__init__(simulator)
 
         self.robot_id = robot_id
         self.stp_solver = stp_solver
-        self.ztp = self.init_ztp()
 
+        simulator_interface = SimulatorInterface(kwargs.get("simulator"))
+
+        self.ztp = simulator_interface.init_ztp()
         self.stn = self.stp_solver.get_stn()
         self.dispatchable_graph = self.stp_solver.get_stn()
-        self.stn_tasks = dict()
+        super().__init__(self.ztp, self.stn, self.dispatchable_graph)
 
         self.logger = logging.getLogger("mrs.timetable.%s" % self.robot_id)
         self.logger.debug("Timetable %s started", self.robot_id)
@@ -57,12 +54,6 @@ class Timetable(SimulatorInterface):
         except NoSTPSolution:
             raise NoSTPSolution()
 
-    def insert_task(self, stn_task, insertion_point):
-        self.stn.add_task(stn_task, insertion_point)
-
-    def update_task(self, stn_task):
-        self.stn.update_task(stn_task)
-
     def assign_timepoint(self, assigned_time, task_id, node_type):
         stn = copy.deepcopy(self.stn)
         minimal_network = get_minimal_network(stn)
@@ -73,105 +64,27 @@ class Timetable(SimulatorInterface):
                 return
         raise InconsistentAssignment(assigned_time, task_id, node_type)
 
-    def to_stn_task(self, task, insertion_point):
-        self.update_pickup_constraint(task, insertion_point)
-        self.update_start_constraint(task, insertion_point)
-        self.update_delivery_constraint(task)
-        stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
-        stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
-        return stn_task
+    def update_timetable(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
+        self.update_stn(task_id, start_node, finish_node, r_start_time, r_finish_time)
+        self.update_dispatchable_graph(task_id, start_node, finish_node, r_start_time, r_finish_time)
 
-    def update_stn_task(self, task, insertion_point):
-        self.update_start_constraint(task, insertion_point)
-        stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
-        stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
-        return stn_task
+    def update_stn(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
+        self.stn.assign_timepoint(r_start_time, task_id, start_node, force=True)
+        self.stn.assign_timepoint(r_finish_time, task_id, finish_node, force=True)
+        self.stn.execute_timepoint(task_id, start_node)
+        self.stn.execute_timepoint(task_id, finish_node)
+        start_node_idx, finish_node_idx = self.stn.get_edge_nodes_idx(task_id, start_node, finish_node)
+        self.stn.execute_edge(start_node_idx, finish_node_idx)
+        self.stn.remove_old_timepoints()
 
-    def get_stn_task(self, task_id):
-        return self.stn_tasks.get(task_id)
-
-    def add_stn_task(self, stn_task):
-        self.stn_tasks[stn_task.task_id] = stn_task
-
-    def update_pickup_constraint(self, task, insertion_point):
-        hard_pickup_constraint = task.get_timepoint_constraint("pickup")
-        pickup_time_window = hard_pickup_constraint.latest_time - hard_pickup_constraint.earliest_time
-
-        if not task.constraints.hard:
-            if insertion_point == 1:
-                earliest_pickup_time = self.get_current_time() + timedelta(minutes=1)
-                latest_pickup_time = earliest_pickup_time + pickup_time_window
-                soft_pickup_constraint = TimepointConstraint(name="pickup",
-                                                             earliest_time=earliest_pickup_time,
-                                                             latest_time=latest_pickup_time)
-            elif insertion_point > 1:
-                r_earliest_delivery_time_previous_task = self.get_r_time_previous_task(insertion_point, "delivery")
-                travel_time = task.get_inter_timepoint_constraint("travel_time")
-                earliest_pickup_time = r_earliest_delivery_time_previous_task + (travel_time.mean - 2*travel_time.variance**0.5)
-
-                latest_pickup_time = earliest_pickup_time + pickup_time_window.total_seconds()
-                soft_pickup_constraint = TimepointConstraint(name="pickup",
-                                                             earliest_time=TimepointConstraint.absolute_time(self.ztp, earliest_pickup_time),
-                                                             latest_time=TimepointConstraint.absolute_time(self.ztp, latest_pickup_time))
-            task.update_timepoint_constraint(**soft_pickup_constraint.to_dict())
-
-    def previous_task_is_frozen(self, insertion_point):
-        previous_task = self.get_task(insertion_point-1)
-        if previous_task.frozen:
-            return True
-        return False
-
-    def get_r_time_previous_task(self, insertion_point, node_type, earliest=True):
-        # From stn or from dispatchable graph?
-        previous_task = self.get_task(insertion_point-1)
-        return self.dispatchable_graph.get_time(previous_task.task_id, node_type, earliest)
-
-    def update_start_constraint(self, task, insertion_point):
-        pickup_constraint = task.get_timepoint_constraint("pickup")
-        travel_time = task.get_inter_timepoint_constraint("travel_time")
-        stn_start_constraint = self.stn.get_prev_timepoint_constraint("start",
-                                                                      STNTimepointConstraint(**pickup_constraint.to_dict_relative_to_ztp(self.ztp)),
-                                                                      STNInterTimepointConstraint(**travel_time.to_dict()))
-
-        if insertion_point > 1 and self.previous_task_is_frozen(insertion_point):
-            r_latest_delivery_time_previous_task = self.get_r_time_previous_task(insertion_point, "delivery", earliest=False)
-            stn_start_constraint.r_earliest_time = max(stn_start_constraint.r_earliest_time,
-                                                       r_latest_delivery_time_previous_task)
-
-        earliest_time = TimepointConstraint.absolute_time(self.ztp, stn_start_constraint.r_earliest_time)
-        latest_time = TimepointConstraint.absolute_time(self.ztp, stn_start_constraint.r_latest_time)
-        start_constraint = TimepointConstraint(name="start",
-                                               earliest_time=earliest_time,
-                                               latest_time=latest_time)
-
-        task.update_timepoint_constraint(**start_constraint.to_dict())
-
-    def update_delivery_constraint(self, task):
-        pickup_constraint = task.get_timepoint_constraint("pickup")
-        work_time = task.get_inter_timepoint_constraint("work_time")
-        stn_delivery_constraint = self.stn.get_next_timepoint_constraint("delivery",
-                                                                         STNTimepointConstraint(**pickup_constraint.to_dict_relative_to_ztp(self.ztp)),
-                                                                         STNInterTimepointConstraint(**work_time.to_dict()))
-        earliest_time = TimepointConstraint.absolute_time(self.ztp, stn_delivery_constraint.r_earliest_time)
-        latest_time = TimepointConstraint.absolute_time(self.ztp, stn_delivery_constraint.r_latest_time)
-        delivery_constraint = TimepointConstraint(name="delivery",
-                                                  earliest_time=earliest_time,
-                                                  latest_time=latest_time)
-        task.update_timepoint_constraint(**delivery_constraint.to_dict())
-
-    def get_constraints(self, task):
-        stn_timepoint_constraints = list()
-        stn_inter_timepoint_constraints = list()
-
-        timepoint_constraints = task.get_timepoint_constraints()
-        for constraint in timepoint_constraints:
-            stn_timepoint_constraints.append(STNTimepointConstraint(**constraint.to_dict_relative_to_ztp(self.ztp)))
-
-        inter_timepoint_constraints = task.get_inter_timepoint_constraints()
-        for constraint in inter_timepoint_constraints:
-            stn_inter_timepoint_constraints.append(STNInterTimepointConstraint(**constraint.to_dict()))
-
-        return stn_timepoint_constraints, stn_inter_timepoint_constraints
+    def update_dispatchable_graph(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
+        self.dispatchable_graph.assign_timepoint(r_start_time, task_id, start_node, force=True)
+        self.dispatchable_graph.assign_timepoint(r_finish_time, task_id, finish_node, force=True)
+        self.dispatchable_graph.execute_timepoint(task_id, start_node)
+        self.dispatchable_graph.execute_timepoint(task_id, finish_node)
+        start_node_idx, finish_node_idx = self.dispatchable_graph.get_edge_nodes_idx(task_id, start_node, finish_node)
+        self.dispatchable_graph.execute_edge(start_node_idx, finish_node_idx)
+        self.dispatchable_graph.remove_old_timepoints()
 
     def get_tasks(self):
         """ Returns the tasks contained in the timetable
@@ -273,6 +186,11 @@ class Timetable(SimulatorInterface):
         self.stn.remove_node_ids(task_node_ids)
         self.dispatchable_graph.remove_node_ids(task_node_ids)
         self.store()
+
+    def get_dispatch_queue_update(self, n_tasks):
+        sub_stn = self.stn.get_subgraph(n_tasks)
+        sub_dispatchable_graph = self.dispatchable_graph.get_subgraph(n_tasks)
+        return DispatchQueueUpdate(self.ztp, sub_stn, sub_dispatchable_graph)
 
     def to_dict(self):
         timetable_dict = dict()
