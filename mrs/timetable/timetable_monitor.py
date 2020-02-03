@@ -69,6 +69,7 @@ class TimetableMonitor(SimulatorInterface):
             start_node, finish_node = action.get_node_names()
             timetable.update_timetable(task.task_id, start_node, finish_node,
                                        action_progress.r_start_time, action_progress.r_finish_time)
+            self.auctioneer.changed_timetable.append(robot_id)
 
             self.logger.debug("Updated stn: \n %s ", timetable.stn)
             self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
@@ -101,12 +102,13 @@ class TimetableMonitor(SimulatorInterface):
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
             stn = timetable.stn
+            self.logger.debug("Recomputing dispatchable graph of robot %s", robot_id)
             try:
                 dispatchable_graph = timetable.compute_dispatchable_graph(stn)
                 self.logger.debug("Updated DispatchableGraph %s: ", dispatchable_graph)
                 timetable.dispatchable_graph = dispatchable_graph
+                self.auctioneer.changed_timetable.append(robot_id)
                 timetable.store()
-                # TODO: Send different msg
                 self.dispatcher.send_d_graph_update(robot_id)
             except NoSTPSolution:
                 self.logger.warning("Temporal network becomes inconsistent")
@@ -124,7 +126,7 @@ class TimetableMonitor(SimulatorInterface):
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
             timetable.remove_task(task.task_id)
-            self.auctioneer.deleted_a_task.append(robot_id)
+            self.auctioneer.changed_timetable.append(robot_id)
             self.dispatcher.send_d_graph_update(robot_id)
             self.send_remove_task(task.task_id, status, robot_id)
             task.update_status(status)

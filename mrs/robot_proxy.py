@@ -75,6 +75,7 @@ class RobotProxy:
             start_node, finish_node = action.get_node_names()
             self.timetable.update_timetable(task.task_id, start_node, finish_node,
                                             action_progress.r_start_time, action_progress.r_finish_time)
+            self.bidder.changed_timetable = True
 
             self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
             self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
@@ -100,7 +101,7 @@ class RobotProxy:
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         self.timetable.remove_task(task.task_id)
-        self.bidder.deleted_a_task = True
+        self.bidder.changed_timetable = True
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph: %s", self.timetable.dispatchable_graph)
