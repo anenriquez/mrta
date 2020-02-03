@@ -55,7 +55,7 @@ class Bidder:
 
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
-        self.deleted_a_task = False
+        self.changed_timetable = False
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
@@ -82,11 +82,11 @@ class Bidder:
         if task_contract.robot_id == self.robot_id:
             self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
 
-            if not self.deleted_a_task:
+            if not self.changed_timetable:
                 self.allocate_to_robot(task_contract.task_id)
                 self.send_contract_acknowledgement(task_contract, accept=True)
             else:
-                self.logger.warning("A task was removed before the round was completed, "
+                self.logger.warning("The timetable changed before the round was completed, "
                                     "as a result, the bid placed %s is no longer valid ",
                                     self.bid_placed)
                 self.send_contract_acknowledgement(task_contract, accept=False)
@@ -95,7 +95,7 @@ class Bidder:
         bids = list()
         no_bids = list()
         round_id = task_announcement.round_id
-        self.deleted_a_task = False
+        self.changed_timetable = False
         self.bid_placed = None
 
         for task in task_announcement.tasks:
@@ -282,8 +282,8 @@ class Bidder:
         self.timetable.store()
 
         self.logger.debug("Robot %s allocated task %s", self.robot_id, task_id)
-        self.logger.debug("STN %s", self.timetable.stn)
-        self.logger.debug("Dispatchable graph %s", self.timetable.dispatchable_graph)
+        self.logger.debug("STN: \n %s", self.timetable.stn)
+        self.logger.debug("Dispatchable graph: \n %s", self.timetable.dispatchable_graph)
 
         tasks = [task for task in self.timetable.get_tasks()]
 
@@ -291,6 +291,22 @@ class Bidder:
         task = Task.get_task(task_id)
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
+
+    def task_contract_acknowledgement_cb(self, msg):
+        payload = msg['payload']
+        ack = TaskContractAcknowledgment.from_payload(payload)
+        if not ack.accept:
+            self.logger.warning("Undoing allocation of task %s", ack.task_id)
+            self.timetable.remove_task(ack.task_id)
+            for stn_task in ack.allocation_info.stn_tasks:
+                if stn_task.task_id != ack.task_id:
+                    self.timetable.update_task(stn_task)
+
+        tasks = [task for task in self.timetable.get_tasks()]
+
+        self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
+        self.logger.debug("STN: \n %s", self.timetable.stn)
+        self.logger.debug("Dispatchable graph: \n %s", self.timetable.dispatchable_graph)
 
     def send_contract_acknowledgement(self, task_contract, accept=True):
         allocation_info = self.bid_placed.get_allocation_info()

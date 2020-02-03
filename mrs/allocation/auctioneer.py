@@ -42,7 +42,7 @@ class Auctioneer(SimulatorInterface):
         self.allocations = list()
         self.pre_task_actions = list()
         self.winning_bid = None
-        self.deleted_a_task = list()
+        self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids, self.tasks_to_allocate)
 
@@ -170,7 +170,7 @@ class Auctioneer(SimulatorInterface):
                            alternative_timeslots=self.alternative_timeslots,
                            simulator=self.simulator)
 
-        self.deleted_a_task.clear()
+        self.changed_timetable.clear()
         for task in tasks:
             if not task.constraints.hard:
                 self.update_soft_constraints(task)
@@ -212,21 +212,31 @@ class Auctioneer(SimulatorInterface):
 
     def task_contract_acknowledgement_cb(self, msg):
         payload = msg['payload']
-        task_contract_ack = TaskContractAcknowledgment.from_payload(payload)
+        ack = TaskContractAcknowledgment.from_payload(payload)
 
-        if task_contract_ack.accept and task_contract_ack.robot_id not in self.deleted_a_task:
-            self.logger.debug("Concluding allocation of task %s", task_contract_ack.task_id)
-            self.process_allocation(task_contract_ack.allocation_info)
-        elif task_contract_ack.accept and task_contract_ack.robot_id in self.deleted_a_task:
-            # TODO: Send msg to delete last allocation
+        if ack.accept and ack.robot_id not in self.changed_timetable:
+            self.logger.debug("Concluding allocation of task %s", ack.task_id)
+            self.process_allocation(ack.allocation_info)
+
+        elif ack.accept and ack.robot_id in self.changed_timetable:
+            # Undo last allocation
             self.logger.warning("Round %s has to be repeated. Invalidating previous contract", self.round.id)
+            self.send_contract_acknowledgement(ack.task_id, ack.robot_id, ack.allocation_info, accept=False)
+
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
+
         self.round.finish()
+
+    def send_contract_acknowledgement(self, task_id, robot_id, allocation_info, accept):
+        task_contract_acknowledgement = TaskContractAcknowledgment(task_id, robot_id, allocation_info, accept)
+        msg = self.api.create_message(task_contract_acknowledgement)
+        self.logger.debug("Rejecting contract for task %s", task_id)
+        self.api.publish(msg, peer=robot_id + "_proxy")
 
     def announce_winner(self, task_id, robot_id):
         # Send TaskContract only if the timetable of robot_id has not changed since the round opened
-        if robot_id not in self.deleted_a_task:
+        if robot_id not in self.changed_timetable:
             task_contract = TaskContract(task_id, robot_id)
             msg = self.api.create_message(task_contract)
             self.api.publish(msg, groups=['TASK-ALLOCATION'])

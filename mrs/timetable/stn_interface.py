@@ -23,6 +23,7 @@ class STNInterface:
 
     def update_task(self, stn_task):
         self.stn.update_task(stn_task)
+        self.dispatchable_graph.update_task(stn_task)
 
     def to_stn_task(self, task, insertion_point):
         self.update_pickup_constraint(task, insertion_point)
