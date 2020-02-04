@@ -102,6 +102,7 @@ class RobotProxy:
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         self.timetable.remove_task(task.task_id)
         self.bidder.changed_timetable = True
+        task.unfreeze()
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph: %s", self.timetable.dispatchable_graph)

@@ -137,6 +137,10 @@ class Task(BaseTask):
         self.frozen = True
         self.save()
 
+    def unfreeze(self):
+        self.frozen = False
+        self.save()
+
     def mark_as_delayed(self):
         self.status.delayed = True
         self.save()
