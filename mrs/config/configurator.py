@@ -2,6 +2,7 @@ import logging.config
 
 from fmlib.api import API
 from fmlib.config.builders import Store
+
 from mrs.config.builder import MRTABuilder
 from mrs.config.params import ConfigParams
 
@@ -14,13 +15,15 @@ class Configurator:
         else:
             self._config_params = ConfigParams.from_file(config_file)
 
+        test_case = kwargs.get("test_case")
+        self._config_params.update(**test_case)
+
         self.logger = logging.getLogger('mrs')
         logger_config = self._config_params.get('logger')
         logging.config.dictConfig(logger_config)
 
         allocation_method = self._config_params.get('allocation_method')
         self._factory = MRTABuilder(allocation_method, **kwargs)
-
         self._components = dict()
 
     def configure(self, **config):

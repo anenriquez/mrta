@@ -1,6 +1,10 @@
 import argparse
 import logging.config
 
+from fmlib.utils.utils import load_file_from_module, load_yaml
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
+
 from mrs.config.configurator import Configurator
 from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
@@ -11,8 +15,6 @@ from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
-from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -151,10 +153,16 @@ class Robot:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
+    parser.add_argument('--case', type=int, action='store', default=1, help='Test case number')
     parser.add_argument('robot_id', type=str, help='example: robot_001')
     args = parser.parse_args()
+    case = args.case
 
-    config = Configurator(args.file, component_modules=_component_modules)
+    test_cases = load_file_from_module('mrs.tests.cases', 'test-cases.yaml')
+    test_config = {case: load_yaml(test_cases).get(case)}
+    test_case = test_config.popitem()[1]
+
+    config = Configurator(args.file, component_modules=_component_modules, test_case=test_case)
     components = config.config_robot(args.robot_id)
 
     robot = Robot(**components)

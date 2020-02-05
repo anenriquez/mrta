@@ -2,6 +2,11 @@ import argparse
 import logging.config
 
 from fmlib.models.tasks import TaskPlan
+from fmlib.utils.utils import load_file_from_module, load_yaml
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
@@ -12,46 +17,36 @@ from mrs.execution.delay_recovery import DelayRecovery
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.timetable_manager import TimetableManager
 from mrs.timetable.timetable_monitor import TimetableMonitor
-from planner.planner import Planner
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
+
+_component_modules = {'simulator': Simulator,
+                      'timetable_manager': TimetableManager,
+                      'auctioneer': Auctioneer,
+                      'dispatcher': Dispatcher,
+                      'planner': Planner,
+                      'delay_recovery': DelayRecovery,
+                      'timetable_monitor': TimetableMonitor,
+                      }
 
 
 class CCU:
 
-    _component_modules = {'simulator': Simulator,
-                          'timetable_manager': TimetableManager,
-                          'auctioneer': Auctioneer,
-                          'dispatcher': Dispatcher,
-                          'planner': Planner,
-                          'delay_recovery': DelayRecovery,
-                          'timetable_monitor': TimetableMonitor,
-                          }
+    def __init__(self, components, **kwargs):
 
-    def __init__(self, config_file=None):
-        self.logger = logging.getLogger("mrs.ccu")
-        self.logger.info("Configuring CCU...")
+        self.auctioneer = components.get('auctioneer')
+        self.dispatcher = components.get('dispatcher')
+        self.planner = components.get('planner')
+        self.timetable_manager = components.get('timetable_manager')
+        self.timetable_monitor = components.get("timetable_monitor")
+        self.simulator_interface = SimulatorInterface(components.get('simulator'))
 
-        self.components = self.get_components(config_file)
-
-        self.auctioneer = self.components.get('auctioneer')
-        self.dispatcher = self.components.get('dispatcher')
-        self.planner = self.components.get('planner')
-        self.timetable_manager = self.components.get('timetable_manager')
-        self.timetable_monitor = self.components.get("timetable_monitor")
-        self.simulator_interface = SimulatorInterface(self.components.get('simulator'))
-
-        self.api = self.components.get('api')
-        self.ccu_store = self.components.get('ccu_store')
+        self.api = components.get('api')
+        self.ccu_store = components.get('ccu_store')
 
         self.api.register_callbacks(self)
+        self.logger = logging.getLogger("mrs.ccu")
         self.logger.info("Initialized CCU")
 
         self.task_plans = dict()
-
-    def get_components(self, config_file):
-        config = Configurator(config_file, component_modules=self._component_modules)
-        return config.config_ccu()
 
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
@@ -127,9 +122,16 @@ class CCU:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-
+    parser.add_argument('--case', type=int, action='store', default=1, help='Test case number')
     args = parser.parse_args()
-    ccu = CCU(args.file)
+    case = args.case
+
+    test_cases = load_file_from_module('mrs.tests.cases', 'test-cases.yaml')
+    test_config = {case: load_yaml(test_cases).get(case)}
+    test_case = test_config.popitem()[1]
+
+    config = Configurator(args.file, component_modules=_component_modules, test_case=test_case)
+    components_ = config.config_ccu()
+    ccu = CCU(components_)
+
     ccu.run()
-
-

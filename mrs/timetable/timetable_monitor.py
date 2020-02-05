@@ -129,6 +129,7 @@ class TimetableMonitor(SimulatorInterface):
             self.auctioneer.changed_timetable.append(robot_id)
             self.dispatcher.send_d_graph_update(robot_id)
             self.send_remove_task(task.task_id, status, robot_id)
+            task.unfreeze()
             task.update_status(status)
 
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
