@@ -14,6 +14,7 @@ setup(name='mrs',
                 'mrs.timetable',
                 'mrs.dispatching',
                 'mrs.execution',
+                'mrs.simulation',
                 'mrs.utils'],
       version='0.2.0',
       description='Multi-Robot System (MRS) components for performing'
