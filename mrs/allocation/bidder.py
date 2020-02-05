@@ -49,10 +49,7 @@ class Bidder:
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
-        robustness = bidding_rule.get('robustness')
-        temporal = bidding_rule.get('temporal')
-        self.bidding_rule = BiddingRule(temporal, timetable)
-
+        self.bidding_rule = BiddingRule(bidding_rule, timetable)
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
         self.changed_timetable = False

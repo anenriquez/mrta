@@ -41,9 +41,7 @@ dispatcher:
   n_queued_tasks: 3
 
 bidder:
-  bidding_rule:
-    robustness: srea  # has to be the same as the stp_solver
-    temporal: completion_time
+  bidding_rule: completion_time
   auctioneer_name: fms_zyre_api # This is completely Zyre dependent
 
 executor:
@@ -85,6 +83,10 @@ ccu_api:
         msg_type: 'TASK-CONTRACT'
         groups: ['TASK-ALLOCATION']
         method: shout
+      task-contract-acknowledgement:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        method: whisper
       task:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
@@ -131,6 +133,7 @@ robot_proxy_api:
         - TASK
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
+        - TASK-CONTRACT-ACKNOWLEDGEMENT
         - ROBOT-POSE
         - TASK-PROGRESS
         - REMOVE-TASK
@@ -158,6 +161,8 @@ robot_proxy_api:
         component: 'bidder.task_announcement_cb'
       - msg_type: 'TASK-CONTRACT'
         component: 'bidder.task_contract_cb'
+      - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        component: 'bidder.task_contract_acknowledgement_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
       - msg_type: 'REMOVE-TASK'
