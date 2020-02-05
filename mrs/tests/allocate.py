@@ -1,10 +1,13 @@
 import argparse
+import json
 import logging.config
 import time
 
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
 from fmlib.models.tasks import TaskStatus
+from fmlib.utils.utils import load_file_from_module, load_yaml
+from importlib_resources import open_text
 from pymodm.context_managers import switch_collection
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.structs.task import TaskStatus as TaskStatusConst
@@ -13,13 +16,21 @@ from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
 from mrs.simulation.simulator import Simulator, SimulatorInterface
-from mrs.tests.fixtures.utils import get_msg_fixture
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.utils import load_yaml_file
 
 
+def get_msg_fixture(msg_file):
+    msg_module = 'mrs.tests.messages'
+
+    with open_text(msg_module, msg_file) as json_msg:
+        msg = json.load(json_msg)
+
+    return msg
+
+
 class AllocationTest(RopodPyre):
-    def __init__(self, config_file=None):
+    def __init__(self, test_case, config_file=None):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
@@ -31,6 +42,8 @@ class AllocationTest(RopodPyre):
             self._config_params = ConfigParams.default()
         else:
             self._config_params = ConfigParams.from_file(config_file)
+
+        self._config_params.update(**test_case)
 
         self.logger = logging.getLogger('mrs.allocate')
         logger_config = self._config_params.get('logger')
@@ -44,7 +57,7 @@ class AllocationTest(RopodPyre):
         self.terminated = False
         self.clean_stores()
 
-        self.logger.info("Initialized AllocationTest")
+        self.logger.info("Initialized AllocationTest: %s", test_case.get("description"))
 
     def clean_store(self, store):
         store_interface = MongoStoreInterface(store)
@@ -138,14 +151,21 @@ class AllocationTest(RopodPyre):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
+    parser.add_argument('--case', type=int, action='store', default=1, help='Test case number')
     parser.add_argument('--dataset_module', type=str, action='store', help='Dataset module',
-                        default='mrs.tests.fixtures.datasets')
+                        default='mrs.tests.datasets')
     parser.add_argument('--dataset_name', type=str, action='store', help='Dataset name',
-                        default='overlapping')
+                        default='non_overlapping')
     parser.add_argument('--robot_poses_file', type=str, action='store', help='Path to robot init poses file',
-                        default='fixtures/robot_init_poses.yaml')
+                        default='robot_init_poses.yaml')
     args = parser.parse_args()
 
-    test = AllocationTest(args.file)
+    case = args.case
+
+    test_cases = load_file_from_module('mrs.tests.cases', 'test-cases.yaml')
+    test_config = {case: load_yaml(test_cases).get(case)}
+    test_case = test_config.popitem()[1]
+
+    test = AllocationTest(test_case, args.file)
     test.load_tasks(args.dataset_module, args.dataset_name)
     test.run()

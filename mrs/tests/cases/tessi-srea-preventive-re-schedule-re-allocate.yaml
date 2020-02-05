@@ -14,7 +14,7 @@ services:
     container_name: robot_001
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "robot_001"]
+    command: ["python3", "robot.py", "robot_001", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -25,7 +25,7 @@ services:
     container_name: robot_proxy_001
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "robot_001"]
+    command: ["python3", "robot_proxy.py", "robot_001", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -36,7 +36,7 @@ services:
     container_name: robot_002
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "robot_002"]
+    command: ["python3", "robot.py", "robot_002", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -47,7 +47,7 @@ services:
     container_name: robot_proxy_002
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "robot_002"]
+    command: ["python3", "robot_proxy.py", "robot_002", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -58,7 +58,7 @@ services:
     container_name: robot_003
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "robot_003"]
+    command: ["python3", "robot.py", "robot_003", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -69,7 +69,7 @@ services:
     container_name: robot_proxy_003
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "robot_003"]
+    command: ["python3", "robot_proxy.py", "robot_003", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -80,7 +80,7 @@ services:
     container_name: robot_004
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "robot_004"]
+    command: ["python3", "robot.py", "robot_004", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -91,7 +91,7 @@ services:
     container_name: robot_proxy_004
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "robot_004"]
+    command: ["python3", "robot_proxy.py", "robot_004", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -102,7 +102,7 @@ services:
     container_name: robot_005
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "robot_005"]
+    command: ["python3", "robot.py", "robot_005", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -113,7 +113,7 @@ services:
     container_name: robot_proxy_005
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot_proxy.py", "robot_005"]
+    command: ["python3", "robot_proxy.py", "robot_005", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -124,7 +124,7 @@ services:
     container_name: ccu
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "ccu.py"]
+    command: ["python3", "ccu.py", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
@@ -132,11 +132,13 @@ services:
       - mongo
 
   task_allocation_test:
-    build: .
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
     container_name: task-mrs-test
     image: ropod-mrs
     working_dir: /mrta/mrs/tests/
-    command: ["python3", "allocate.py"]
+    command: ["python3", "allocate.py", "--case", "6"]
     network_mode: "host"
     tty: true
     stdin_open: true
