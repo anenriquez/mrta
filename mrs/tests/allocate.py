@@ -15,6 +15,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
+from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.utils import load_yaml_file
@@ -108,44 +109,54 @@ class AllocationTest(RopodPyre):
         if msg is None:
             return
         msg_type = msg['header']['type']
+        payload = msg['payload']
 
         if msg_type == 'TASK-CONTRACT':
-            task_contract = TaskContract.from_payload(msg["payload"])
+            task_contract = TaskContract.from_payload(payload)
             self.allocations[task_contract.task_id] = task_contract.robot_id
-            # self.logger.debug("Allocation: (%s, %s)", task_contract.task_id, task_contract.robot_id)
-            self.check_termination_test()
+            self.logger.debug("Allocation: (%s, %s)", task_contract.task_id, task_contract.robot_id)
+
+        if msg_type == 'TASK-PROGRESS':
+            progress = TaskProgress.from_payload(payload)
+            self.logger.debug("Task progress received: %s", progress)
 
     def check_termination_test(self):
-        if len(self.allocations) == len(self.tasks):
-            self.logger.info("Terminating test")
-            self.logger.info("Allocations: %s", self.allocations)
-            self.terminated = True
-
-    def check_unsuccessful_allocations(self):
         with switch_collection(Task, Task.Meta.archive_collection):
-            for task in Task.objects.all():
-                with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
-                    task_status = TaskStatus.objects.get({"_id": task.task_id})
-                    if task_status.status == TaskStatusConst.UNALLOCATED and task.task_id not in self.allocations:
-                        self.allocations[task.task_id] = "None"
-                        self.logger.debug("Allocation: (%s, None)", task.task_id)
-                        self.check_termination_test()
+            with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+                completed_tasks = Task.get_tasks_by_status(TaskStatusConst.COMPLETED)
+                canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
+                aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
+
+                tasks = completed_tasks + canceled_tasks + aborted_tasks
+
+                if len(tasks) == len(self.tasks):
+                    self.logger.info("Terminating test")
+                    self.logger.info("Allocations: %s", self.allocations)
+                    self.terminated = True
+
+    def terminate(self):
+        print("Exiting test...")
+        self.simulator_interface.stop()
+        test.shutdown()
+        print("Test terminated")
 
     def run(self):
         try:
             test.start()
-            time.sleep(2)
+            time.sleep(10)
             test.setup(args.robot_poses_file)
+            time.sleep(10)
             test.trigger()
             while not test.terminated:
-                # self.logger.debug("Current time %s", self.simulator_interface.get_current_time())
-                test.check_unsuccessful_allocations()
-        except (KeyboardInterrupt, SystemExit):
-            self.simulator_interface.stop()
-            print('Task request test interrupted; exiting')
+                # print("Approx current time: ", self.simulator_interface.get_current_time())
+                test.check_termination_test()
+                time.sleep(0.5)
 
-        print("Exiting test...")
-        test.shutdown()
+            self.terminate()
+
+        except (KeyboardInterrupt, SystemExit):
+            print('Task request test interrupted; exiting')
+            self.terminate()
 
 
 if __name__ == '__main__':
