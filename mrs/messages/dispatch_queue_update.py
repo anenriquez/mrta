@@ -5,7 +5,6 @@ from mrs.utils.as_dict import AsDictMixin
 
 
 class DispatchQueueUpdate(AsDictMixin):
-    n_tasks = 3
 
     def __init__(self, zero_timepoint, stn, dispatchable_graph, **kwargs):
         self.zero_timepoint = zero_timepoint
