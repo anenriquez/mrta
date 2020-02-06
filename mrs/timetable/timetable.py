@@ -122,7 +122,7 @@ class Timetable(STNInterface):
     def get_task_position(self, task_id):
         return self.stn.get_task_position(task_id)
 
-    def task_exists(self, task_id):
+    def has_task(self, task_id):
         task_nodes = self.stn.get_task_node_ids(task_id)
         if task_nodes:
             return True

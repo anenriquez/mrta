@@ -85,7 +85,6 @@ class CCU:
             self.update_task_plan(robot_ids)
 
             for robot_id in robot_ids:
-                # TODO: Send g_graph only if it is diff from previous version
                 self.dispatcher.send_d_graph_update(robot_id)
 
     def update_task_plan(self, robot_ids):

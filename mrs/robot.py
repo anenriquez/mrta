@@ -124,7 +124,7 @@ class Robot:
         for task in tasks:
             task_status = task.get_task_status(task.task_id)
 
-            if task_status.status == TaskStatusConst.DISPATCHED and self.d_graph_update_received:
+            if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
                 self.schedule(task)
 
             # For real-time execution add is_executable condition

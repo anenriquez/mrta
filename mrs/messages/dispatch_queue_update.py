@@ -11,6 +11,15 @@ class DGraphUpdate(AsDictMixin):
         self.stn = stn
         self.dispatchable_graph = dispatchable_graph
 
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return (self.stn == other.stn and
+                self.dispatchable_graph == other.dispatchable_graph)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def update_timetable(self, timetable, replace=False):
         stn_cls = timetable.stp_solver.get_stn()
         stn = stn_cls.from_dict(self.stn)
