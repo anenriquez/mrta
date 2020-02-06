@@ -135,7 +135,7 @@ class Timetable(STNInterface):
                 task = Task.get_task(task_id)
                 return task
             except DoesNotExist:
-                self.logger.warning("Task %s is not in db", task_id)
+                self.logger.warning("Task %s is not in db or its first node is not the start node", task_id)
 
     def get_r_time(self, task_id, node_type='start', lower_bound=True):
         r_time = self.dispatchable_graph.get_time(task_id, node_type, lower_bound)

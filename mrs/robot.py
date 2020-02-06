@@ -77,6 +77,7 @@ class Robot:
         self.send_recover_msg(recover)
 
     def abort(self, task):
+        self.logger.debug("Trigger abortion of task %s", task.task_id)
         status = TaskStatusConst.ABORTED
         task.update_status(status)
         self.timetable.remove_task(task.task_id)
@@ -87,7 +88,10 @@ class Robot:
         try:
             self.schedule_monitor.schedule(task)
         except InconsistentSchedule:
-            self.re_allocate(task)
+            if "re-allocate" in self.recovery_method:
+                self.re_allocate(task)
+            else:
+                self.abort(task)
 
     def start_execution(self, task):
         self.executor.start_execution(task)
