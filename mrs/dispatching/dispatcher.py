@@ -1,4 +1,4 @@
-
+import copy
 import logging
 from datetime import timedelta
 
@@ -36,6 +36,7 @@ class Dispatcher(SimulatorInterface):
         self.n_queued_tasks = n_queued_tasks
 
         self.robot_ids = list()
+        self.d_graph_updates = dict()
 
         self.logger.debug("Dispatcher started")
 
@@ -87,8 +88,12 @@ class Dispatcher(SimulatorInterface):
         task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, robot_id):
-        self.logger.debug("Sending DGraphUpdate to %s", robot_id)
         timetable = self.timetable_manager.get_timetable(robot_id)
-        dispatch_queue_update = timetable.get_dispatch_queue_update(self.n_queued_tasks)
-        msg = self.api.create_message(dispatch_queue_update)
-        self.api.publish(msg, peer=robot_id)
+        prev_d_graph_update = self.d_graph_updates.get(robot_id)
+        d_graph_update = timetable.get_d_graph_update(self.n_queued_tasks)
+
+        if prev_d_graph_update != d_graph_update:
+            self.logger.debug("Sending DGraphUpdate to %s", robot_id)
+            msg = self.api.create_message(d_graph_update)
+            self.api.publish(msg, peer=robot_id)
+            self.d_graph_updates[robot_id] = copy.deepcopy(d_graph_update)

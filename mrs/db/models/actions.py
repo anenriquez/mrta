@@ -1,4 +1,3 @@
-from fmlib.models.actions import ActionManager
 from fmlib.models.actions import GoTo as Action
 from fmlib.utils.messages import Document
 from mrs.db.models.task import InterTimepointConstraint
@@ -8,8 +7,6 @@ from pymodm import fields
 class GoTo(Action):
     task_id = fields.UUIDField()
     estimated_duration = fields.EmbeddedDocumentField(InterTimepointConstraint)
-
-    objects = ActionManager()
 
     def __str__(self):
         return "id: {}, type: {}, duration: {}".format(self.action_id, self.type, self.estimated_duration)

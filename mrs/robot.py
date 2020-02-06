@@ -11,7 +11,7 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
-from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
+from mrs.messages.dispatch_queue_update import DGraphUpdate
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
@@ -34,7 +34,7 @@ class Robot:
         self.timetable.fetch()
 
         self.tasks = list()
-        self.queue_update_received = False
+        self.d_graph_update_received = False
 
         self.api.register_callbacks(self)
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
@@ -52,18 +52,18 @@ class Robot:
             task.update_status(TaskStatusConst.DISPATCHED)
             task.freeze()
 
-    def dispatch_queue_update_cb(self, msg):
+    def d_graph_update_cb(self, msg):
         payload = msg['payload']
-        self.logger.debug("Received dispatch queue update")
-        d_queue_update = DispatchQueueUpdate.from_payload(payload)
+        self.logger.debug("Received DGraph update")
+        d_graph_update = DGraphUpdate.from_payload(payload)
         if self.recovery_method.startswith("re-schedule"):
-            d_queue_update.update_timetable(self.timetable, replace=True)
+            d_graph_update.update_timetable(self.timetable, replace=True)
         else:
-            d_queue_update.update_timetable(self.timetable, replace=False)
+            d_graph_update.update_timetable(self.timetable, replace=False)
 
         self.logger.debug("STN update %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph update %s", self.timetable.dispatchable_graph)
-        self.queue_update_received = True
+        self.d_graph_update_received = True
 
     def send_recover_msg(self, recover):
         msg = self.api.create_message(recover)
@@ -77,6 +77,7 @@ class Robot:
         self.send_recover_msg(recover)
 
     def abort(self, task):
+        self.logger.debug("Trigger abortion of task %s", task.task_id)
         status = TaskStatusConst.ABORTED
         task.update_status(status)
         self.timetable.remove_task(task.task_id)
@@ -87,7 +88,10 @@ class Robot:
         try:
             self.schedule_monitor.schedule(task)
         except InconsistentSchedule:
-            self.re_allocate(task)
+            if "re-allocate" in self.recovery_method:
+                self.re_allocate(task)
+            else:
+                self.abort(task)
 
     def start_execution(self, task):
         self.executor.start_execution(task)
@@ -97,9 +101,9 @@ class Robot:
             self.executor.complete_execution()
 
         elif not self.recovery_method.startswith("re-schedule") or\
-                self.recovery_method.startswith("re-schedule") and self.queue_update_received:
+                self.recovery_method.startswith("re-schedule") and self.d_graph_update_received:
 
-            self.queue_update_received = False
+            self.d_graph_update_received = False
             self.executor.execute()
 
             if self.schedule_monitor.recover(self.executor.current_task, self.executor.action_progress.is_consistent):
@@ -124,7 +128,7 @@ class Robot:
         for task in tasks:
             task_status = task.get_task_status(task.task_id)
 
-            if task_status.status == TaskStatusConst.DISPATCHED and self.queue_update_received:
+            if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
                 self.schedule(task)
 
             # For real-time execution add is_executable condition

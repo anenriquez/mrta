@@ -6,7 +6,7 @@ from mrs.db.models.task import Task
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.exceptions.execution import InconsistentAssignment
-from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
+from mrs.messages.dispatch_queue_update import DGraphUpdate
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
@@ -122,7 +122,7 @@ class Timetable(STNInterface):
     def get_task_position(self, task_id):
         return self.stn.get_task_position(task_id)
 
-    def task_exists(self, task_id):
+    def has_task(self, task_id):
         task_nodes = self.stn.get_task_node_ids(task_id)
         if task_nodes:
             return True
@@ -135,7 +135,7 @@ class Timetable(STNInterface):
                 task = Task.get_task(task_id)
                 return task
             except DoesNotExist:
-                self.logger.warning("Task %s is not in db", task_id)
+                self.logger.warning("Task %s is not in db or its first node is not the start node", task_id)
 
     def get_r_time(self, task_id, node_type='start', lower_bound=True):
         r_time = self.dispatchable_graph.get_time(task_id, node_type, lower_bound)
@@ -187,10 +187,10 @@ class Timetable(STNInterface):
         self.dispatchable_graph.remove_node_ids(task_node_ids)
         self.store()
 
-    def get_dispatch_queue_update(self, n_tasks):
+    def get_d_graph_update(self, n_tasks):
         sub_stn = self.stn.get_subgraph(n_tasks)
         sub_dispatchable_graph = self.dispatchable_graph.get_subgraph(n_tasks)
-        return DispatchQueueUpdate(self.ztp, sub_stn, sub_dispatchable_graph)
+        return DGraphUpdate(self.ztp, sub_stn, sub_dispatchable_graph)
 
     def to_dict(self):
         timetable_dict = dict()

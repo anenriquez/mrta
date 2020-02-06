@@ -38,7 +38,7 @@ auctioneer:
 
 dispatcher:
   freeze_window: 0.1 # minutes
-  n_queued_tasks: 3
+  n_queued_tasks: 2
 
 bidder:
   bidding_rule: completion_time
@@ -91,8 +91,8 @@ ccu_api:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
         method: shout
-      dispatch-queue-update:
-        msg_type: 'DISPATCH-QUEUE-UPDATE'
+      d-graph-update:
+        msg_type: 'D-GRAPH-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
       remove-task:
@@ -184,7 +184,7 @@ robot_api:
       groups:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
-        - DISPATCH-QUEUE-UPDATE
+        - D-GRAPH-UPDATE
         - TASK
       debug_msgs: false
     acknowledge: false
@@ -206,8 +206,8 @@ robot_api:
         msg_type: 'RE-SCHEDULE'
         method: shout
     callbacks:
-      - msg_type: 'DISPATCH-QUEUE-UPDATE'
-        component: '.dispatch_queue_update_cb'
+      - msg_type: 'D-GRAPH-UPDATE'
+        component: '.d_graph_update_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
 

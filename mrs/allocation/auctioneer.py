@@ -130,7 +130,8 @@ class Auctioneer(SimulatorInterface):
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."
                                 "Task %s will be included in next allocation round", e.task_id, e.robot_id, e.task_id)
-            # TODO: Send msg to delete last allocation
+            # Undo last allocation
+            self.send_contract_acknowledgement(e.task_id, e.robot_id, allocation_info, accept=False)
             self.round.finish()
 
     def allocate(self, tasks):

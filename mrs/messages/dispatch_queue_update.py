@@ -4,13 +4,21 @@ from mrs.db.models.task import Task
 from mrs.utils.as_dict import AsDictMixin
 
 
-class DispatchQueueUpdate(AsDictMixin):
-    n_tasks = 3
+class DGraphUpdate(AsDictMixin):
 
     def __init__(self, zero_timepoint, stn, dispatchable_graph, **kwargs):
         self.zero_timepoint = zero_timepoint
         self.stn = stn
         self.dispatchable_graph = dispatchable_graph
+
+    def __eq__(self, other):
+        if other is None:
+            return False
+        return (self.stn == other.stn and
+                self.dispatchable_graph == other.dispatchable_graph)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def update_timetable(self, timetable, replace=False):
         stn_cls = timetable.stp_solver.get_stn()
@@ -59,4 +67,4 @@ class DispatchQueueUpdate(AsDictMixin):
 
     @property
     def meta_model(self):
-        return "dispatch-queue-update"
+        return "d-graph-update"
