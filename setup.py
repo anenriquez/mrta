@@ -18,6 +18,7 @@ setup(name='mrs',
                 'mrs.utils'],
       install_requires=[
           'simpy',
+          'planner@git+https://github.com/anenriquez/mrta_planner.git@master#egg=planner',
       ],
       version='0.2.0',
       description='Multi-Robot System (MRS) components for performing'
