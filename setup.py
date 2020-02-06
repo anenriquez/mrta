@@ -16,6 +16,9 @@ setup(name='mrs',
                 'mrs.execution',
                 'mrs.simulation',
                 'mrs.utils'],
+      install_requires=[
+          'simpy',
+      ],
       version='0.2.0',
       description='Multi-Robot System (MRS) components for performing'
                   'Multi-Robot Task Allocation (MRTA) and executing'
