@@ -89,6 +89,6 @@ class Dispatcher(SimulatorInterface):
     def send_d_graph_update(self, robot_id):
         self.logger.debug("Sending DGraphUpdate to %s", robot_id)
         timetable = self.timetable_manager.get_timetable(robot_id)
-        dispatch_queue_update = timetable.get_dispatch_queue_update(self.n_queued_tasks)
-        msg = self.api.create_message(dispatch_queue_update)
+        d_graph_update = timetable.get_d_graph_update(self.n_queued_tasks)
+        msg = self.api.create_message(d_graph_update)
         self.api.publish(msg, peer=robot_id)

@@ -6,7 +6,7 @@ from mrs.db.models.task import Task
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.exceptions.execution import InconsistentAssignment
-from mrs.messages.dispatch_queue_update import DispatchQueueUpdate
+from mrs.messages.dispatch_queue_update import DGraphUpdate
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
@@ -187,10 +187,10 @@ class Timetable(STNInterface):
         self.dispatchable_graph.remove_node_ids(task_node_ids)
         self.store()
 
-    def get_dispatch_queue_update(self, n_tasks):
+    def get_d_graph_update(self, n_tasks):
         sub_stn = self.stn.get_subgraph(n_tasks)
         sub_dispatchable_graph = self.dispatchable_graph.get_subgraph(n_tasks)
-        return DispatchQueueUpdate(self.ztp, sub_stn, sub_dispatchable_graph)
+        return DGraphUpdate(self.ztp, sub_stn, sub_dispatchable_graph)
 
     def to_dict(self):
         timetable_dict = dict()

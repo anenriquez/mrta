@@ -4,7 +4,7 @@ from mrs.db.models.task import Task
 from mrs.utils.as_dict import AsDictMixin
 
 
-class DispatchQueueUpdate(AsDictMixin):
+class DGraphUpdate(AsDictMixin):
 
     def __init__(self, zero_timepoint, stn, dispatchable_graph, **kwargs):
         self.zero_timepoint = zero_timepoint
@@ -58,4 +58,4 @@ class DispatchQueueUpdate(AsDictMixin):
 
     @property
     def meta_model(self):
-        return "dispatch-queue-update"
+        return "d-graph-update"
