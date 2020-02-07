@@ -72,7 +72,7 @@ class RobotProxy:
     def _update_timetable(self, task, action_progress):
         if action_progress.start_time and action_progress.finish_time:
             self.logger.debug("Updating timetable")
-            action = Action.get_action(action_progress.action_id)
+            action = Action.get_action(action_progress.action.action_id)
             start_node, finish_node = action.get_node_names()
             self.timetable.update_timetable(task.task_id, start_node, finish_node,
                                             action_progress.r_start_time, action_progress.r_finish_time)
@@ -85,19 +85,24 @@ class RobotProxy:
         first_action = task.plan[0].actions[0]
         last_action = task.plan[0].actions[-1]
 
-        if action_progress.action_id == first_action.action_id and \
+        if action_progress.action.action_id == first_action.action_id and \
                 action_progress.start_time and not task.start_time:
             self.logger.debug("Task %s start time %s", task.task_id, action_progress.start_time)
             task.update_start_time(action_progress.start_time)
 
-        elif action_progress.action_id == last_action.action_id and \
+        elif action_progress.action.action_id == last_action.action_id and \
                 action_progress.finish_time and not task.finish_time:
             self.logger.debug("Task %s finish time %s", task.task_id, action_progress.finish_time)
             task.update_finish_time(action_progress.finish_time)
 
     def _update_task_progress(self, task, action_progress):
         self.logger.debug("Updating task progress of task %s", task.task_id)
-        task.update_progress(action_progress.action_id, action_progress.status)
+        kwargs = {}
+        if action_progress.start_time:
+            kwargs.update(start_time=action_progress.start_time)
+        if action_progress.finish_time:
+            kwargs.update(finish_time=action_progress.finish_time)
+        task.update_progress(action_progress.action.action_id, action_progress.status, **kwargs)
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)

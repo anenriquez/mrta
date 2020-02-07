@@ -65,7 +65,7 @@ class TimetableMonitor(SimulatorInterface):
         if action_progress.start_time and action_progress.finish_time:
             timetable = self.timetable_manager.get_timetable(robot_id)
             self.logger.debug("Updating timetable of robot %s", robot_id)
-            action = Action.get_action(action_progress.action_id)
+            action = Action.get_action(action_progress.action.action_id)
             start_node, finish_node = action.get_node_names()
             timetable.update_timetable(task.task_id, start_node, finish_node,
                                        action_progress.r_start_time, action_progress.r_finish_time)
@@ -78,19 +78,24 @@ class TimetableMonitor(SimulatorInterface):
         first_action = task.plan[0].actions[0]
         last_action = task.plan[0].actions[-1]
 
-        if action_progress.action_id == first_action.action_id and\
+        if action_progress.action.action_id == first_action.action_id and\
                 action_progress.start_time and not task.start_time:
             self.logger.debug("Task %s start time %s", task.task_id, action_progress.start_time)
             task.update_start_time(action_progress.start_time)
 
-        elif action_progress.action_id == last_action.action_id and\
+        elif action_progress.action.action_id == last_action.action_id and\
                 action_progress.finish_time and not task.finish_time:
             self.logger.debug("Task %s finish time %s", task.task_id, action_progress.finish_time)
             task.update_finish_time(action_progress.finish_time)
 
     def _update_task_progress(self, task, action_progress):
         self.logger.debug("Updating task progress of task %s", task.task_id)
-        task.update_progress(action_progress.action_id, action_progress.status)
+        kwargs = {}
+        if action_progress.start_time:
+            kwargs.update(start_time=action_progress.start_time)
+        if action_progress.finish_time:
+            kwargs.update(finish_time=action_progress.finish_time)
+        task.update_progress(action_progress.action.action_id, action_progress.status, **kwargs)
 
     def _re_allocate(self, task):
         self.logger.critical("Re-allocating task %s", task.task_id)
