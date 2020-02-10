@@ -5,7 +5,7 @@ from datetime import datetime
 
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
-from mrs.messages.bid import SoftBid, NoBid, BiddingRobot
+from mrs.messages.bid import NoBid, BiddingRobot
 from mrs.simulation.simulator import SimulatorInterface
 from ropod.utils.uuid import generate_uuid
 
@@ -127,7 +127,7 @@ class Round(SimulatorInterface):
             winning_bid = self.elect_winner()
             round_result = (winning_bid, self.tasks_to_allocate)
 
-            if isinstance(winning_bid, SoftBid):
+            if winning_bid.alternative_start_time:
                 raise AlternativeTimeSlot(winning_bid, self.tasks_to_allocate)
 
             return round_result

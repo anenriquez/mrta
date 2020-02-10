@@ -6,7 +6,7 @@ from mrs.db.models.task import Task, TimepointConstraint
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
-from mrs.messages.bid import Bid, NoBid, SoftBid
+from mrs.messages.bid import Bid, NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
 from mrs.simulation.simulator import SimulatorInterface
@@ -206,10 +206,6 @@ class Auctioneer(SimulatorInterface):
     def no_bid_cb(self, msg):
         payload = msg['payload']
         self.round.process_bid(payload, NoBid)
-
-    def soft_bid_cb(self, msg):
-        payload = msg['payload']
-        self.round.process_bid(payload, SoftBid)
 
     def task_contract_acknowledgement_cb(self, msg):
         payload = msg['payload']

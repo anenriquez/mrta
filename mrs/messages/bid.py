@@ -49,7 +49,7 @@ class NoBid(BidBase):
 
     def __str__(self):
         to_print = ""
-        to_print += "NoBid(task: {}, robot: {}".format(self.task_id, self.robot_id)
+        to_print += "NoBid(task: {}, robot: {})".format(self.task_id, self.robot_id)
         return to_print
 
     @property
@@ -58,14 +58,19 @@ class NoBid(BidBase):
 
 
 class Bid(BidBase):
-    def __init__(self, task_id, robot_id, round_id, metrics):
+    def __init__(self, task_id, robot_id, round_id, metrics, **kwargs):
         self.metrics = metrics
         self._allocation_info = None
+        self.alternative_start_time = kwargs.get("alternative_start_time")
         super().__init__(task_id, robot_id, round_id)
 
     def __str__(self):
         to_print = ""
-        to_print += "Bid(task: {}, robot: {}, metrics: {}".format(self.task_id, self.robot_id, self.metrics)
+        to_print += "Bid (task: {}, robot: {}, metrics: {}".format(self.task_id, self.robot_id, self.metrics)
+        if self.alternative_start_time:
+            to_print += " alternative_start_time: {}".format(self.alternative_start_time)
+        else:
+            to_print += ")"
         return to_print
 
     def __lt__(self, other):
@@ -99,24 +104,6 @@ class Bid(BidBase):
         attrs = super().to_attrs(dict_repr)
         attrs.update(metrics=Metrics.from_dict(dict_repr.get("metrics")))
         return attrs
-
-
-class SoftBid(Bid):
-    def __init__(self, task_id, robot_id, round_id, metrics, alternative_start_time):
-        super().__init__(task_id, robot_id, round_id, metrics)
-        self.alternative_start_time = alternative_start_time
-
-    def __str__(self):
-        to_print = ""
-        to_print += "SoftBid(task: {}, robot: {}, alternative start time: {} metrics: {}".format(self.task_id,
-                                                                                                 self.robot_id,
-                                                                                                 self.alternative_start_time,
-                                                                                                 self.metrics)
-        return to_print
-
-    @property
-    def meta_model(self):
-        return "soft-bid"
 
 
 class BiddingRobot:
