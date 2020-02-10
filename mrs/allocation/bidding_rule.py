@@ -1,6 +1,5 @@
+from mrs.messages.bid import Bid, Metrics
 from stn.exceptions.stp import NoSTPSolution
-
-from mrs.messages.bid import Bid, SoftBid, Metrics
 
 
 class BiddingRule(object):
@@ -24,11 +23,11 @@ class BiddingRule(object):
                 risk_metric = 1
                 alternative_start_time = pickup_constraint.earliest_time
 
-                bid = SoftBid(task.task_id,
-                              robot_id,
-                              round_id,
-                              Metrics(temporal_metric, risk_metric),
-                              alternative_start_time)
+                bid = Bid(task.task_id,
+                          robot_id,
+                          round_id,
+                          Metrics(temporal_metric, risk_metric),
+                          alternative_start_time=alternative_start_time)
 
             bid.set_allocation_info(allocation_info)
             bid.set_stn(stn)

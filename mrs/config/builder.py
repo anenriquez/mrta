@@ -9,8 +9,8 @@ from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
-from mrs.timetable.timetable_manager import TimetableManager
-from mrs.timetable.timetable_monitor import TimetableMonitor
+from mrs.timetable.manager import TimetableManager
+from mrs.timetable.monitor import TimetableMonitor
 from planner.planner import Planner
 from stn.stp import STP
 
