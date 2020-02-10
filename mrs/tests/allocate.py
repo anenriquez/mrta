@@ -8,10 +8,6 @@ from fmlib.db.mongo import MongoStoreInterface
 from fmlib.models.tasks import TaskStatus
 from fmlib.utils.utils import load_file_from_module, load_yaml
 from importlib_resources import open_text
-from pymodm.context_managers import switch_collection
-from ropod.pyre_communicator.base_class import RopodPyre
-from ropod.structs.task import TaskStatus as TaskStatusConst
-
 from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
@@ -19,6 +15,9 @@ from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.utils.datasets import load_tasks_to_db
 from mrs.utils.utils import load_yaml_file
+from pymodm.context_managers import switch_collection
+from ropod.pyre_communicator.base_class import RopodPyre
+from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
 def get_msg_fixture(msg_file):
@@ -121,18 +120,21 @@ class AllocationTest(RopodPyre):
             self.logger.debug("Task progress received: %s", progress)
 
     def check_termination_test(self):
-        with switch_collection(Task, Task.Meta.archive_collection):
-            with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
-                completed_tasks = Task.get_tasks_by_status(TaskStatusConst.COMPLETED)
-                canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
-                aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
+        with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+            completed_tasks = Task.get_tasks_by_status(TaskStatusConst.COMPLETED)
+            canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
+            aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
 
-                tasks = completed_tasks + canceled_tasks + aborted_tasks
+            self.logger.info("Number of completed tasks: %s ", len(completed_tasks))
+            self.logger.info("Number of canceled tasks: %s", len(canceled_tasks))
+            self.logger.info("Number of aborted tasks: %s", len(aborted_tasks))
 
-                if len(tasks) == len(self.tasks):
-                    self.logger.info("Terminating test")
-                    self.logger.info("Allocations: %s", self.allocations)
-                    self.terminated = True
+            tasks = completed_tasks + canceled_tasks + aborted_tasks
+
+            if len(tasks) == len(self.tasks):
+                self.logger.info("Terminating test")
+                self.logger.info("Allocations: %s", self.allocations)
+                self.terminated = True
 
     def terminate(self):
         print("Exiting test...")
@@ -148,7 +150,7 @@ class AllocationTest(RopodPyre):
             time.sleep(10)
             test.trigger()
             while not test.terminated:
-                # print("Approx current time: ", self.simulator_interface.get_current_time())
+                print("Approx current time: ", self.simulator_interface.get_current_time())
                 test.check_termination_test()
                 time.sleep(0.5)
 
