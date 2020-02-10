@@ -14,8 +14,8 @@ from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
-from mrs.timetable.timetable_manager import TimetableManager
-from mrs.timetable.timetable_monitor import TimetableMonitor
+from mrs.timetable.manager import TimetableManager
+from mrs.timetable.monitor import TimetableMonitor
 from planner.planner import Planner
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
