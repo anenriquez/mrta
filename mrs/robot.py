@@ -11,7 +11,7 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
-from mrs.messages.dispatch_queue_update import DGraphUpdate
+from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable

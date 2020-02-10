@@ -6,7 +6,7 @@ from mrs.db.models.task import Task
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.exceptions.execution import InconsistentAssignment
-from mrs.messages.dispatch_queue_update import DGraphUpdate
+from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
