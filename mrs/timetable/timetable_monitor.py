@@ -21,6 +21,7 @@ class TimetableMonitor(SimulatorInterface):
         self.api = kwargs.get('api')
 
         self.tasks_to_remove = list()
+        self.completed_tasks = list()
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
     def task_progress_cb(self, msg):
@@ -154,4 +155,6 @@ class TimetableMonitor(SimulatorInterface):
 
         for task, status in ready_to_be_removed:
             self.tasks_to_remove.remove((task, status))
+            if status == TaskStatusConst.COMPLETED:
+                self.completed_tasks.append(task)
             self._remove_task(task, status)

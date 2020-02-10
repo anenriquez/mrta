@@ -246,8 +246,11 @@ class Task(BaseTask):
 
     @classmethod
     def get_task(cls, task_id):
-        with switch_connection(Task, "default"):
-            return cls.objects.get_task(task_id)
+        return cls.objects.get_task(task_id)
+
+    @classmethod
+    def get_tasks_by_robot(cls, robot_id):
+        return [task for task in cls.objects.all() if robot_id in task.assigned_robots]
 
     def archive(self):
         try:

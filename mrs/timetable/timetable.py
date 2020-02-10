@@ -137,22 +137,22 @@ class Timetable(STNInterface):
             except DoesNotExist:
                 self.logger.warning("Task %s is not in db or its first node is not the start node", task_id)
 
-    def get_r_time(self, task_id, node_type='start', lower_bound=True):
+    def get_r_time(self, task_id, node_type, lower_bound):
         r_time = self.dispatchable_graph.get_time(task_id, node_type, lower_bound)
         return r_time
 
-    def get_start_time(self, task_id):
-        r_start_time = self.get_r_time(task_id)
+    def get_start_time(self, task_id, lower_bound=True):
+        r_start_time = self.get_r_time(task_id, 'start', lower_bound)
         start_time = self.ztp + timedelta(seconds=r_start_time)
         return start_time
 
-    def get_pickup_time(self, task_id):
-        r_pickup_time = self.get_r_time(task_id, 'pickup', False)
+    def get_pickup_time(self, task_id, lower_bound=True):
+        r_pickup_time = self.get_r_time(task_id, 'pickup', lower_bound)
         pickup_time = self.ztp + timedelta(seconds=r_pickup_time)
         return pickup_time
 
-    def get_delivery_time(self, task_id):
-        r_delivery_time = self.get_r_time(task_id, 'delivery', False)
+    def get_delivery_time(self, task_id, lower_bound=True):
+        r_delivery_time = self.get_r_time(task_id, 'delivery', lower_bound)
         delivery_time = self.ztp + timedelta(seconds=r_delivery_time)
         return delivery_time
 
