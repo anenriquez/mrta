@@ -1,13 +1,13 @@
 import copy
 import logging
 import time
-
-from ropod.utils.uuid import generate_uuid
+from datetime import datetime
 
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import SoftBid, NoBid, BiddingRobot
 from mrs.simulation.simulator import SimulatorInterface
+from ropod.utils.uuid import generate_uuid
 
 
 class Round(SimulatorInterface):
@@ -30,7 +30,7 @@ class Round(SimulatorInterface):
         self.received_bids = dict()
         self.received_no_bids = dict()
         self.bidding_robots = {robot_id: BiddingRobot(robot_id) for robot_id in self.robot_ids}
-        self.start_time = self.get_current_time().timestamp()
+        self.start_time = datetime.now().timestamp()
         self.time_to_allocate = None
 
     def start(self):
@@ -174,4 +174,7 @@ class Round(SimulatorInterface):
             raise NoAllocation(self.id, self.tasks_to_allocate)
 
         return lowest_bid
+
+    def get_time_to_allocate(self):
+        return self.time_to_allocate
 
