@@ -15,6 +15,7 @@ setup(name='mrs',
                 'mrs.dispatching',
                 'mrs.execution',
                 'mrs.simulation',
+                'mrs.performance',
                 'mrs.utils'],
       install_requires=[
           'simpy',
