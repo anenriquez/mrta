@@ -164,17 +164,17 @@ class Auctioneer(SimulatorInterface):
             self.tasks_to_allocate.pop(earliest_task.task_id)
             return
 
+        self.changed_timetable.clear()
+        for task in tasks:
+            if not task.constraints.hard:
+                self.update_soft_constraints(task)
+
         self.round = Round(self.robot_ids,
                            self.tasks_to_allocate,
                            n_tasks=len(tasks),
                            closure_time=closure_time,
                            alternative_timeslots=self.alternative_timeslots,
                            simulator=self.simulator)
-
-        self.changed_timetable.clear()
-        for task in tasks:
-            if not task.constraints.hard:
-                self.update_soft_constraints(task)
 
         task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.ztp)
 

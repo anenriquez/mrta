@@ -3,13 +3,15 @@ import logging
 import numpy as np
 from fmlib.models.actions import Action
 from fmlib.models.tasks import TaskStatus
-from mrs.db.models.task import Task
-from mrs.db.models.task import TimepointConstraint
-from mrs.exceptions.execution import InconsistentAssignment
-from mrs.messages.task_progress import ActionProgress, TaskProgress
 from pymodm.context_managers import switch_collection
 from pymodm.errors import DoesNotExist
 from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
+
+from mrs.db.models.actions import ActionProgress
+from mrs.db.models.task import Task
+from mrs.db.models.task import TimepointConstraint
+from mrs.exceptions.execution import InconsistentAssignment
+from mrs.messages.task_progress import TaskProgress
 
 
 class Executor:
@@ -52,10 +54,10 @@ class Executor:
 
         # Update task
         task.update_status(TaskStatusConst.ONGOING)
-        task.update_progress(self.action_progress.action_id, self.action_progress.status)
+        task.update_progress(self.action_progress.action.action_id, self.action_progress.status)
 
     def execute(self):
-        action = Action.get_action(self.action_progress.action_id)
+        action = Action.get_action(self.action_progress.action.action_id)
         self.logger.debug("Current action %s: ", action)
 
         duration = self.get_action_duration(action)
@@ -71,11 +73,11 @@ class Executor:
         self.execute_stn(self.current_task.task_id, start_node, finish_node)
         self.send_task_progress(self.current_task)
 
-        current_action = self.current_task.status.progress.current_action
+        progress = self.current_task.status.progress
 
         # Create action progress for new current action
-        if current_action.action_id != self.action_progress.action_id:
-            self.action_progress = ActionProgress(current_action.action_id)
+        if progress.current_action.action_id != self.action_progress.action.action_id:
+            self.action_progress = ActionProgress(progress.current_action.action_id)
 
     def get_action_duration(self, action):
         duration = action.estimated_duration.sample_duration(self.random_state, self.delay_n_standard_dev)
@@ -84,7 +86,13 @@ class Executor:
     def update_action(self, action_status, r_time):
         abs_time = TimepointConstraint.absolute_time(self.timetable.zero_timepoint, r_time)
         self.action_progress.update(action_status, abs_time, r_time)
-        self.current_task.update_progress(self.action_progress.action_id, self.action_progress.status)
+        kwargs = {}
+        if self.action_progress.start_time:
+            kwargs.update(start_time=self.action_progress.start_time)
+        if self.action_progress.finish_time:
+            kwargs.update(finish_time=self.action_progress.finish_time)
+
+        self.current_task.update_progress(self.action_progress.action.action_id, self.action_progress.status, **kwargs)
 
     def complete_execution(self):
         self.logger.debug("Completing execution of task %s", self.current_task.task_id)

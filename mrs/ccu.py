@@ -3,20 +3,22 @@ import logging.config
 
 from fmlib.models.tasks import TaskPlan
 from fmlib.utils.utils import load_file_from_module, load_yaml
-from planner.planner import Planner
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.db.models.actions import GoTo
+from mrs.db.models.performance.robot import RobotPerformance
+from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.delay_recovery import DelayRecovery
+from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.timetable_manager import TimetableManager
 from mrs.timetable.timetable_monitor import TimetableMonitor
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
 
 _component_modules = {'simulator': Simulator,
                       'timetable_manager': TimetableManager,
@@ -25,6 +27,7 @@ _component_modules = {'simulator': Simulator,
                       'planner': Planner,
                       'delay_recovery': DelayRecovery,
                       'timetable_monitor': TimetableMonitor,
+                      'performance_tracker': PerformanceTracker,
                       }
 
 
@@ -38,6 +41,7 @@ class CCU:
         self.timetable_manager = components.get('timetable_manager')
         self.timetable_monitor = components.get("timetable_monitor")
         self.simulator_interface = SimulatorInterface(components.get('simulator'))
+        self.performance_tracker = components.get("performance_tracker")
 
         self.api = components.get('api')
         self.ccu_store = components.get('ccu_store')
@@ -51,8 +55,11 @@ class CCU:
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        for robot_id in self.auctioneer.robot_ids:
+            RobotPerformance.create_new(robot_id=robot_id)
         for task in tasks:
             self.task_plans[task.task_id] = self.get_task_plan(task)
+            TaskPerformance.create_new(task=task)
         self.auctioneer.allocate(tasks)
         self.simulator_interface.start()
 
@@ -82,10 +89,15 @@ class CCU:
             self.logger.debug("Processing allocation of task: %s", task_id)
             task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
+            self.update_task_allocation_metrics(task_id, robot_ids)
             self.update_task_plan(robot_ids)
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
+
+    def update_task_allocation_metrics(self, task_id, robot_ids):
+        tasks_to_update = [pre_task_action.task_id for pre_task_action in self.auctioneer.pre_task_actions]
+        self.performance_tracker.update_task_allocation_metrics(task_id, robot_ids, tasks_to_update)
 
     def update_task_plan(self, robot_ids):
         for pre_task_action in self.auctioneer.pre_task_actions:
@@ -108,6 +120,7 @@ class CCU:
                 self.dispatcher.run()
                 self.timetable_monitor.run()
                 self.process_allocation()
+                self.performance_tracker.run()
                 self.api.run()
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()

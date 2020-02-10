@@ -6,6 +6,7 @@ from mrs.dispatching.dispatcher import Dispatcher
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.timetable.timetable_manager import TimetableManager
@@ -27,6 +28,7 @@ class MRTABuilder:
                           'executor': Executor,
                           'schedule_monitor': ScheduleMonitor,
                           'timetable_monitor': TimetableMonitor,
+                          'performance_tracker': PerformanceTracker,
                           }
 
     _config_order = ['simulator',
@@ -40,6 +42,7 @@ class MRTABuilder:
                      'executor',
                      'schedule_monitor',
                      'timetable_monitor',
+                     'performance_tracker',
                      ]
 
     """ Maps an allocation method to its stp_solver solver """
