@@ -29,17 +29,3 @@ class InconsistentAssignment(Exception):
         self.assigned_time = assigned_time
         self.task_id = task_id
         self.node_type = node_type
-
-
-class MissingDispatchableGraph(Exception):
-    def __init__(self, robot_id):
-        """
-        Raised when a component does not have a dispatchable graph
-        Args:
-            robot_id (str):  id of the robot, e.g. ropod_001
-
-        """
-        Exception.__init__(self, robot_id)
-        self.robot_id = robot_id
-
-
