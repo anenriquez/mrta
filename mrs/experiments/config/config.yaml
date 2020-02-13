@@ -1,0 +1,13 @@
+non_intentional_delays:
+  approaches:
+    - tessi-preventive-re-allocate
+  dataset_module: mrs.datasets
+  datasets:
+    - non_overlapping
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001

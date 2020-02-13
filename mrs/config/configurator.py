@@ -2,21 +2,13 @@ import logging.config
 
 from fmlib.api import API
 from fmlib.config.builders import Store
-
 from mrs.config.builder import MRTABuilder
-from mrs.config.params import ConfigParams
 
 
 class Configurator:
-    def __init__(self, config_file=None, **kwargs):
+    def __init__(self, config_params, **kwargs):
 
-        if config_file is None:
-            self._config_params = ConfigParams.default()
-        else:
-            self._config_params = ConfigParams.from_file(config_file)
-
-        test_case = kwargs.get("test_case")
-        self._config_params.update(**test_case)
+        self._config_params = config_params
 
         self.logger = logging.getLogger('mrs')
         logger_config = self._config_params.get('logger')

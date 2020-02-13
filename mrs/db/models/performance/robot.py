@@ -20,6 +20,7 @@ class RobotPerformance(MongoModel):
 
     """
     robot_id = fields.CharField(primary_key=True)
+    allocated_tasks = fields.ListField()
     completion_time = fields.FloatField(default=0.0)
     makespan = fields.DateTimeField()
     travel_time = fields.FloatField(default=0.0)
@@ -36,6 +37,12 @@ class RobotPerformance(MongoModel):
         performance = cls(robot_id=robot_id)
         performance.save()
         return performance
+
+    def update_allocated_tasks(self, task_id):
+        if not self.allocated_tasks:
+            self.allocated_tasks = list()
+        self.allocated_tasks.append(task_id)
+        self.save()
 
     def update_travel_time(self, travel_time):
         self.travel_time += travel_time

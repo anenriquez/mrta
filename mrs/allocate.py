@@ -1,36 +1,23 @@
-import argparse
-import json
+import logging.config
 import logging.config
 import time
 
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
 from fmlib.models.tasks import TaskStatus
-from fmlib.utils.utils import load_file_from_module, load_yaml
-from importlib_resources import open_text
-from mrs.config.params import ConfigParams
 from mrs.db.models.task import Task
 from mrs.messages.task_contract import TaskContract
 from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.utils.datasets import load_tasks_to_db
-from mrs.utils.utils import load_yaml_file
+from mrs.utils.utils import get_msg_fixture
 from pymodm.context_managers import switch_collection
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
-def get_msg_fixture(msg_file):
-    msg_module = 'mrs.tests.messages'
-
-    with open_text(msg_module, msg_file) as json_msg:
-        msg = json.load(json_msg)
-
-    return msg
-
-
-class AllocationTest(RopodPyre):
-    def __init__(self, test_case, config_file=None):
+class Allocate(RopodPyre):
+    def __init__(self, config_params, robot_poses, dataset_module, dataset_name):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
@@ -38,12 +25,10 @@ class AllocationTest(RopodPyre):
 
         super().__init__(zyre_config, acknowledge=False)
 
-        if config_file is None:
-            self._config_params = ConfigParams.default()
-        else:
-            self._config_params = ConfigParams.from_file(config_file)
-
-        self._config_params.update(**test_case)
+        self._config_params = config_params
+        self._robot_poses = robot_poses
+        self._dataset_module = dataset_module
+        self._dataset_name = dataset_name
 
         self.logger = logging.getLogger('mrs.allocate')
         logger_config = self._config_params.get('logger')
@@ -52,12 +37,10 @@ class AllocationTest(RopodPyre):
         simulator = Simulator(**self._config_params.get("simulator"))
         self.simulator_interface = SimulatorInterface(simulator)
 
-        self.tasks = list()
         self.allocations = dict()
         self.terminated = False
         self.clean_stores()
-
-        self.logger.info("Initialized AllocationTest: %s", test_case.get("description"))
+        self.tasks = self.load_tasks()
 
     def clean_store(self, store):
         store_interface = MongoStoreInterface(store)
@@ -81,21 +64,21 @@ class AllocationTest(RopodPyre):
         store = MongoStore(**ccu_store_config)
         self.clean_store(store)
 
-    def setup(self, robot_poses_file):
-        robot_poses = load_yaml_file(robot_poses_file)
+    def send_robot_positions(self):
         msg = get_msg_fixture('robot_pose.json')
-        for robot_id, pose in robot_poses.items():
+        for robot_id, pose in self._robot_poses.items():
             msg['payload']['robotId'] = robot_id
             msg['payload']['pose'] = pose
             self.whisper(msg, peer=robot_id + "_proxy")
             self.logger.info("Send init pose to %s: ", robot_id)
 
-    def load_tasks(self, dataset_module, dataset_name, **kwargs):
+    def load_tasks(self):
         sim_config = self._config_params.get('simulator')
         if sim_config:
-            self.tasks = load_tasks_to_db(dataset_module, dataset_name, initial_time=sim_config.get('initial_time'))
+            tasks = load_tasks_to_db(self._dataset_module, self._dataset_name, initial_time=sim_config.get('initial_time'))
         else:
-            self.tasks = load_tasks_to_db(dataset_module, dataset_name)
+            tasks = load_tasks_to_db(self._dataset_module, self._dataset_name)
+        return tasks
 
     def trigger(self):
         msg = get_msg_fixture('start_test.json')
@@ -139,46 +122,25 @@ class AllocationTest(RopodPyre):
     def terminate(self):
         print("Exiting test...")
         self.simulator_interface.stop()
-        test.shutdown()
+        self.shutdown()
         print("Test terminated")
+
+    def start_allocation(self):
+        self.start()
+        time.sleep(10)
+        self.send_robot_positions()
+        time.sleep(10)
+        self.trigger()
 
     def run(self):
         try:
-            test.start()
-            time.sleep(10)
-            test.setup(args.robot_poses_file)
-            time.sleep(10)
-            test.trigger()
-            while not test.terminated:
+            self.start_allocation()
+            while not self.terminated:
                 print("Approx current time: ", self.simulator_interface.get_current_time())
-                test.check_termination_test()
+                self.check_termination_test()
                 time.sleep(0.5)
-
             self.terminate()
 
         except (KeyboardInterrupt, SystemExit):
             print('Task request test interrupted; exiting')
             self.terminate()
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-    parser.add_argument('--case', type=int, action='store', default=1, help='Test case number')
-    parser.add_argument('--dataset_module', type=str, action='store', help='Dataset module',
-                        default='mrs.tests.datasets')
-    parser.add_argument('--dataset_name', type=str, action='store', help='Dataset name',
-                        default='non_overlapping')
-    parser.add_argument('--robot_poses_file', type=str, action='store', help='Path to robot init poses file',
-                        default='robot_init_poses.yaml')
-    args = parser.parse_args()
-
-    case = args.case
-
-    test_cases = load_file_from_module('mrs.tests.cases', 'test-cases.yaml')
-    test_config = {case: load_yaml(test_cases).get(case)}
-    test_case = test_config.popitem()[1]
-
-    test = AllocationTest(test_case, args.file)
-    test.load_tasks(args.dataset_module, args.dataset_name)
-    test.run()
