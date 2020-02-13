@@ -6,6 +6,7 @@ from mrs.allocate import Allocate
 from mrs.config.params import get_config_params
 from mrs.experiments.db.models.experiment import Experiment
 from mrs.utils.utils import load_yaml_file
+from mrs.utils.utils import load_yaml_file_from_module
 
 
 class RunExperiment:
@@ -58,12 +59,13 @@ if __name__ == '__main__':
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
     parser.add_argument('--new_run', type=bool, action='store', default=True,
                         help='If True a new run is added if False last run ' 'is repeated')
-    parser.add_argument('--robot_poses_file', type=str, action='store', default='config/robot_init_poses.yaml',
-                        help='Path to robot init poses file')
     args = parser.parse_args()
 
-    robot_poses_ = load_yaml_file(args.robot_poses_file)
-
     config_params_ = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
+
+    robot_poses_module = config_params_.get("robot_poses_module")
+    robot_poses_file = config_params_.get("robot_poses")
+    robot_poses_ = load_yaml_file_from_module(robot_poses_module, robot_poses_file + ".yaml")
+
     run = RunExperiment(config_params_, robot_poses_, args.new_run)
     run.start()
