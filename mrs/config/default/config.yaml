@@ -24,12 +24,13 @@ fleet:
   - robot_005
 
 allocation_method: tessi-srea
+approach: tessi-srea-corrective-re-allocate
 
 planner:
   map_name: brsu
 
 delay_recovery:
-  type_: preventive
+  type_: corrective
   method: re-allocate
 
 auctioneer:

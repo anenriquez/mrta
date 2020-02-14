@@ -1,11 +1,8 @@
 import argparse
 import logging.config
 
-from fmlib.utils.utils import load_file_from_module, load_yaml
-from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
-
 from mrs.config.configurator import Configurator
+from mrs.config.params import get_config_params
 from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
@@ -15,6 +12,8 @@ from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -156,18 +155,19 @@ class Robot:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-    parser.add_argument('--case', type=int, action='store', default=1, help='Test case number')
     parser.add_argument('robot_id', type=str, help='example: robot_001')
+    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
+    parser.add_argument('--experiment', type=str, action='store', help='Experiment_name')
+    parser.add_argument('--approach', type=str, action='store', help='Approach name')
     args = parser.parse_args()
-    case = args.case
 
-    test_cases = load_file_from_module('mrs.tests.cases', 'test-cases.yaml')
-    test_config = {case: load_yaml(test_cases).get(case)}
-    test_case = test_config.popitem()[1]
+    config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
 
-    config = Configurator(args.file, component_modules=_component_modules, test_case=test_case)
+    print("Experiment: ", config_params.get("experiment"))
+    print("Approach: ", config_params.get("approach"))
+
+    config = Configurator(config_params, component_modules=_component_modules)
     components = config.config_robot(args.robot_id)
-
     robot = Robot(**components)
+
     robot.run()

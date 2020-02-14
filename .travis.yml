@@ -18,9 +18,9 @@ jobs:
 
     - stage: test
       script:
-        - docker-compose build task_allocation_test
+        - docker-compose build mrta_test
         - docker images
-        - docker-compose up -d task_allocation_test ccu robot_001 robot_002 robot_003 robot_004 robot_005
+        - docker-compose up -d mrta_test ccu robot_001 robot_002 robot_003 robot_004 robot_005
         - docker-compose logs
       after_script:
         - docker stop $(docker ps -aq)

@@ -1,6 +1,5 @@
 from fmlib.models.tasks import TaskManager as TaskPerformanceManager
 from fmlib.utils.messages import Document
-from mrs.db.models.task import Task
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 
 
@@ -21,17 +20,22 @@ class TaskAllocationPerformance(EmbeddedMongoModel):
                                        minimum and maximum time to start and complete the
                                        PICKUP-TO-DELIVERY action
     """
-    time_to_allocate = fields.FloatField()
-    n_previously_allocated_tasks = fields.IntegerField()
+    time_to_allocate = fields.ListField()
+    n_previously_allocated_tasks = fields.ListField()
     travel_time_boundaries = fields.ListField()
     work_time_boundaries = fields.ListField()
     n_re_allocation_attempts = fields.IntegerField(default=0)
+    allocated = fields.BooleanField(default=False)
+
+    def initialize(self):
+        self.time_to_allocate = list()
+        self.n_previously_allocated_tasks = list()
 
     def update(self, **kwargs):
         if 'time_to_allocate' in kwargs:
-            self.time_to_allocate = kwargs['time_to_allocate']
+            self.time_to_allocate.append(kwargs['time_to_allocate'])
         if 'n_previously_allocated_tasks' in kwargs:
-            self.n_previously_allocated_tasks = kwargs['n_previously_allocated_tasks']
+            self.n_previously_allocated_tasks.append(kwargs['n_previously_allocated_tasks'])
         if 'travel_time_boundaries' in kwargs:
             self.travel_time_boundaries = kwargs['travel_time_boundaries']
         if 'work_time_boundaries' in kwargs:
@@ -64,7 +68,7 @@ class TaskPerformance(MongoModel):
     execution (TaskExecutionPerformance):  Task performance metrics related to execution
 
     """
-    task = fields.ReferenceField(Task, primary_key=True, required=True)
+    task_id = fields.UUIDField(primary_key=True, required=True)
     allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
     execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
 
@@ -75,14 +79,15 @@ class TaskPerformance(MongoModel):
         meta_model = "task-performance"
 
     @classmethod
-    def create_new(cls, task):
-        performance = cls(task=task)
+    def create_new(cls, task_id):
+        performance = cls(task_id=task_id)
         performance.save()
         return performance
 
     def update_allocation(self, **kwargs):
         if not self.allocation:
             self.allocation = TaskAllocationPerformance()
+            self.allocation.initialize()
         self.allocation.update(**kwargs)
         self.save(cascade=True)
 
@@ -94,6 +99,14 @@ class TaskPerformance(MongoModel):
 
     def increase_n_re_allocation_attempts(self):
         self.allocation.n_re_allocation_attempts += 1
+        self.save(cascade=True)
+
+    def allocated(self):
+        self.allocation.allocated = True
+        self.save(cascade=True)
+
+    def unallocated(self):
+        self.allocation.allocated = False
         self.save(cascade=True)
 
     @classmethod

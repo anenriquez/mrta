@@ -17,6 +17,7 @@ class TaskPerformanceTracker:
             metrics = self.get_allocation_metrics(task_id, timetable)
             if task_id == allocated_task_id:
                 task_performance.update_allocation(**metrics)
+                task_performance.allocated()
             else:
                 task_performance.update_allocation(travel_time_boundaries=metrics.get("travel_time_boundaries"),
                                                    work_time_boundaries=metrics.get("work_time_boundaries"))
@@ -56,3 +57,4 @@ class TaskPerformanceTracker:
     def update_re_allocations(task_id):
         task_performance = TaskPerformance.get_task_performance(task_id)
         task_performance.increase_n_re_allocation_attempts()
+        task_performance.unallocated()

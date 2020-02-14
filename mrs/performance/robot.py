@@ -1,8 +1,6 @@
 import logging
 
 from mrs.db.models.performance.robot import RobotPerformance
-from mrs.db.models.task import Task
-from pymodm.context_managers import switch_collection
 
 
 class RobotPerformanceTracker:
@@ -16,6 +14,7 @@ class RobotPerformanceTracker:
         for task_idx, actions_progress in enumerate(tasks_progress):
             task_id = actions_progress[0].action.task_id
             if task_id not in self.processed_tasks:
+                robot_performance.update_allocated_tasks(task_id)
                 for action_progress in actions_progress:
                     time_ = (action_progress.finish_time - action_progress.start_time).total_seconds()
                     if action_progress.action.type == "ROBOT-TO-PICKUP":
