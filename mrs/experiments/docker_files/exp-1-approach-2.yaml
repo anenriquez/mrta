@@ -1,0 +1,404 @@
+services:
+  ccu:
+    command:
+    - python3
+    - ccu.py
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: ccu
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  mongo:
+    container_name: mongo
+    image: mongo:4.0-xenial
+    network_mode: host
+    ports:
+    - 27017:27017
+    volumes:
+    - /data/db:/data/db
+  mrta_experiment:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    command:
+    - python3
+    - run.py
+    - non_intentional_delays
+    - tessi-preventive-re-allocate
+    container_name: mrta-experiment
+    depends_on:
+    - mongo
+    - ccu
+    - robot_001
+    - robot_proxy_001
+    - robot_002
+    - robot_proxy_002
+    - robot_003
+    - robot_proxy_003
+    - robot_004
+    - robot_proxy_004
+    - robot_005
+    - robot_proxy_005
+    - robot_006
+    - robot_proxy_006
+    - robot_007
+    - robot_proxy_007
+    - robot_008
+    - robot_proxy_008
+    - robot_009
+    - robot_proxy_009
+    - robot_010
+    - robot_proxy_010
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/experiments/
+  robot_001:
+    command:
+    - python3
+    - robot.py
+    - robot_001
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_001
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_002:
+    command:
+    - python3
+    - robot.py
+    - robot_002
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_002
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_003:
+    command:
+    - python3
+    - robot.py
+    - robot_003
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_003
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_004:
+    command:
+    - python3
+    - robot.py
+    - robot_004
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_004
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_005:
+    command:
+    - python3
+    - robot.py
+    - robot_005
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_005
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_006:
+    command:
+    - python3
+    - robot.py
+    - robot_006
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_006
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_007:
+    command:
+    - python3
+    - robot.py
+    - robot_007
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_007
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_008:
+    command:
+    - python3
+    - robot.py
+    - robot_008
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_008
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_009:
+    command:
+    - python3
+    - robot.py
+    - robot_009
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_009
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_010:
+    command:
+    - python3
+    - robot.py
+    - robot_010
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_010
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_001:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_001
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_001
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_002:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_002
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_002
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_003:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_003
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_003
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_004:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_004
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_004
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_005:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_005
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_005
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_006:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_006
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_006
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_007:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_007
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_007
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_008:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_008
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_008
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_009:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_009
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_009
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_010:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_010
+    - --approach
+    - tessi-preventive-re-allocate
+    - --experiment
+    - non_intentional_delays
+    container_name: robot_proxy_010
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+version: '2'

@@ -22,6 +22,18 @@ tessi-corrective-re-allocate:
     type_: corrective
     method: re-allocate
 
+tessi-srea-preventive-abort:
+  allocation_method: tessi-srea
+  delay_recovery:
+    type_: preventive
+    method: abort
+
+tessi-srea-preventive-re-allocate:
+  allocation_method: tessi-srea
+  delay_recovery:
+    type_: preventive
+    method: re-allocate
+
 tessi-srea-preventive-re-schedule-abort:
   allocation_method: tessi-srea
   delay_recovery:

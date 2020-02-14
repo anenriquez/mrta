@@ -66,7 +66,9 @@ class Allocate(RopodPyre):
 
     def send_robot_positions(self):
         msg = get_msg_fixture('robot_pose.json')
-        for robot_id, pose in self._robot_poses.items():
+        fleet = self._config_params.get("fleet")
+        for robot_id in fleet:
+            pose = self._robot_poses.get(robot_id)
             msg['payload']['robotId'] = robot_id
             msg['payload']['pose'] = pose
             self.whisper(msg, peer=robot_id + "_proxy")

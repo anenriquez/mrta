@@ -1,6 +1,32 @@
 from fmlib.config.params import ConfigParams as BaseConfigParams
 from fmlib.utils.utils import load_file_from_module, load_yaml
 
+experiment_number = {"non_intentional_delays": "1",
+                     "intentional_delays": "2",
+                     "task_scalability": "3",
+                     "robot_scalability_10": "4-10",
+                     "robot_scalability_20": "4-20",
+                     "robot_scalability_30": "4-30",
+                     "robot_scalability_40": "4-40",
+                     "robot_scalability_50": "4-50",
+                     }
+
+approach_number = {"tessi-preventive-abort": "1",
+                   "tessi-preventive-re-allocate": "2",
+                   "tessi-corrective-abort": "3",
+                   "tessi-corrective-re-allocate": "4",
+                   "tessi-srea-preventive-abort": "5",
+                   "tessi-srea-preventive-re-allocate": "6",
+                   "tessi-srea-preventive-re-schedule-abort": "7",
+                   "tessi-srea-preventive-re-schedule-re-allocate": "8",
+                   "tessi-srea-corrective-abort": "9",
+                   "tessi-srea-corrective-re-allocate": "10",
+                   "tessi-dsc-preventive-abort": "11",
+                   "tessi-dsc-preventive-re-allocate": "12",
+                   "tessi-dsc-corrective-abort": "13",
+                   "tessi-dsc-corrective-re-allocate": "14",
+                   }
+
 
 class ConfigParams(BaseConfigParams):
     default_config_module = 'mrs.config.default'

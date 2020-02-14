@@ -131,12 +131,12 @@ services:
     depends_on:
       - mongo
 
-  task_allocation_test:
+  mrta_test:
     build: .
-    container_name: task-mrs-test
+    container_name: mrta-test
     image: ropod-mrs
     working_dir: /mrta/mrs/tests/
-    command: ["python3", "allocate.py"]
+    command: ["python3", "test.py"]
     network_mode: "host"
     tty: true
     stdin_open: true
