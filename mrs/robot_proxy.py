@@ -105,6 +105,9 @@ class RobotProxy:
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+        if status == TaskStatusConst.COMPLETED:
+            x, y, theta = self.bidder.planner.get_pose(task.request.delivery_location)
+            self.robot_model.update_position(x=x, y=y, theta=theta)
         self.timetable.remove_task(task.task_id)
         self.bidder.changed_timetable = True
         task.unfreeze()
