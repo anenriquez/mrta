@@ -6,7 +6,7 @@ from mrs.utils.as_dict import AsDictMixin
 
 
 class TaskAnnouncement(AsDictMixin):
-    def __init__(self, tasks, round_id, zero_timepoint):
+    def __init__(self, tasks, round_id, zero_timepoint, earliest_admissible_time):
         """
         Constructor for the TaskAnnouncement object
 
@@ -23,6 +23,7 @@ class TaskAnnouncement(AsDictMixin):
         else:
             self.round_id = round_id
 
+        self.earliest_admissible_time = earliest_admissible_time
         self.zero_timepoint = zero_timepoint
 
     def to_dict(self):

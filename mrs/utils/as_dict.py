@@ -50,14 +50,15 @@ class AsDictMixin:
     def to_attrs(cls, dict_repr):
         attrs = dict()
         for key, value in dict_repr.items():
-            attrs[key] = cls._get_value(key, value)
+            if value is not None:
+                attrs[key] = cls._get_value(key, value)
         return attrs
 
     @classmethod
     def _get_value(cls, key, value):
-        if key == 'task_id' or key == 'round_id' or key == 'action_id':
+        if key in ['task_id', 'round_id', 'action_id']:
             return from_str(value)
-        elif key == 'zero_timepoint':
+        elif key in ['zero_timepoint', 'earliest_admissible_time', 'earliest_start_time']:
             return TimeStamp.from_str(value)
         else:
             return value

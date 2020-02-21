@@ -20,7 +20,7 @@ class DGraphUpdate(AsDictMixin):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def update_timetable(self, timetable, replace=False):
+    def update_timetable(self, timetable, replace=True):
         stn_cls = timetable.stp_solver.get_stn()
         stn = stn_cls.from_dict(self.stn)
         dispatchable_graph = stn_cls.from_dict(self.dispatchable_graph)

@@ -7,7 +7,6 @@ from mrs.db.models.performance.task import TaskPerformance
 from mrs.db.models.task import Task
 from pymodm import fields, MongoModel
 from pymodm.context_managers import switch_collection
-from pymodm.context_managers import switch_connection
 from pymodm.manager import Manager
 from pymodm.queryset import QuerySet
 
@@ -94,48 +93,36 @@ class Experiment(MongoModel):
 
     @staticmethod
     def get_requests():
-        with switch_connection(TransportationRequest, "default"):
-            requests = [request for request in TransportationRequest.objects.all()]
-        return requests
+        return [request for request in TransportationRequest.objects.all()]
 
     @staticmethod
     def get_tasks():
-        with switch_connection(Task, "default"):
-            with switch_collection(Task, Task.Meta.archive_collection):
-                tasks = [task for task in Task.objects.all()]
+        with switch_collection(Task, Task.Meta.archive_collection):
+            tasks = [task for task in Task.objects.all()]
         return tasks
 
     @staticmethod
     def get_actions():
-        with switch_connection(Action, "default"):
-            actions = [action for action in Action.objects.all()]
-        return actions
+        return [action for action in Action.objects.all()]
 
     @staticmethod
     def get_tasks_status(tasks):
-        with switch_connection(TaskStatus, "default"):
-            with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
-                tasks_status = [task_status for task_status in TaskStatus.objects.all()]
-                # task_status.task is None because the reference field in the task_archive collection
-                for task_status in tasks_status:
-                    for task in tasks:
-                        if task_status.progress.actions[0].action.task_id == task.task_id:
-                            task_status.task = task
-                            task_status.save()
-                            break
+        tasks_status = list()
+        with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+            for task in tasks:
+                task_status = TaskStatus.objects.get({"_id": task.task_id})
+                task_status.task = task
+                task_status.save()
+                tasks_status.append(task_status)
         return tasks_status
 
     @staticmethod
     def get_tasks_performance():
-        with switch_connection(TaskPerformance, "default"):
-            tasks_performance = [task_performance for task_performance in TaskPerformance.objects.all()]
-        return tasks_performance
+        return [task_performance for task_performance in TaskPerformance.objects.all() if task_performance.allocation]
 
     @staticmethod
     def get_robots_performance():
-        with switch_connection(RobotPerformance, "default"):
-            robots_performance = [robot_performance for robot_performance in RobotPerformance.objects.all()]
-        return robots_performance
+        return [robot_performance for robot_performance in RobotPerformance.objects.all()]
 
     @classmethod
     def get_experiments(cls, approach, dataset):

@@ -53,13 +53,9 @@ class Robot:
 
     def d_graph_update_cb(self, msg):
         payload = msg['payload']
-        self.logger.debug("Received DGraph update")
+        self.logger.critical("Received DGraph update")
         d_graph_update = DGraphUpdate.from_payload(payload)
-        if self.recovery_method.startswith("re-schedule"):
-            d_graph_update.update_timetable(self.timetable, replace=True)
-        else:
-            d_graph_update.update_timetable(self.timetable, replace=False)
-
+        d_graph_update.update_timetable(self.timetable)
         self.logger.debug("STN update %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph update %s", self.timetable.dispatchable_graph)
         self.d_graph_update_received = True
@@ -77,10 +73,14 @@ class Robot:
 
     def abort(self, task):
         self.logger.debug("Trigger abortion of task %s", task.task_id)
-        status = TaskStatusConst.ABORTED
-        task.update_status(status)
+        task.update_status(TaskStatusConst.ABORTED)
         self.timetable.remove_task(task.task_id)
-        recover = Abort(self.recovery_method, task.task_id, status)
+        recover = Abort(self.recovery_method, task.task_id)
+        self.send_recover_msg(recover)
+
+    def re_schedule(self, task):
+        self.logger.debug("Trigger rescheduling")
+        recover = ReSchedule(self.recovery_method, task.task_id)
         self.send_recover_msg(recover)
 
     def schedule(self, task):
@@ -106,18 +106,17 @@ class Robot:
             self.executor.execute()
 
             if self.schedule_monitor.recover(self.executor.current_task, self.executor.action_progress.is_consistent):
-                self.logger.debug("Applying recovery method: %s", self.recovery_method)
                 self.recover(self.executor.current_task)
+
+            self.executor.update_action_progress()
 
     def recover(self, task):
         if self.recovery_method == "re-allocate":
-            task.mark_as_delayed()
             next_task = self.timetable.get_next_task(task)
             self.re_allocate(next_task)
 
         elif self.recovery_method.startswith("re-schedule"):
-            recover = ReSchedule(self.recovery_method, self.executor.current_task.task_id)
-            self.send_recover_msg(recover)
+            self.re_schedule(self.executor.current_task)
 
         elif self.recovery_method == "abort":
             next_task = self.timetable.get_next_task(task)

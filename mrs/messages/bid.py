@@ -61,6 +61,7 @@ class Bid(BidBase):
     def __init__(self, task_id, robot_id, round_id, metrics, **kwargs):
         self.metrics = metrics
         self._allocation_info = None
+        self.earliest_start_time = kwargs.get("earliest_start_time")
         self.alternative_start_time = kwargs.get("alternative_start_time")
         super().__init__(task_id, robot_id, round_id)
 

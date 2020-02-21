@@ -1,7 +1,5 @@
 import logging
 
-from ropod.structs.status import ActionStatus
-
 
 class RecoveryMethod:
 
@@ -20,46 +18,11 @@ class RecoveryMethod:
     def recover(self, timetable, task, is_consistent):
         next_task = timetable.get_next_task(task)
 
-        if next_task and (self.name == "re-allocate" and self.is_next_task_late(timetable, task, next_task)) \
+        if next_task and (self.name == "re-allocate" and timetable.is_next_task_late(task, next_task)) \
                 or self.name.startswith("re-schedule") \
-                or next_task and self.name == "abort" and self.is_next_task_late(timetable, task, next_task):
+                or next_task and self.name == "abort" and timetable.is_next_task_late(task, next_task):
             return True
         return False
-
-    def is_next_task_late(self, timetable, task, next_task):
-        last_completed_action = None
-        mean = 0
-        variance = 0
-
-        for action_progress in task.status.progress.actions:
-            if action_progress.status == ActionStatus.COMPLETED:
-                last_completed_action = action_progress.action
-
-            elif action_progress.status == ActionStatus.ONGOING or action_progress.status == ActionStatus.PLANNED:
-                mean += action_progress.action.estimated_duration.mean
-                variance += action_progress.action.estimated_duration.variance
-
-        estimated_duration = mean + 2*round(variance ** 0.5, 3)
-        self.logger.debug("Remaining estimated task duration: %s ", estimated_duration)
-
-        if last_completed_action:
-            start_node, finish_node = last_completed_action.get_node_names()
-            last_time = timetable.stn.get_time(task.task_id, finish_node)
-        else:
-            last_time = timetable.stn.get_time(task.task_id, 'start')
-
-        estimated_start_time = last_time + estimated_duration
-        self.logger.debug("Estimated start time of next task: %s ", estimated_start_time)
-
-        latest_start_time = timetable.dispatchable_graph.get_time(next_task.task_id, 'start', False)
-        self.logger.debug("Latest permitted start time of next task: %s ", latest_start_time)
-
-        if latest_start_time < estimated_start_time:
-            self.logger.debug("Next task is at risk")
-            return True
-        else:
-            self.logger.debug("Next task is NOT at risk")
-            return False
 
 
 class Corrective(RecoveryMethod):

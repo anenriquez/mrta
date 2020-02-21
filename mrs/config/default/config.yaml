@@ -39,7 +39,7 @@ auctioneer:
 
 dispatcher:
   freeze_window: 0.1 # minutes
-  n_queued_tasks: 2
+  n_queued_tasks: 3
 
 bidder:
   bidding_rule: completion_time
@@ -112,8 +112,6 @@ ccu_api:
         component: 'timetable_monitor.task_progress_cb'
       - msg_type: 'RE-ALLOCATE'
         component: 'timetable_monitor.re_allocate_cb'
-      - msg_type: 'RE-ALLOCATE'
-        component: 'performance_tracker.re_allocate_cb'
       - msg_type: 'ABORT'
         component: 'timetable_monitor.abort_cb'
       - msg_type: 'RE-SCHEDULE'

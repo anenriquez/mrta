@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from mrs.messages.bid import Bid, Metrics
 from stn.exceptions.stp import NoSTPSolution
 
@@ -28,6 +30,11 @@ class BiddingRule(object):
                           round_id,
                           Metrics(temporal_metric, risk_metric),
                           alternative_start_time=alternative_start_time)
+
+            if allocation_info.insertion_point == 1:
+                r_earliest_start_time = dispatchable_graph.get_time(task.task_id, "start")
+                earliest_start_time = self.timetable.ztp + timedelta(seconds=r_earliest_start_time)
+                bid.earliest_start_time = earliest_start_time
 
             bid.set_allocation_info(allocation_info)
             bid.set_stn(stn)

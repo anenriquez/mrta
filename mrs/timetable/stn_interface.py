@@ -21,30 +21,29 @@ class STNInterface:
     def insert_task(self, stn_task, insertion_point):
         self.stn.add_task(stn_task, insertion_point)
 
-    def update_task(self, stn_task):
-        self.stn.update_task(stn_task)
-        self.dispatchable_graph.update_task(stn_task)
-
-    def to_stn_task(self, task, insertion_point):
+    def to_stn_task(self, task, insertion_point, earliest_admissible_time):
         self.update_pickup_constraint(task, insertion_point)
-        self.update_start_constraint(task, insertion_point)
+        self.update_start_constraint(task, insertion_point, earliest_admissible_time)
         self.update_delivery_constraint(task)
         stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
         stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
         return stn_task
 
-    def update_stn_task(self, task, insertion_point):
-        self.update_start_constraint(task, insertion_point)
+    def update_stn_task(self, task, insertion_point, earliest_admissible_time):
+        self.update_start_constraint(task, insertion_point, earliest_admissible_time)
         stn_timepoint_constraints, stn_inter_timepoint_constraints = self.get_constraints(task)
         stn_task = STNTask(task.task_id, stn_timepoint_constraints, stn_inter_timepoint_constraints)
         return stn_task
 
-    def update_start_constraint(self, task, insertion_point):
+    def update_start_constraint(self, task, insertion_point, earliest_admissible_time):
         pickup_constraint = task.get_timepoint_constraint("pickup")
         travel_time = task.get_inter_timepoint_constraint("travel_time")
         stn_start_constraint = self.stn.get_prev_timepoint_constraint("start",
                                                                       STNTimepointConstraint(**pickup_constraint.to_dict_relative_to_ztp(self.ztp)),
                                                                       STNInterTimepointConstraint(**travel_time.to_dict()))
+        if insertion_point == 1:
+            r_earliest_admissible_time = earliest_admissible_time.get_difference(self.ztp).total_seconds()
+            stn_start_constraint.r_earliest_time = max(r_earliest_admissible_time, stn_start_constraint.r_earliest_time)
 
         if insertion_point > 1 and self.previous_task_is_frozen(insertion_point):
             r_latest_delivery_time_previous_task = self.get_r_time_previous_task(insertion_point, "delivery", earliest=False)
@@ -66,7 +65,7 @@ class STNInterface:
         if not task.constraints.hard and insertion_point > 1:
             r_earliest_delivery_time_previous_task = self.get_r_time_previous_task(insertion_point, "delivery")
             travel_time = task.get_inter_timepoint_constraint("travel_time")
-            earliest_pickup_time = r_earliest_delivery_time_previous_task + (travel_time.mean - 2*travel_time.variance**0.5)
+            earliest_pickup_time = r_earliest_delivery_time_previous_task + travel_time.mean
 
             latest_pickup_time = earliest_pickup_time + pickup_time_window.total_seconds()
 

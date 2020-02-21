@@ -21,9 +21,8 @@ class ReAllocate(Recover):
 
 
 class Abort(Recover):
-    def __init__(self, method, task_id, status):
+    def __init__(self, method, task_id):
         super().__init__(method, task_id)
-        self.status = status
 
     @property
     def meta_model(self):

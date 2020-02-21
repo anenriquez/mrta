@@ -2,11 +2,6 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
-from pymodm.errors import DoesNotExist
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
-
 from mrs.allocation.bidding_rule import BiddingRule
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
@@ -15,6 +10,10 @@ from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, AllocationInfo
+from pymodm.errors import DoesNotExist
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -92,12 +91,13 @@ class Bidder:
         bids = list()
         no_bids = list()
         round_id = task_announcement.round_id
+        earliest_admissible_time = task_announcement.earliest_admissible_time
         self.changed_timetable = False
         self.bid_placed = None
 
         for task in task_announcement.tasks:
             self.logger.debug("Computing bid of task %s", task.task_id)
-            best_bid = self.compute_bid(task, round_id)
+            best_bid = self.compute_bid(task, round_id, earliest_admissible_time)
 
             if best_bid:
                 self.logger.debug("Best bid %s", best_bid)
@@ -118,17 +118,16 @@ class Bidder:
         :param bid: bid with the smallest cost
         :param no_bids: list of no bids
         """
+        if no_bids:
+            for no_bid in no_bids:
+                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
+                self.send_bid(no_bid)
         if bid:
             self.bid_placed = bid
             self.logger.debug("Placing bid %s ", self.bid_placed)
             self.send_bid(bid)
 
-        if no_bids:
-            for no_bid in no_bids:
-                self.logger.debug("Sending no bid for task %s", no_bid.task_id)
-                self.send_bid(no_bid)
-
-    def compute_bid(self, task, round_id):
+    def compute_bid(self, task, round_id, earliest_admissible_time):
         best_bid = None
         n_tasks = len(self.timetable.get_tasks())
 
@@ -146,7 +145,7 @@ class Bidder:
             prev_location = self.get_previous_location(insertion_point)
             pre_task_actions.append(self.get_pre_task_action(task, prev_location))
 
-            stn_task = self.timetable.to_stn_task(task, insertion_point)
+            stn_task = self.timetable.to_stn_task(task, insertion_point, earliest_admissible_time)
             self.timetable.insert_task(stn_task, insertion_point)
             stn_tasks.append(stn_task)
 
@@ -158,8 +157,8 @@ class Bidder:
                 prev_location = task.request.delivery_location
                 pre_task_actions.append(self.get_pre_task_action(next_task, prev_location))
 
-                stn_task = self.timetable.update_stn_task(next_task, insertion_point+1)
-                self.timetable.update_task(stn_task)
+                stn_task = self.timetable.update_stn_task(next_task, insertion_point+1, earliest_admissible_time)
+                self.timetable.stn.update_task(stn_task)
                 stn_tasks.append(stn_task)
             except TaskNotFound as e:
                 pass
