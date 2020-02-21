@@ -107,7 +107,7 @@ class Run(AsDictMixin):
     def get_allocated_tasks(self):
         allocated_tasks = list()
         for performance in self._run_info.tasks_performance:
-            if performance.allocation.allocated:
+            if performance.allocation and performance.allocation.allocated:
                 allocated_tasks.append(performance.task_id)
         return allocated_tasks
 
@@ -183,7 +183,9 @@ class Run(AsDictMixin):
     def get_start_finish_time(self):
         start_time = datetime.max
         finish_time = datetime.min
-        for task_status in self._run_info.tasks_status:
+        task_status = [task_status for task_status in self._run_info.tasks_status
+                       if task_status.status == TaskStatusConst.COMPLETED]
+        for task_status in task_status:
             for action_progress in task_status.progress.actions:
                 if action_progress.start_time < start_time:
                     start_time = action_progress.start_time

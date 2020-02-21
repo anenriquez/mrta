@@ -3,9 +3,10 @@ from mrs.utils.as_dict import AsDictMixin
 
 
 class TaskProgress(AsDictMixin):
-    def __init__(self, task_id, status, robot_id, action_progress):
+    def __init__(self, task_id, status, robot_id, action_progress, delayed=False):
         self.task_id = task_id
         self.status = status
+        self.delayed = delayed
         self.robot_id = robot_id
         self.action_progress = action_progress
 

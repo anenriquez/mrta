@@ -6,21 +6,24 @@ from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import SimulatorInterface
+from pymodm.context_managers import switch_collection
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from stn.exceptions.stp import NoSTPSolution
 
 
 class TimetableMonitor(SimulatorInterface):
-    def __init__(self, auctioneer, dispatcher, timetable_manager, **kwargs):
+    def __init__(self, auctioneer, dispatcher, timetable_manager, delay_recovery, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
         self.auctioneer = auctioneer
         self.dispatcher = dispatcher
         self.timetable_manager = timetable_manager
+        self.recovery_method = delay_recovery.method
         self.api = kwargs.get('api')
 
         self.tasks_to_remove = list()
+        self.tasks_to_reallocate = list()
         self.completed_tasks = list()
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
@@ -32,6 +35,9 @@ class TimetableMonitor(SimulatorInterface):
         task = Task.get_task(progress.task_id)
         robot_id = progress.robot_id
         action_progress = progress.action_progress
+
+        if progress.delayed:
+            task.mark_as_delayed()
 
         if progress.status == TaskStatusConst.COMPLETED:
             self.tasks_to_remove.append((task, progress.status))
@@ -54,13 +60,13 @@ class TimetableMonitor(SimulatorInterface):
         payload = msg['payload']
         recover = Abort.from_payload(payload)
         task = Task.get_task(recover.task_id)
-        self._remove_task(task, recover.status)
+        self._abort(task)
 
     def re_schedule_cb(self, msg):
         payload = msg['payload']
         recover = ReSchedule.from_payload(payload)
         task = Task.get_task(recover.task_id)
-        self._re_schedule(recover.method, task)
+        self._re_schedule(task)
 
     def _update_timetable(self, task, robot_id, action_progress):
         if action_progress.start_time and action_progress.finish_time:
@@ -101,10 +107,21 @@ class TimetableMonitor(SimulatorInterface):
     def _re_allocate(self, task):
         self.logger.critical("Re-allocating task %s", task.task_id)
         self._remove_task(task, TaskStatusConst.UNALLOCATED)
+        task.assign_robots(list())
+        task.plan = list()
+        task.unmark_as_delayed()
+        task.save()
         self.auctioneer.allocated_tasks.pop(task.task_id)
         self.auctioneer.allocate(task)
+        self.tasks_to_reallocate.append(task.task_id)
 
-    def _re_schedule(self, recovery_method, task):
+    def _abort(self, task):
+        self.logger.critical("Aborting task %s", task.task_id)
+        self._remove_task(task, TaskStatusConst.ABORTED)
+        with switch_collection(Task, Task.Meta.archive_collection):
+            task.assign_robots(list())
+
+    def _re_schedule(self, task):
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
             stn = timetable.stn
@@ -117,20 +134,27 @@ class TimetableMonitor(SimulatorInterface):
                 timetable.store()
                 self.dispatcher.send_d_graph_update(robot_id)
             except NoSTPSolution:
-                self.logger.warning("Temporal network becomes inconsistent")
+                self.logger.warning("Temporal network is inconsistent")
                 next_task = timetable.get_next_task(task)
-                if next_task and recovery_method.endswith("abort"):
-                    self.logger.debug("Aborting task %s", next_task.task_id)
-                    self._remove_task(next_task, TaskStatusConst.ABORTED)
-                elif next_task and recovery_method.endswith("re-allocate"):
-                    self._re_allocate(next_task)
+                if next_task:
+                    self.recover(next_task)
                 else:
                     self.dispatcher.send_d_graph_update(robot_id)
+
+    def recover(self, task):
+        if self.recovery_method.name.endswith("abort"):
+            self._abort(task)
+        elif self.recovery_method.name.endswith("re-allocate"):
+            self._re_allocate(task)
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
+
+            if status == TaskStatusConst.COMPLETED:
+                self.validate_next_tasks(timetable, task)
+
             timetable.remove_task(task.task_id)
             self.auctioneer.changed_timetable.append(robot_id)
             self.dispatcher.send_d_graph_update(robot_id)
@@ -140,6 +164,23 @@ class TimetableMonitor(SimulatorInterface):
 
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+
+    def validate_next_tasks(self, timetable, task_to_delete):
+        # Get next task until the next task is valid
+        tasks_to_recover = list()
+        next_task = timetable.get_next_task(task_to_delete)
+        if next_task:
+            tasks_to_recover = self.check_next_task_validity(timetable, task_to_delete, next_task, tasks_to_recover)
+            for task_to_recover in tasks_to_recover:
+                self.recover(task_to_recover)
+
+    def check_next_task_validity(self, timetable, task, next_task, tasks_to_recover):
+        if timetable.is_next_task_invalid(task, next_task):
+            tasks_to_recover.append(next_task)
+            next_task = timetable.get_next_task(next_task)
+            if next_task:
+                self.check_next_task_validity(timetable, task, next_task, tasks_to_recover)
+        return tasks_to_recover
 
     def send_remove_task(self, task_id, status, robot_id):
         remove_task = RemoveTask(task_id, status)

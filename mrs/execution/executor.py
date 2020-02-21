@@ -3,15 +3,13 @@ import logging
 import numpy as np
 from fmlib.models.actions import Action
 from fmlib.models.tasks import TaskStatus
-from pymodm.context_managers import switch_collection
-from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
-
 from mrs.db.models.actions import ActionProgress
-from mrs.db.models.task import Task
 from mrs.db.models.task import TimepointConstraint
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.task_progress import TaskProgress
+from pymodm.context_managers import switch_collection
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
 class Executor:
@@ -34,11 +32,11 @@ class Executor:
         try:
             task_status = task.status
         except DoesNotExist:
-            with switch_collection(Task, Task.Meta.archive_collection):
-                with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
-                    task_status = TaskStatus.objects.get({"_id": task.task_id})
+            with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+                task_status = TaskStatus.objects.get({"_id": task.task_id})
 
-        task_progress = TaskProgress(task.task_id, task_status.status, self.robot_id, self.action_progress)
+        task_progress = TaskProgress(task.task_id, task_status.status, self.robot_id, self.action_progress,
+                                     task_status.delayed)
         self.logger.debug("Sending task progress: \n %s", task_progress)
         msg = self.api.create_message(task_progress)
         self.api.publish(msg)
@@ -73,8 +71,8 @@ class Executor:
         self.execute_stn(self.current_task.task_id, start_node, finish_node)
         self.send_task_progress(self.current_task)
 
+    def update_action_progress(self):
         progress = self.current_task.status.progress
-
         # Create action progress for new current action
         if progress.current_action.action_id != self.action_progress.action.action_id:
             self.action_progress = ActionProgress(progress.current_action.action_id)
@@ -111,6 +109,18 @@ class Executor:
                                 "Assigning anyway.. ", e.assigned_time, e.task_id, e.node_type)
             self.timetable.stn.assign_timepoint(e.assigned_time, e.task_id, e.node_type, force=True)
             self.action_progress.is_consistent = False
+
+        if self.task_is_delayed(assigned_time, node_type):
+            self.logger.warning("Task %s is delayed", self.current_task.task_id)
+            self.current_task.mark_as_delayed()
+
+    def task_is_delayed(self, assigned_time, node_type):
+        constraint = self.current_task.get_timepoint_constraint(node_type)
+        if constraint:
+            r_earliest_time, r_latest_time = constraint.relative_to_ztp(self.timetable.ztp)
+            if assigned_time > r_latest_time:
+                return True
+        return False
 
     def execute_stn(self, task_id, start_node, finish_node):
         self.assign_timepoint(self.action_progress.r_finish_time, self.current_task.task_id, finish_node)

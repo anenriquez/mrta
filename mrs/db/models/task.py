@@ -142,8 +142,14 @@ class Task(BaseTask):
         self.save()
 
     def mark_as_delayed(self):
-        self.status.delayed = True
-        self.save()
+        task_status = Task.get_task_status(self.task_id)
+        task_status.delayed = True
+        task_status.save()
+
+    def unmark_as_delayed(self):
+        task_status = Task.get_task_status(self.task_id)
+        task_status.delayed = False
+        task_status.save()
 
     def update_start_time(self, start_time):
         self.start_time = start_time
@@ -154,12 +160,14 @@ class Task(BaseTask):
         self.save()
 
     def get_timepoint_constraint(self, name):
-        return [constraint for constraint in self.constraints.timepoint_constraints
-                if constraint.name == name].pop()
+        for constraint in self.constraints.timepoint_constraints:
+            if constraint.name == name:
+                return constraint
 
     def get_inter_timepoint_constraint(self, name):
-        return [constraint for constraint in self.constraints.inter_timepoint_constraints
-                if constraint.name == name].pop()
+        for constraint in self.constraints.inter_timepoint_constraints:
+            if constraint.name == name:
+                return constraint
 
     def get_timepoint_constraints(self):
         return self.constraints.timepoint_constraints
