@@ -11,7 +11,7 @@ if __name__ == '__main__':
     parser.add_argument('--robot_poses_file', type=str, action='store',
                         default='../config/default/robot_init_poses.yaml', help='Path to robot init poses file')
     parser.add_argument('--dataset_module', type=str, action='store', help='Dataset module',
-                        default='mrs.datasets')
+                        default='mrs.tests.datasets')
     parser.add_argument('--dataset_name', type=str, action='store', help='Dataset name',
                         default='non_overlapping')
     args = parser.parse_args()
