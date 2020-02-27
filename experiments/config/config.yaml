@@ -1,0 +1,175 @@
+non_intentional_delays:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+    - overlapping_loose_1
+    - overlapping_random_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+    - robot_004
+    - robot_005
+
+intentional_delays:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 10
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+    - robot_004
+    - robot_005
+
+task_scalability:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+    - robot_004
+    - robot_005
+
+robot_scalability_1:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+
+robot_scalability_2:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+
+robot_scalability_3:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+
+robot_scalability_4:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+    - robot_004
+
+robot_scalability_5:
+  approaches:
+    - tessi-corrective-re-allocate
+    - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-corrective-re-allocate
+    - tessi-dsc-corrective-re-allocate
+  dataset_module: dataset_lib.datasets
+  datasets:
+    - overlapping_tight_1
+  robot_poses_module: experiments.config.poses
+  robot_poses: robot_init_poses
+  planner:
+    map_name: brsu
+  executor:
+    max_seed: 2147483647
+    delay_n_standard_dev: 0
+  fleet:
+    - robot_001
+    - robot_002
+    - robot_003
+    - robot_004
+    - robot_005
