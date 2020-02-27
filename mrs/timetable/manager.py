@@ -45,7 +45,7 @@ class TimetableManager(object):
         for robot_id, timetable in self.timetables.items():
             timetable.fetch()
 
-    def update_timetable(self, robot_id, allocation_info, temporal_metric, task):
+    def update_timetable(self, robot_id, allocation_info, task):
         timetable = self.timetables.get(robot_id)
         try:
             for stn_task in allocation_info.stn_tasks:
@@ -55,7 +55,6 @@ class TimetableManager(object):
                     timetable.stn.update_task(stn_task)
 
             dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
-            dispatchable_graph.temporal_metric = temporal_metric
             timetable.dispatchable_graph = dispatchable_graph
             self.timetables.update({robot_id: timetable})
 
