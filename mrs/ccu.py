@@ -54,14 +54,18 @@ class CCU:
 
     def start_test_cb(self, msg):
         self.logger.debug("Start test msg received")
+        initial_time = msg["payload"]["initial_time"]
+
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for robot_id in self.auctioneer.robot_ids:
             RobotPerformance.create_new(robot_id=robot_id)
         for task in tasks:
             self.task_plans[task.task_id] = self.get_task_plan(task)
             TaskPerformance.create_new(task_id=task.task_id)
+
+        self.simulator_interface.start(initial_time)
+
         self.auctioneer.allocate(tasks)
-        self.simulator_interface.start()
 
     def get_task_plan(self, task):
         path = self.planner.get_path(task.request.pickup_location, task.request.delivery_location)
@@ -84,9 +88,8 @@ class CCU:
         return mean, variance
 
     def process_allocation(self):
-        while self.auctioneer.allocations and self.auctioneer.round.finished:
+        while self.auctioneer.allocations:
             task_id, robot_ids = self.auctioneer.allocations.pop(0)
-            self.logger.debug("Processing allocation of task: %s", task_id)
             task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
             self.update_task_allocation_metrics(task_id, robot_ids)
@@ -94,6 +97,8 @@ class CCU:
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
+
+            self.auctioneer.round.finish()
 
     def update_task_allocation_metrics(self, task_id, robot_ids):
         tasks_to_update = [pre_task_action.task_id for pre_task_action in self.auctioneer.pre_task_actions]

@@ -1,6 +1,7 @@
 import threading
 from datetime import datetime
 
+import dateutil.parser
 import simpy.rt
 from ropod.utils.timestamp import TimeStamp
 
@@ -16,6 +17,11 @@ class Simulator:
         self._factor = factor
         self._env = simpy.Environment(initial_time=initial_time.timestamp())
         self._timer = None
+        self.current_time = initial_time
+
+    def set_initial_time(self, initial_time):
+        initial_time = dateutil.parser.parse(initial_time).timestamp()
+        self._env = simpy.Environment(initial_time=initial_time)
         self.current_time = initial_time
 
     def step(self):
@@ -47,9 +53,10 @@ class SimulatorInterface:
         self.simulator = simulator
         self._started = False
 
-    def start(self):
+    def start(self, initial_time):
         self._started = True
         if self.simulator:
+            self.simulator.set_initial_time(initial_time)
             self.run()
 
     def stop(self):
