@@ -159,10 +159,10 @@ class ExperimentComposeFileGenerator(ComposeFileGenerator):
         super().__init__(n_robots, component_kwargs)
         self.experiment_args = experiment_args
 
-        self.experiment_service = {"build": {"context": "../../..",
+        self.experiment_service = {"build": {"context": "../../",
                                              "dockerfile": "Dockerfile"},
                                    "container_name": "mrta-experiment",
-                                   "working_dir": "/mrta/mrs/experiments/",
+                                   "working_dir": "/mrta/experiments/",
                                    }
 
     def generate_experiment_service(self):
