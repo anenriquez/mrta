@@ -32,9 +32,9 @@ class RobotPerformanceTracker:
                 self.processed_tasks.append(task_id)
 
         start_first_task, finish_last_task = self.get_start_finish_times(tasks_progress)
-        completion_time = (finish_last_task - start_first_task).total_seconds()
+        total_time = (finish_last_task - start_first_task).total_seconds()
 
-        robot_performance.update_completion_time(completion_time)
+        robot_performance.update_total_time(total_time)
         robot_performance.update_makespan(finish_last_task)
 
     @staticmethod
