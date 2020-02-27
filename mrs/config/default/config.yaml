@@ -14,7 +14,7 @@ robot_store:
 
 simulator:
   initial_time: 2020-01-23T08:00:00.000000
-  factor: 0.05
+  factor: 0.1
 
 fleet:
   - robot_001
@@ -34,15 +34,15 @@ delay_recovery:
   method: re-allocate
 
 auctioneer:
-  closure_window: 5 # minutes
-  alternative_timeslots: True
+  closure_window: 1 # minutes
+  alternative_timeslots: False
 
 dispatcher:
   freeze_window: 0.1 # minutes
   n_queued_tasks: 3
 
 bidder:
-  bidding_rule: completion_time
+  bidding_rule: completion-time
   auctioneer_name: fms_zyre_api # This is completely Zyre dependent
 
 executor:

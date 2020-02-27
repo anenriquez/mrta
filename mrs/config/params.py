@@ -4,11 +4,11 @@ from fmlib.utils.utils import load_file_from_module, load_yaml
 experiment_number = {"non_intentional_delays": "1",
                      "intentional_delays": "2",
                      "task_scalability": "3",
-                     "robot_scalability_10": "4-10",
-                     "robot_scalability_20": "4-20",
-                     "robot_scalability_30": "4-30",
-                     "robot_scalability_40": "4-40",
-                     "robot_scalability_50": "4-50",
+                     "robot_scalability_1": "4-1",
+                     "robot_scalability_2": "4-2",
+                     "robot_scalability_3": "4-3",
+                     "robot_scalability_4": "4-4",
+                     "robot_scalability_5": "4-5",
                      }
 
 approach_number = {"tessi-preventive-abort": "1",
@@ -42,7 +42,7 @@ def get_config_params(config_file=None, **kwargs):
     approach = kwargs.get("approach")
 
     if experiment is not None:
-        experiments = load_file_from_module('mrs.experiments.config', 'config.yaml')
+        experiments = load_file_from_module('experiments.config', 'config.yaml')
         experiment_config = {experiment: load_yaml(experiments).get(experiment)}
         config_params.update(**experiment_config.pop(experiment), experiment=experiment)
 
