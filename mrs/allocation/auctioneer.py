@@ -121,7 +121,6 @@ class Auctioneer(SimulatorInterface):
 
             self.timetable_manager.update_timetable(self.winning_bid.robot_id,
                                                     allocation_info,
-                                                    self.winning_bid.metrics.temporal,
                                                     task)
 
             allocation = (self.winning_bid.task_id, [self.winning_bid.robot_id])
@@ -231,8 +230,7 @@ class Auctioneer(SimulatorInterface):
 
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
-
-        self.round.finish()
+            self.round.finish()
 
     def send_contract_acknowledgement(self, task_id, robot_id, allocation_info, accept):
         task_contract_acknowledgement = TaskContractAcknowledgment(task_id, robot_id, allocation_info, accept)
