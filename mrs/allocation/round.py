@@ -7,7 +7,6 @@ from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import NoBid, BiddingRobot
 from mrs.simulation.simulator import SimulatorInterface
-from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
 
 
@@ -63,7 +62,8 @@ class Round(SimulatorInterface):
             self.logger.warning("No round bid opened. Not processing bid..")
             return
         elif bid.round_id != self.id:
-            self.logger.warning("Bid round id does not match current round id. Not processing bid ..")
+            self.logger.warning("Bid round id %s does not match current round id %s. Not processing bid ..",
+                                bid.robot_id, self.id)
             return
 
         self.logger.debug("Processing bid %s", bid)
@@ -142,7 +142,7 @@ class Round(SimulatorInterface):
     def finish(self):
         self.opened = False
         self.finished = True
-        self.logger.debug("Round finished")
+        self.logger.debug("Round %s finished", self.id)
 
     def get_result_no_bids(self):
         for task_id, n_no_bids in self.received_no_bids.items():
@@ -152,10 +152,6 @@ class Round(SimulatorInterface):
                     task.set_soft_constraints()
                     self.tasks_to_allocate[task.task_id] = task
                     self.logger.debug("Setting soft constraints for task %s", task_id)
-                elif not self.alternative_timeslots:
-                    task.update_status(TaskStatusConst.ABORTED)
-                    self.tasks_to_allocate.pop(task.task_id)
-                    self.logger.warning("Task %s could not be allocated at its given temporal constraints", task_id)
 
     def elect_winner(self):
         """ Elects the winner of the round
