@@ -1,4 +1,5 @@
 import logging
+import time
 
 from fmlib.models.actions import Action
 from mrs.db.models.task import Task
@@ -32,7 +33,11 @@ class TimetableMonitor(SimulatorInterface):
         progress = TaskProgress.from_payload(payload)
         self.logger.debug("Task progress received: %s", progress)
 
+        # Sometimes a DoesNotExist error is thrown, even though the task is in the db
+        # Sleep a bit before reading from the db
+        time.sleep(0.1)
         task = Task.get_task(progress.task_id)
+
         robot_id = progress.robot_id
         action_progress = progress.action_progress
 

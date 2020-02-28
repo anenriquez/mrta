@@ -43,8 +43,8 @@ def load_tasks_to_db(dataset_module, dataset_name, **kwargs):
 
 
 def reference_to_initial_time(earliest_time, latest_time, initial_time):
-    r_earliest_time = initial_time + timedelta(minutes=earliest_time)
-    r_latest_time = initial_time + timedelta(minutes=latest_time)
+    r_earliest_time = initial_time + timedelta(seconds=earliest_time)
+    r_latest_time = initial_time + timedelta(seconds=latest_time)
     return r_earliest_time, r_latest_time
 
 

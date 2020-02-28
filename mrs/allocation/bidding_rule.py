@@ -1,34 +1,54 @@
+import math
 from datetime import timedelta
 
 from mrs.messages.bid import Bid, Metrics
 from stn.exceptions.stp import NoSTPSolution
 
 
-class BiddingRule(object):
+class BiddingRuleFactory(dict):
+    def __init__(self):
+        super().__init__()
+
+    def register_bidding_rule(self, rule_name, bidding_rule):
+        self[rule_name] = bidding_rule
+
+    def get_bidding_rule(self, rule_name, timetable):
+        bidding_rule = self.get(rule_name)
+
+        if not bidding_rule:
+            raise ValueError(rule_name)
+        return bidding_rule(timetable)
+
+
+class BiddingRuleBase:
     def __init__(self, temporal_criterion, timetable):
         self.temporal_criterion = temporal_criterion
         self.timetable = timetable
 
+    def compute_metrics(self, dispatchable_graph, **kwargs):
+        temporal_metric = dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
+        return Metrics(temporal_metric, dispatchable_graph.risk_metric)
+
     def compute_bid(self, stn, robot_id, round_id, task, allocation_info):
         try:
             dispatchable_graph = self.timetable.compute_dispatchable_graph(stn)
-            dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
+            metrics = self.compute_metrics(dispatchable_graph, task_id=task.task_id, allocation_info=allocation_info)
 
             if task.constraints.hard:
                 bid = Bid(task.task_id,
                           robot_id,
                           round_id,
-                          Metrics(dispatchable_graph.temporal_metric, dispatchable_graph.risk_metric))
+                          metrics)
             else:
                 pickup_constraint = task.get_timepoint_constraint("pickup")
                 temporal_metric = abs(pickup_constraint.earliest_time - task.request.earliest_pickup_time).total_seconds()
-                risk_metric = 1
+                metrics.objective = temporal_metric
                 alternative_start_time = pickup_constraint.earliest_time
 
                 bid = Bid(task.task_id,
                           robot_id,
                           round_id,
-                          Metrics(temporal_metric, risk_metric),
+                          metrics,
                           alternative_start_time=alternative_start_time)
 
             if allocation_info.insertion_point == 1:
@@ -44,3 +64,67 @@ class BiddingRule(object):
 
         except NoSTPSolution:
             raise NoSTPSolution()
+
+
+class Duration(BiddingRuleBase):
+    def __init__(self, temporal_criterion, timetable, alpha):
+        super().__init__(temporal_criterion, timetable)
+        self.alpha = alpha
+
+    def compute_metrics(self, dispatchable_graph, **kwargs):
+        task_id = kwargs.get("task_id")
+        allocation_info = kwargs.get("allocation_info")
+        temporal_metric = dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
+        new_task, next_task = allocation_info.get_stn_tasks(task_id)
+
+        mean = 0
+        variance = 0
+
+        if next_task:
+            # Previous version of the next task
+            prev_version_next_task = self.timetable.get_stn_task(next_task.task_id)
+
+            # Subtracting the independent random variables new_travel_time - previous_travel_time
+            mean, variance = next_task.get_inter_timepoint_constraint("travel_time") - \
+                             prev_version_next_task.get_inter_timepoint_constraint("travel_time")
+
+        # Adding the travel_time and work_time of the next task
+        for constraint in new_task.inter_timepoint_constraints:
+            mean += constraint.mean
+            variance += constraint.variance
+
+        increment_in_duration = math.ceil(mean + 2*(variance**0.5))
+
+        # Dual objective (like TeSSIduo)
+        objective = self.alpha * temporal_metric + (1 - self.alpha) * increment_in_duration
+
+        return Metrics(objective, dispatchable_graph.risk_metric)
+
+
+class CompletionTime(BiddingRuleBase):
+    def __init__(self, timetable):
+        super().__init__("completion_time", timetable)
+
+
+class Makespan(BiddingRuleBase):
+    def __init__(self, timetable):
+        super().__init__("makespan", timetable)
+
+
+class CompletionDuration(Duration):
+    def __init__(self, timetable, **kwargs):
+        alpha = kwargs.get("alpha", 0.5)
+        super().__init__("completion_time", timetable, alpha)
+
+
+class MakespanDuration(Duration):
+    def __init__(self, timetable, **kwargs):
+        alpha = kwargs.get("alpha", 0.5)
+        super().__init__("makespan", timetable, alpha)
+
+
+bidding_rule_factory = BiddingRuleFactory()
+bidding_rule_factory.register_bidding_rule('makespan', Makespan)
+bidding_rule_factory.register_bidding_rule('completion-time', CompletionTime)
+bidding_rule_factory.register_bidding_rule('completion-time-duration', CompletionDuration)
+bidding_rule_factory.register_bidding_rule('makespan-duration', MakespanDuration)

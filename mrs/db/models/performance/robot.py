@@ -8,7 +8,7 @@ class RobotPerformance(MongoModel):
 
     robot_id (str):  Identifies the robot
 
-    completion_time (float): Difference between the start of the first task and the finish time of the last task
+    total_time (float): Difference between the start of the first task and the finish time of the last task
 
     makespan (datetime): Finish time of the last task
 
@@ -21,7 +21,7 @@ class RobotPerformance(MongoModel):
     """
     robot_id = fields.CharField(primary_key=True)
     allocated_tasks = fields.ListField()
-    completion_time = fields.FloatField(default=0.0)
+    total_time = fields.FloatField(default=0.0)
     makespan = fields.DateTimeField()
     travel_time = fields.FloatField(default=0.0)
     work_time = fields.FloatField(default=0.0)
@@ -56,8 +56,8 @@ class RobotPerformance(MongoModel):
         self.idle_time += idle_time
         self.save()
 
-    def update_completion_time(self, completion_time):
-        self.completion_time = completion_time
+    def update_total_time(self, total_time):
+        self.total_time = total_time
         self.save()
 
     def update_makespan(self, makespan):

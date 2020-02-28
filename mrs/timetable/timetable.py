@@ -59,9 +59,9 @@ class Timetable(STNInterface):
         stn = copy.deepcopy(self.stn)
         minimal_network = get_minimal_network(stn)
         if minimal_network:
-            minimal_network.assign_timepoint(assigned_time, task_id, node_type)
+            minimal_network.assign_timepoint(assigned_time, task_id, node_type, force=True)
             if self.stp_solver.is_consistent(minimal_network):
-                self.stn.assign_timepoint(assigned_time, task_id, node_type)
+                self.stn.assign_timepoint(assigned_time, task_id, node_type, force=True)
                 return
         raise InconsistentAssignment(assigned_time, task_id, node_type)
 

@@ -3,24 +3,24 @@ from mrs.utils.as_dict import AsDictMixin
 
 class Metrics(AsDictMixin):
 
-    def __init__(self, temporal, risk):
-        self.temporal = temporal
+    def __init__(self, objective, risk):
+        self.objective = objective
         self.risk = risk
 
     def __str__(self):
         to_print = ""
-        to_print += "(temporal: {}, risk: {})".format(self.temporal, self.risk)
+        to_print += "(objective: {}, risk: {})".format(self.objective, self.risk)
         return to_print
 
     def __lt__(self, other):
         if other is None:
             return False
-        return self.risk < other.risk or (self.risk == other.risk and self.temporal < other.temporal)
+        return self.risk < other.risk or (self.risk == other.risk and self.objective < other.objective)
 
     def __eq__(self, other):
         if other is None:
             return False
-        return self.risk == other.risk and self.temporal == other.temporal
+        return self.risk == other.risk and self.objective == other.objective
 
     @classmethod
     def from_dict(cls, dict_repr):
@@ -28,7 +28,7 @@ class Metrics(AsDictMixin):
 
     @property
     def cost(self):
-        return self.risk, self.temporal
+        return self.risk, self.objective
 
 
 class BidBase(AsDictMixin):

@@ -86,7 +86,7 @@ class Allocate(RopodPyre):
         msg = get_msg_fixture('start_test.json')
         self.shout(msg)
         self.logger.info("Test triggered")
-        self.simulator_interface.start()
+        self.simulator_interface.start(msg["payload"]["initial_time"])
 
     def receive_msg_cb(self, msg_content):
         msg = self.convert_zyre_msg_to_dict(msg_content)

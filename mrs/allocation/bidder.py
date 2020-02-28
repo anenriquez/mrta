@@ -2,7 +2,7 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
-from mrs.allocation.bidding_rule import BiddingRule
+from mrs.allocation.bidding_rule import bidding_rule_factory
 from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
@@ -31,7 +31,7 @@ class Bidder:
 
             robot_id (str): id of the robot, e.g. robot_001
             stp_solver (STP): Simple Temporal Problem object
-            bidding_rule(dict): robustness and temporal criteria for the bidding rule
+            bidding_rule(str): name of the bidding rule
             auctioneer_name (str): name of the auctioneer pyre node
             kwargs:
                 api (API): object that provides middleware functionality
@@ -48,7 +48,7 @@ class Bidder:
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
-        self.bidding_rule = BiddingRule(bidding_rule, timetable)
+        self.bidding_rule = bidding_rule_factory.get_bidding_rule(bidding_rule, timetable)
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
         self.changed_timetable = False
@@ -96,7 +96,7 @@ class Bidder:
         self.bid_placed = None
 
         for task in task_announcement.tasks:
-            self.logger.debug("Computing bid of task %s", task.task_id)
+            self.logger.debug("Computing bid of task %s round %s", task.task_id, round_id)
             best_bid = self.compute_bid(task, round_id, earliest_admissible_time)
 
             if best_bid:
@@ -291,18 +291,18 @@ class Bidder:
     def task_contract_acknowledgement_cb(self, msg):
         payload = msg['payload']
         ack = TaskContractAcknowledgment.from_payload(payload)
-        if not ack.accept:
+        if ack.robot_id == self.robot_id and not ack.accept:
             self.logger.warning("Undoing allocation of task %s", ack.task_id)
             self.timetable.remove_task(ack.task_id)
             for stn_task in ack.allocation_info.stn_tasks:
                 if stn_task.task_id != ack.task_id:
                     self.timetable.update_task(stn_task)
 
-        tasks = [task for task in self.timetable.get_tasks()]
+            tasks = [task for task in self.timetable.get_tasks()]
 
-        self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
-        self.logger.debug("STN: \n %s", self.timetable.stn)
-        self.logger.debug("Dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+            self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
+            self.logger.debug("STN: \n %s", self.timetable.stn)
+            self.logger.debug("Dispatchable graph: \n %s", self.timetable.dispatchable_graph)
 
     def send_contract_acknowledgement(self, task_contract, accept=True):
         allocation_info = self.bid_placed.get_allocation_info()

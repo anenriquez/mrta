@@ -38,6 +38,16 @@ class AllocationInfo(AsDictMixin):
     def dispatchable_graph(self, dispatchable_graph):
         self._dispatchable_graph = dispatchable_graph
 
+    def get_stn_tasks(self, task_id):
+        new_stn_task = None
+        next_stn_task = None
+        for stn_task in self.stn_tasks:
+            if stn_task.task_id == task_id:
+                new_stn_task = stn_task
+            else:
+                next_stn_task = stn_task
+        return new_stn_task, next_stn_task
+
     def to_dict(self):
         dict_repr = super().to_dict()
         stn_tasks = list()

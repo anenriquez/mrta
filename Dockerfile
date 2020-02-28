@@ -12,6 +12,10 @@ RUN git clone https://github.com/anenriquez/mrta_planner.git /opt/mrs/planner
 WORKDIR /opt/mrs/planner
 RUN pip3 install -r requirements.txt && pip3 install -e .
 
+RUN git clone https://github.com/anenriquez/mrta_datasets.git /opt/mrs/datasets
+WORKDIR /opt/mrs/datasets
+RUN pip3 install -r requirements.txt && pip3 install -e .
+
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 
