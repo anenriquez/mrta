@@ -48,11 +48,9 @@ class TimetableManager(object):
     def update_timetable(self, robot_id, allocation_info, task):
         timetable = self.timetables.get(robot_id)
         try:
-            for stn_task in allocation_info.stn_tasks:
-                if stn_task.task_id == task.task_id:
-                    timetable.insert_task(stn_task, allocation_info.insertion_point)
-                else:
-                    timetable.stn.update_task(stn_task)
+            timetable.insert_task(allocation_info.new_task, allocation_info.insertion_point)
+            if allocation_info.next_task:
+                timetable.update_task(allocation_info.next_task)
 
             dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             timetable.dispatchable_graph = dispatchable_graph

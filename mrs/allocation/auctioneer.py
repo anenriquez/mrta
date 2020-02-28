@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import timedelta
 
 from mrs.allocation.round import Round
@@ -8,7 +9,7 @@ from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment
+from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
@@ -64,7 +65,7 @@ class Auctioneer(SimulatorInterface):
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
-            self.announce_task()
+            self.announce_tasks()
 
         if self.round.opened and self.round.time_to_close():
             try:
@@ -84,7 +85,7 @@ class Auctioneer(SimulatorInterface):
         if self.winning_bid.earliest_start_time is None or\
                 self.winning_bid.earliest_start_time and \
                 self.is_valid_time(self.winning_bid.earliest_start_time.to_datetime()):
-            self.announce_winner(self.winning_bid.task_id, self.winning_bid.robot_id)
+            self.send_task_contract(self.winning_bid.task_id, self.winning_bid.robot_id)
         else:
             self.logger.warning("The earliest start time of task %s is invalid", self.winning_bid.task_id)
             self.round.finish()
@@ -102,7 +103,7 @@ class Auctioneer(SimulatorInterface):
         # TODO: Prompt the user to accept the alternative timeslot
         # For now, accept always
         self.winning_bid = bid
-        self.announce_winner(bid.task_id, bid.robot_id)
+        self.send_task_contract(bid.task_id, bid.robot_id)
 
     def process_allocation(self, allocation_info):
         try:
@@ -139,7 +140,9 @@ class Auctioneer(SimulatorInterface):
 
     def undo_allocation(self, allocation_info):
         self.logger.warning("Undoing allocation of round %s", self.round.id)
-        self.send_contract_acknowledgement(self.winning_bid.task_id, self.winning_bid.robot_id, allocation_info, accept=False)
+        self.send_task_contract_cancellation(self.winning_bid.task_id,
+                                             self.winning_bid.robot_id,
+                                             allocation_info.prev_version_next_task)
         self.round.finish()
 
     def allocate(self, tasks):
@@ -156,7 +159,7 @@ class Auctioneer(SimulatorInterface):
             self.tasks_to_allocate[tasks.task_id] = tasks
         self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
 
-    def announce_task(self):
+    def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
         closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
@@ -232,18 +235,18 @@ class Auctioneer(SimulatorInterface):
             self.logger.warning("Round %s has to be repeated", self.round.id)
             self.round.finish()
 
-    def send_contract_acknowledgement(self, task_id, robot_id, allocation_info, accept):
-        task_contract_acknowledgement = TaskContractAcknowledgment(task_id, robot_id, allocation_info, accept)
-        msg = self.api.create_message(task_contract_acknowledgement)
-        self.logger.debug("Rejecting contract for task %s", task_id)
+    def send_task_contract_cancellation(self, task_id, robot_id, prev_version_next_task):
+        task_contract_cancellation = TaskContractCancellation(task_id, robot_id, prev_version_next_task)
+        msg = self.api.create_message(task_contract_cancellation)
+        self.logger.debug("Cancelling contract for task %s", task_id)
         self.api.publish(msg, peer=robot_id + "_proxy")
 
-    def announce_winner(self, task_id, robot_id):
+    def send_task_contract(self, task_id, robot_id):
         # Send TaskContract only if the timetable of robot_id has not changed since the round opened
         if robot_id not in self.changed_timetable:
             task_contract = TaskContract(task_id, robot_id)
             msg = self.api.create_message(task_contract)
-            self.api.publish(msg, groups=['TASK-ALLOCATION'])
+            self.api.publish(msg, peer=robot_id + "_proxy")
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
             self.round.finish()

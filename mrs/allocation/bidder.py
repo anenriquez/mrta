@@ -7,9 +7,9 @@ from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import TaskNotFound
-from mrs.messages.bid import NoBid
+from mrs.messages.bid import NoBid, AllocationInfo
 from mrs.messages.task_announcement import TaskAnnouncement
-from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, AllocationInfo
+from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
@@ -74,18 +74,16 @@ class Bidder:
     def task_contract_cb(self, msg):
         payload = msg['payload']
         task_contract = TaskContract.from_payload(payload)
+        self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
 
-        if task_contract.robot_id == self.robot_id:
-            self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
-
-            if not self.changed_timetable:
-                self.allocate_to_robot(task_contract.task_id)
-                self.send_contract_acknowledgement(task_contract, accept=True)
-            else:
-                self.logger.warning("The timetable changed before the round was completed, "
-                                    "as a result, the bid placed %s is no longer valid ",
-                                    self.bid_placed)
-                self.send_contract_acknowledgement(task_contract, accept=False)
+        if not self.changed_timetable:
+            self.allocate_to_robot(task_contract.task_id)
+            self.send_contract_acknowledgement(task_contract, accept=True)
+        else:
+            self.logger.warning("The timetable changed before the round was completed, "
+                                "as a result, the bid placed %s is no longer valid ",
+                                self.bid_placed)
+            self.send_contract_acknowledgement(task_contract, accept=False)
 
     def compute_bids(self, task_announcement):
         bids = list()
@@ -134,9 +132,8 @@ class Bidder:
         # Insert task in each possible insertion_point of the stn
         # Add from insertion_point 1 onwards (insertion_point 0 is reserved for the ztp)
         for insertion_point in range(1, n_tasks+2):
-            stn_tasks = list()
             pre_task_actions = list()
-            prev_version_next_task = None
+            prev_version_next_stn_task = None
 
             self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
             if not self.insert_in(insertion_point):
@@ -145,25 +142,27 @@ class Bidder:
             prev_location = self.get_previous_location(insertion_point)
             pre_task_actions.append(self.get_pre_task_action(task, prev_location))
 
-            stn_task = self.timetable.to_stn_task(task, insertion_point, earliest_admissible_time)
-            self.timetable.insert_task(stn_task, insertion_point)
-            stn_tasks.append(stn_task)
+            new_stn_task = self.timetable.to_stn_task(task, insertion_point, earliest_admissible_time)
+
+            self.timetable.insert_task(new_stn_task, insertion_point)
+            allocation_info = AllocationInfo(insertion_point, pre_task_actions, new_stn_task)
 
             try:
                 # Update previous location and start constraints of next task (if any)
                 next_task = self.timetable.get_task(insertion_point+1)
-                prev_version_next_task = self.timetable.get_stn_task(next_task.task_id)
+                prev_version_next_stn_task = self.timetable.get_stn_task(next_task.task_id)
 
                 prev_location = task.request.delivery_location
                 pre_task_actions.append(self.get_pre_task_action(next_task, prev_location))
 
-                stn_task = self.timetable.update_stn_task(next_task, insertion_point+1, earliest_admissible_time)
-                self.timetable.stn.update_task(stn_task)
-                stn_tasks.append(stn_task)
+                next_stn_task = self.timetable.update_stn_task(next_task, insertion_point+1, earliest_admissible_time)
+                self.timetable.update_task(next_stn_task)
+
+                allocation_info.update_next_task(next_stn_task, prev_version_next_stn_task)
+
             except TaskNotFound as e:
                 pass
 
-            allocation_info = AllocationInfo(insertion_point, copy.deepcopy(stn_tasks), pre_task_actions)
             stn = copy.deepcopy(self.timetable.stn)
 
             try:
@@ -181,8 +180,8 @@ class Bidder:
 
             self.timetable.stn.remove_task(insertion_point)
 
-            if prev_version_next_task is not None:
-                self.timetable.stn.update_task(prev_version_next_task)
+            if prev_version_next_stn_task is not None:
+                self.timetable.stn.update_task(prev_version_next_stn_task)
 
         return best_bid
 
@@ -270,8 +269,9 @@ class Bidder:
 
     def allocate_to_robot(self, task_id):
         allocation_info = self.bid_placed.get_allocation_info()
-        for stn_task in allocation_info.stn_tasks:
-            self.timetable.add_stn_task(stn_task)
+        self.timetable.add_stn_task(allocation_info.new_task)
+        if allocation_info.next_task:
+            self.timetable.add_stn_task(allocation_info.next_task)
 
         self.timetable.stn = allocation_info.stn
         self.timetable.dispatchable_graph = allocation_info.dispatchable_graph
@@ -288,21 +288,22 @@ class Bidder:
         task.update_status(TaskStatusConst.ALLOCATED)
         task.assign_robots([self.robot_id])
 
-    def task_contract_acknowledgement_cb(self, msg):
+    def task_contract_cancellation_cb(self, msg):
         payload = msg['payload']
-        ack = TaskContractAcknowledgment.from_payload(payload)
-        if ack.robot_id == self.robot_id and not ack.accept:
-            self.logger.warning("Undoing allocation of task %s", ack.task_id)
-            self.timetable.remove_task(ack.task_id)
-            for stn_task in ack.allocation_info.stn_tasks:
-                if stn_task.task_id != ack.task_id:
-                    self.timetable.update_task(stn_task)
+        cancellation = TaskContractCancellation.from_payload(payload)
+        self.logger.warning("Undoing allocation of task %s", cancellation.task_id)
 
-            tasks = [task for task in self.timetable.get_tasks()]
+        print("Previous stn: ", self.timetable.stn)
 
-            self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
-            self.logger.debug("STN: \n %s", self.timetable.stn)
-            self.logger.debug("Dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+        self.timetable.remove_task(cancellation.task_id)
+
+        if cancellation.prev_version_next_task:
+            self.timetable.update_task(cancellation.prev_version_next_task)
+            self.timetable.add_stn_task(cancellation.prev_version_next_task)
+
+        tasks = [task for task in self.timetable.get_tasks()]
+        self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
+        self.logger.debug("STN: \n %s", self.timetable.stn)
 
     def send_contract_acknowledgement(self, task_contract, accept=True):
         allocation_info = self.bid_placed.get_allocation_info()
@@ -313,4 +314,4 @@ class Bidder:
         msg = self.api.create_message(task_contract_acknowledgement)
 
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
+        self.api.publish(msg, peer=self.auctioneer_name)
