@@ -45,12 +45,12 @@ class Round(SimulatorInterface):
 
         After the round closes, the election process takes place
 
-        finished: The election process is over, i.e., an mrs has been made
+        finished: The election process is over, i.e., an allocation has been made
                     (or an exception has been raised)
 
         """
         open_time = self.get_current_time()
-        self.logger.debug("Round  %s opened at %s and will close at %s",
+        self.logger.debug("Round %s opened at %s and will close at %s",
                           self.id, open_time, self.closure_time)
 
         self.finished = False
