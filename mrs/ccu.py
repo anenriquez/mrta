@@ -1,5 +1,6 @@
 import argparse
 import logging.config
+import time
 
 from fmlib.models.tasks import TaskPlan
 from mrs.allocation.auctioneer import Auctioneer
@@ -98,7 +99,7 @@ class CCU:
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
-            self.auctioneer.round.finish()
+            self.auctioneer.finish_round()
 
     def update_task_allocation_metrics(self, task_id, robot_ids):
         tasks_to_update = [pre_task_action.task_id for pre_task_action in self.auctioneer.pre_task_actions]
@@ -127,6 +128,7 @@ class CCU:
                 self.process_allocation()
                 self.performance_tracker.run()
                 self.api.run()
+                time.sleep(0.1)
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()
             self.simulator_interface.stop()

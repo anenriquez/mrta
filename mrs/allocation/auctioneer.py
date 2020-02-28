@@ -1,5 +1,4 @@
 import logging
-import uuid
 from datetime import timedelta
 
 from mrs.allocation.round import Round
@@ -8,6 +7,7 @@ from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid
+from mrs.messages.round_finished import RoundFinished
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
@@ -75,7 +75,7 @@ class Auctioneer(SimulatorInterface):
             except NoAllocation as e:
                 self.logger.warning("No allocation made in round %s ", e.round_id)
                 self.tasks_to_allocate = e.tasks_to_allocate
-                self.round.finish()
+                self.finish_round()
 
             except AlternativeTimeSlot as e:
                 self.process_alternative_timeslot(e)
@@ -88,7 +88,7 @@ class Auctioneer(SimulatorInterface):
             self.send_task_contract(self.winning_bid.task_id, self.winning_bid.robot_id)
         else:
             self.logger.warning("The earliest start time of task %s is invalid", self.winning_bid.task_id)
-            self.round.finish()
+            self.finish_round()
 
     def process_alternative_timeslot(self, exception):
         bid = exception.bid
@@ -143,7 +143,7 @@ class Auctioneer(SimulatorInterface):
         self.send_task_contract_cancellation(self.winning_bid.task_id,
                                              self.winning_bid.robot_id,
                                              allocation_info.prev_version_next_task)
-        self.round.finish()
+        self.finish_round()
 
     def allocate(self, tasks):
         if isinstance(tasks, list):
@@ -158,6 +158,12 @@ class Auctioneer(SimulatorInterface):
                 tasks = Task.from_task(tasks)
             self.tasks_to_allocate[tasks.task_id] = tasks
         self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
+
+    def finish_round(self):
+        round_finished = RoundFinished(self.round.id)
+        self.round.finish()
+        msg = self.api.create_message(round_finished)
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
@@ -233,7 +239,7 @@ class Auctioneer(SimulatorInterface):
 
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
-            self.round.finish()
+            self.finish_round()
 
     def send_task_contract_cancellation(self, task_id, robot_id, prev_version_next_task):
         task_contract_cancellation = TaskContractCancellation(task_id, robot_id, prev_version_next_task)
@@ -249,7 +255,7 @@ class Auctioneer(SimulatorInterface):
             self.api.publish(msg, peer=robot_id + "_proxy")
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
-            self.round.finish()
+            self.finish_round()
 
     def get_task_schedule(self, task_id, robot_id):
         # For now, returning the start navigation time from the dispatchable graph
