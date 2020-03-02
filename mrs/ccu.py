@@ -1,8 +1,11 @@
 import argparse
 import logging.config
-import time
 
 from fmlib.models.tasks import TaskPlan
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
@@ -17,9 +20,6 @@ from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.manager import TimetableManager
 from mrs.timetable.monitor import TimetableMonitor
-from planner.planner import Planner
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
 
 _component_modules = {'simulator': Simulator,
                       'timetable_manager': TimetableManager,
@@ -54,8 +54,9 @@ class CCU:
         self.task_plans = dict()
 
     def start_test_cb(self, msg):
-        self.logger.debug("Start test msg received")
+        self.simulator_interface.stop()
         initial_time = msg["payload"]["initial_time"]
+        self.logger.info("Start test at %s", initial_time)
 
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for robot_id in self.auctioneer.robot_ids:
@@ -128,7 +129,6 @@ class CCU:
                 self.process_allocation()
                 self.performance_tracker.run()
                 self.api.run()
-                time.sleep(0.1)
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()
             self.simulator_interface.stop()
