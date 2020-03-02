@@ -75,16 +75,17 @@ class Bidder:
     def task_contract_cb(self, msg):
         payload = msg['payload']
         task_contract = TaskContract.from_payload(payload)
-        self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
+        if task_contract.robot_id == self.robot_id:
+            self.logger.debug("Robot %s received TASK-CONTRACT", self.robot_id)
 
-        if not self.changed_timetable:
-            self.allocate_to_robot(task_contract.task_id)
-            self.send_contract_acknowledgement(task_contract, accept=True)
-        else:
-            self.logger.warning("The timetable changed before the round was completed, "
-                                "as a result, the bid placed %s is no longer valid ",
-                                self.bid_placed)
-            self.send_contract_acknowledgement(task_contract, accept=False)
+            if not self.changed_timetable:
+                self.allocate_to_robot(task_contract.task_id)
+                self.send_contract_acknowledgement(task_contract, accept=True)
+            else:
+                self.logger.warning("The timetable changed before the round was completed, "
+                                    "as a result, the bid placed %s is no longer valid ",
+                                    self.bid_placed)
+                self.send_contract_acknowledgement(task_contract, accept=False)
 
     def round_finished_cb(self, msg):
         payload = msg['payload']

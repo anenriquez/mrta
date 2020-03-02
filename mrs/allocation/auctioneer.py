@@ -252,7 +252,7 @@ class Auctioneer(SimulatorInterface):
         if robot_id not in self.changed_timetable:
             task_contract = TaskContract(task_id, robot_id)
             msg = self.api.create_message(task_contract)
-            self.api.publish(msg, peer=robot_id + "_proxy")
+            self.api.publish(msg, groups=['TASK-ALLOCATION'])
         else:
             self.logger.warning("Round %s has to be repeated", self.round.id)
             self.finish_round()
