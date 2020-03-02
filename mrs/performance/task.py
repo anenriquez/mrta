@@ -54,7 +54,7 @@ class TaskPerformanceTracker:
             task_performance.update_execution(travel_time, work_time)
 
     @staticmethod
-    def update_re_allocations(task_id):
-        task_performance = TaskPerformance.get_task_performance(task_id)
+    def update_re_allocations(task):
+        task_performance = TaskPerformance.get_task_performance(task.task_id)
         task_performance.increase_n_re_allocation_attempts()
         task_performance.unallocated()
