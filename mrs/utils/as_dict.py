@@ -6,6 +6,7 @@ import uuid
 from fmlib.utils.messages import Document
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import from_str
+from datetime import datetime
 
 
 class AsDictMixin:
@@ -26,6 +27,8 @@ class AsDictMixin:
                 return value.to_str()
             elif isinstance(value, uuid.UUID):
                 return str(value)
+            elif isinstance(value, datetime):
+                return value.isoformat()
             else:
                 return value
         else:
