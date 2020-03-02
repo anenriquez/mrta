@@ -44,6 +44,10 @@ class RobotPerformance(MongoModel):
         self.allocated_tasks.append(task_id)
         self.save()
 
+    def unallocated(self, task_id):
+        self.allocated_tasks.pop(task_id)
+        self.save()
+
     def update_travel_time(self, travel_time):
         self.travel_time += travel_time
         self.save()
