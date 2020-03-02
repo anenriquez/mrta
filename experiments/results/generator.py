@@ -3,47 +3,226 @@ import logging
 import os
 from datetime import datetime
 
+import numpy as np
 import yaml
 from fmlib.db.mongo import MongoStore
+from ropod.structs.status import TaskStatus as TaskStatusConst
+
 from experiments.db.models.experiment import Experiment as ExperimentModel
-from fmlib.utils.utils import load_file_from_module, load_yaml
+from mrs.config.params import get_config_params
 from mrs.utils.as_dict import AsDictMixin
 from mrs.utils.utils import load_yaml_file_from_module
-from ropod.structs.status import TaskStatus as TaskStatusConst
+
+
+class TimeDistribution(AsDictMixin):
+    def __init__(self, total_time, travel_time, work_time, idle_time):
+        self.total_time = total_time
+        self.travel_time = travel_time
+        self.work_time = work_time
+        self.idle_time = idle_time
+
+
+class ExecutionTimes(AsDictMixin):
+    def __init__(self, start_time, pickup_time, delivery_time):
+        self.start_time = start_time
+        self.pickup_time = pickup_time
+        self.delivery_time = delivery_time
+
+
+class TaskPerformanceMetrics(AsDictMixin):
+    def __init__(self, task_id, status, delayed, execution_times):
+        self.task_id = task_id
+        self.status = status
+        self.delayed = delayed
+        self.execution_times = execution_times
+        self.allocation_time = None
+        self.n_re_allocation_attempts = None
+        self.n_re_allocations = None
+
+    def get_metrics(self, task_performance):
+        if task_performance.allocation:
+            allocation_times = task_performance.allocation.time_to_allocate
+            self.allocation_time = sum(allocation_times)
+            self.n_re_allocation_attempts = task_performance.allocation.n_re_allocation_attempts
+            self.n_re_allocations = len(allocation_times) - 1
+        else:
+            self.allocation_time = 0.0
+            self.n_re_allocation_attempts = 0
+            self.n_re_allocations = 0
+
+
+class RobotPerformanceMetrics(AsDictMixin):
+    def __init__(self, robot_id):
+        self.robot_id = robot_id
+        self.tasks_performance_metrics = None
+        self.time_distribution = None
+        self.usage = None
+
+    def __str__(self):
+        return str(self.to_dict())
+
+    def to_dict(self):
+        dict_repr = super().to_dict()
+        tasks_performance_metrics = list()
+        for task in self.tasks_performance_metrics:
+            tasks_performance_metrics.append(task.to_dict())
+        dict_repr.update(tasks_performance_metrics=tasks_performance_metrics)
+        return dict_repr
+
+    def get_metrics(self, run_info, n_allocated_tasks):
+        robot_performance = [p for p in run_info.robots_performance if p.robot_id == self.robot_id].pop()
+        robot_tasks = robot_performance.allocated_tasks
+
+        self.tasks_performance_metrics = self.get_tasks_performance_metrics(robot_tasks, run_info)
+        self.time_distribution = self.get_time_distribution(robot_performance)
+        self.usage = 100 * (len(robot_tasks)/n_allocated_tasks)
+
+    def get_tasks_performance_metrics(self, robot_tasks, run_info):
+        tasks_performance_metrics = list()
+        for task_status in run_info.tasks_status:
+            dict_repr = task_status.to_son().to_dict()
+            task_id = dict_repr.get('_id')
+
+            if task_id in robot_tasks:
+                status = dict_repr.get('status')
+                delayed = dict_repr.get('delayed')
+                execution_times = self.get_execution_times(task_status)
+
+                task_performance_metrics = TaskPerformanceMetrics(task_id, status, delayed, execution_times)
+                task_performance = [p for p in run_info.tasks_performance if p.task_id == task_id].pop()
+                task_performance_metrics.get_metrics(task_performance)
+                tasks_performance_metrics.append(task_performance_metrics)
+
+        return tasks_performance_metrics
+
+    @staticmethod
+    def get_execution_times(task_status):
+        for i, action_progress in enumerate(task_status.progress.actions):
+            if i == 0:
+                start_time = action_progress.start_time
+            else:
+                pickup_time = action_progress.start_time
+                delivery_time = action_progress.finish_time
+        return ExecutionTimes(start_time, pickup_time, delivery_time)
+
+    @staticmethod
+    def get_time_distribution(robot_performance):
+        return TimeDistribution(robot_performance.total_time,
+                                robot_performance.travel_time,
+                                robot_performance.work_time,
+                                robot_performance.idle_time)
+
+
+class FleetPerformanceMetrics(AsDictMixin):
+    def __init__(self, robot_ids):
+        self._robot_ids = robot_ids
+        self.robots_performance_metrics = None
+        self.time_distribution = None
+        self.usage = None
+        self.biggest_load = None
+        self.allocated_tasks = None
+        self.aborted_tasks = None
+        self.completed_tasks = None
+        self.delayed_tasks = None
+
+    def to_dict(self):
+        dict_repr = super().to_dict()
+        robots_performance_metrics = list()
+        for robot in self.robots_performance_metrics:
+            robots_performance_metrics.append(robot.to_dict())
+        dict_repr.update(robots_performance_metrics=robots_performance_metrics)
+        return dict_repr
+
+    def get_metrics(self, run_info, start_time, finish_time):
+        self.allocated_tasks = self.get_allocated_tasks(run_info)
+
+        self.robots_performance_metrics = self.get_robots_performance_metrics(run_info, len(self.allocated_tasks))
+        self.time_distribution = self.get_time_distribution(run_info, start_time, finish_time)
+        self.usage = self.get_fleet_usage(run_info)
+        self.biggest_load = self.get_biggest_load()
+
+        self.completed_tasks = self.get_tasks_by_status(run_info, TaskStatusConst.COMPLETED)
+        self.aborted_tasks = self.get_tasks_by_status(run_info, TaskStatusConst.ABORTED)
+        self.delayed_tasks = self.get_delayed_tasks(run_info)
+
+    @staticmethod
+    def get_allocated_tasks(run_info):
+        allocated_tasks = list()
+        for performance in run_info.tasks_performance:
+            if performance.allocation and performance.allocation.allocated:
+                allocated_tasks.append(str(performance.task_id))
+        return allocated_tasks
+
+    def get_robots_performance_metrics(self, run_info, n_allocated_tasks):
+        robots_performance_metrics = list()
+        for robot_id in self._robot_ids:
+            robot_performance_metrics = RobotPerformanceMetrics(robot_id)
+            robot_performance_metrics.get_metrics(run_info, n_allocated_tasks)
+            robots_performance_metrics.append(robot_performance_metrics)
+        return robots_performance_metrics
+
+    def get_time_distribution(self, run_info, start_time, finish_time):
+        total_time = (finish_time - start_time).total_seconds()
+        travel_time = 0
+        work_time = 0
+        for performance in run_info.robots_performance:
+            travel_time += performance.travel_time
+            work_time += performance.work_time
+
+        fleet_travel_time = 100 * travel_time / (total_time * len(self._robot_ids))
+        fleet_work_time = 100 * work_time / (total_time * len(self._robot_ids))
+        fleet_idle_time = 100 - (fleet_travel_time + fleet_work_time)
+
+        return TimeDistribution(total_time, fleet_travel_time, fleet_work_time, fleet_idle_time)
+
+    def get_fleet_usage(self, run_info):
+        n_robots_used = 0
+        for performance in run_info.robots_performance:
+            if performance.total_time > 0.0:
+                n_robots_used += 1
+        return (n_robots_used/len(self._robot_ids)) * 100
+
+    def get_biggest_load(self):
+        biggest_load = - np.inf
+        for robot in self.robots_performance_metrics:
+            if robot.usage > biggest_load:
+                biggest_load = robot.usage
+        return biggest_load
+
+    @staticmethod
+    def get_tasks_by_status(run_info, status):
+        task_ids = list()
+        for task_status in run_info.tasks_status:
+            if task_status.status == status:
+                dict_repr = task_status.to_son().to_dict()
+                task_id = str(dict_repr.get('_id'))
+                task_ids.append(task_id)
+        return task_ids
+
+    @staticmethod
+    def get_delayed_tasks(run_info):
+        delayed_tasks = list()
+        for task_status in run_info.tasks_status:
+            if task_status.delayed:
+                dict_repr = task_status.to_son().to_dict()
+                task_id = str(dict_repr.get('_id'))
+                delayed_tasks.append(task_id)
+        return delayed_tasks
 
 
 class PerformanceMetrics(AsDictMixin):
-    def __init__(self, n_tasks, start_time, tasks_by_robot, n_allocated_tasks, n_re_allocation_attempts,
-                 n_re_allocations, n_completed_tasks, n_aborted_tasks, n_delayed_tasks, allocation_time,
-                 fleet_total_time, fleet_makespan, fleet_travel_time, fleet_work_time, fleet_idle_time,
-                 fleet_robot_usage, robot_usage, most_loaded_robot, usage_most_loaded_robot):
-
+    def __init__(self, n_tasks, start_time, finish_time, fleet_performance_metrics):
         self.start_time = start_time
-        self.tasks_by_robot = tasks_by_robot
-        self.n_allocated_tasks = n_allocated_tasks
-        self.n_re_allocation_attempts = n_re_allocation_attempts
-        self.n_re_allocations = n_re_allocations
-        self.n_completed_tasks = n_completed_tasks
-        self.n_aborted_tasks = n_aborted_tasks
-        self.n_delayed_tasks = n_delayed_tasks
-        self.allocation_time = allocation_time
-        self.fleet_total_time = fleet_total_time
-        self.fleet_makespan = fleet_makespan
-        self.fleet_travel_time = fleet_travel_time
-        self.fleet_work_time = fleet_work_time
-        self.fleet_idle_time = fleet_idle_time
-        self.fleet_robot_usage = fleet_robot_usage
-        self.robot_usage = robot_usage
-        self.most_loaded_robot = most_loaded_robot
-        self.usage_most_loaded_robot = usage_most_loaded_robot
-        self.successful = (n_tasks == self.n_allocated_tasks == self.n_completed_tasks) and self.n_delayed_tasks == 0
+        self.finish_time = finish_time
+        self.fleet_performance_metrics = fleet_performance_metrics
+        self.successful = (n_tasks == len(fleet_performance_metrics.allocated_tasks)
+                           == len(fleet_performance_metrics.completed_tasks))\
+                          and len(fleet_performance_metrics.delayed_tasks) == 0
 
-    def __str__(self):
-        to_print = ""
-        dict_repr = self.to_dict()
-        for key, value in dict_repr.items():
-            to_print += key + ": " + str(value) + "\n"
-        return to_print
+    def to_dict(self):
+        dict_repr = super().to_dict()
+        dict_repr.update(fleet_performance_metrics=self.fleet_performance_metrics.to_dict())
+        return dict_repr
 
 
 class Run(AsDictMixin):
@@ -63,122 +242,16 @@ class Run(AsDictMixin):
         self._n_tasks = n_tasks
         self._run_info = run_info
 
+    def to_dict(self):
+        dict_repr = super().to_dict()
+        dict_repr.update(performance_metrics=self.performance_metrics.to_dict())
+        return dict_repr
+
     def get_performance_metrics(self):
         start_time, finish_time = self.get_start_finish_time()
-        tasks_by_robot = self.get_tasks_by_robot()
-        allocated_tasks = self.get_allocated_tasks()
-        n_allocated_tasks = len(allocated_tasks)
-        n_re_allocation_attempts = self.get_n_re_allocation_attempts()
-        n_re_allocations = self.get_n_re_allocations()
-        n_completed_tasks = self.get_n_tasks_by_status(TaskStatusConst.COMPLETED)
-        n_aborted_tasks = self.get_n_tasks_by_status(TaskStatusConst.ABORTED)
-        n_delayed_tasks = self.get_n_delayed_tasks()
-        allocation_time = self.get_allocation_time()
-        fleet_total_time = (finish_time - start_time).total_seconds()
-        fleet_travel_time = self.get_fleet_travel_time(fleet_total_time)
-        fleet_work_time = self.get_fleet_work_time(fleet_total_time)
-        fleet_idle_time = 100 - (fleet_travel_time + fleet_work_time)
-        fleet_robot_usage = self.get_fleet_robot_usage()
-        robot_usage = self.get_robot_usage(n_allocated_tasks, tasks_by_robot)
-        usage, robot_id = self.get_most_loaded_robot(robot_usage)
-
-        metrics = {"n_tasks": self._n_tasks,
-                   "start_time": start_time.isoformat(),
-                   "tasks_by_robot": tasks_by_robot,
-                   "n_allocated_tasks": n_allocated_tasks,
-                   "n_re_allocation_attempts": n_re_allocation_attempts,
-                   "n_re_allocations": n_re_allocations,
-                   "n_completed_tasks": n_completed_tasks,
-                   "n_aborted_tasks": n_aborted_tasks,
-                   "n_delayed_tasks": n_delayed_tasks,
-                   "allocation_time": allocation_time,
-                   "fleet_total_time": fleet_total_time,
-                   "fleet_makespan": finish_time.isoformat(),
-                   "fleet_travel_time": fleet_travel_time,
-                   "fleet_work_time": fleet_work_time,
-                   "fleet_idle_time": fleet_idle_time,
-                   "fleet_robot_usage": fleet_robot_usage,
-                   "robot_usage": robot_usage,
-                   "most_loaded_robot": robot_id,
-                   "usage_most_loaded_robot": usage}
-
-        self.performance_metrics = PerformanceMetrics(**metrics)
-
-    def get_allocated_tasks(self):
-        allocated_tasks = list()
-        for performance in self._run_info.tasks_performance:
-            if performance.allocation and performance.allocation.allocated:
-                allocated_tasks.append(performance.task_id)
-        return allocated_tasks
-
-    def get_n_re_allocation_attempts(self):
-        n_re_allocation_attempts = 0
-        for performance in self._run_info.tasks_performance:
-            n_re_allocation_attempts += performance.allocation.n_re_allocation_attempts
-        return n_re_allocation_attempts
-
-    def get_n_re_allocations(self):
-        n_re_allocations = 0
-        for performance in self._run_info.tasks_performance:
-            n_re_allocations += (len(performance.allocation.time_to_allocate)-1)
-        return n_re_allocations
-
-    def get_n_tasks_by_status(self, status):
-        n_tasks = 0
-        for task_status in self._run_info.tasks_status:
-            if task_status.status == status:
-                n_tasks += 1
-        return n_tasks
-
-    def get_n_delayed_tasks(self):
-        n_delayed_tasks = 0
-        for task_status in self._run_info.tasks_status:
-            if task_status.delayed:
-                n_delayed_tasks += 1
-        return n_delayed_tasks
-
-    def get_allocation_time(self):
-        allocation_time = 0
-        for performance in self._run_info.tasks_performance:
-            for time_ in performance.allocation.time_to_allocate:
-                allocation_time += time_
-        return allocation_time
-
-    def get_fleet_travel_time(self, fleet_total_time):
-        travel_time = 0
-        for performance in self._run_info.robots_performance:
-            travel_time += performance.travel_time
-        return 100 * travel_time/(fleet_total_time*len(self._robot_ids))
-
-    def get_fleet_work_time(self, fleet_total_time):
-        work_time = 0
-        for performance in self._run_info.robots_performance:
-            work_time += performance.work_time
-        return 100 * work_time/(fleet_total_time*len(self._robot_ids))
-
-    def get_fleet_robot_usage(self):
-        n_robots_used = 0
-        for performance in self._run_info.robots_performance:
-            if performance.total_time > 0.0:
-                n_robots_used += 1
-        return (n_robots_used/len(self._robot_ids)) * 100
-
-    def get_tasks_by_robot(self):
-        tasks_by_robot = {robot_id: list() for robot_id in self._robot_ids}
-        for task in self._run_info.tasks:
-            for robot_id in task.assigned_robots:
-                tasks_by_robot[robot_id].append(str(task.task_id))
-        return tasks_by_robot
-
-    def get_robot_usage(self, n_allocated_tasks, tasks_by_robot):
-        robot_usage = {robot_id: 0.0 for robot_id in self._robot_ids}
-        for robot_id, tasks in tasks_by_robot.items():
-            robot_usage[robot_id] = 100 * (len(tasks)/n_allocated_tasks)
-        return robot_usage
-
-    @staticmethod
-    def get_most_loaded_robot(robot_usage):
-        return max(zip(robot_usage.values(), robot_usage.keys()))
+        fleet_performance_metrics = FleetPerformanceMetrics(self._robot_ids)
+        fleet_performance_metrics.get_metrics(self._run_info, start_time, finish_time)
+        self.performance_metrics = PerformanceMetrics(self._n_tasks, start_time, finish_time, fleet_performance_metrics)
 
     def get_start_finish_time(self):
         start_time = datetime.max
@@ -195,11 +268,12 @@ class Run(AsDictMixin):
 
 
 class Experiment(AsDictMixin):
-    def __init__(self, name, approach, robot_ids, dataset_name, n_tasks):
+    def __init__(self, name, approach, bidding_rule, robot_ids, dataset_name, n_tasks):
         """ An experiment
 
         name (str): Name of the experiment
         approach (str): Name of the approach
+        bidding_rule (str): Name of the bidding rule
         robot_ids (list): ids of the robots in the fleet
         dataset_name (str): Name of the dataset
         n_tasks (int): Number of tasks in the experiment
@@ -211,7 +285,8 @@ class Experiment(AsDictMixin):
         """
         self.name = name
         self.approach = approach
-        self.robot_ids = robot_ids
+        self.bidding_rule = bidding_rule
+        self._robot_ids = robot_ids
         self.dataset_name = dataset_name
         self.n_tasks = n_tasks
         self.runs = list()
@@ -237,26 +312,31 @@ class Experiment(AsDictMixin):
 
     def get_runs_info_from_db(self):
         MongoStore(db_name=self.name)
-        return ExperimentModel.get_experiments(self.approach, self.dataset_name)
+        return ExperimentModel.get_experiments(self.approach, bidding_rule, self.dataset_name)
 
     def get_success_rate(self):
         return len([run for run in self.runs if run.performance_metrics.successful]) / len(self.runs)
 
     def get_results(self):
         runs_info = self.get_runs_info_from_db()
+        logging.info("Number of runs: %s", len(runs_info))
+
         for run_info in runs_info:
-            run = Run(robot_ids, self.n_tasks, run_info)
+            run = Run(self._robot_ids, self.n_tasks, run_info)
             run.get_performance_metrics()
-            print("Run {}: {} ".format(run.run_id, "successful" if run.performance_metrics.successful
-                                                                    else "unsuccessful"))
+            logging.info("Run %s: %s ", run.run_id, "successful" if run.performance_metrics.successful else "unsuccessful")
             self.runs.append(run)
         self.success_rate = self.get_success_rate()
 
 
-def get_experiment(name, approach, robot_ids, dataset_module, dataset_name):
+def get_experiment(name, approach, bidding_rule, robot_ids, dataset_module, dataset_name):
+    logging.info("Approach: %s", approach)
+    logging.info("Bidding rule: %s", bidding_rule)
+    logging.info("Dataset: %s", dataset_name)
+
     dataset_dict = load_yaml_file_from_module(dataset_module, dataset_name + '.yaml')
     n_tasks = len(dataset_dict.get("tasks"))
-    experiment = Experiment(name, approach, robot_ids, dataset_name, n_tasks)
+    experiment = Experiment(name, approach, bidding_rule, robot_ids, dataset_name, n_tasks)
     experiment.get_results()
     return experiment
 
@@ -269,12 +349,13 @@ if __name__ == '__main__':
     group.add_argument('--all', action='store_true')
     args = parser.parse_args()
 
-    experiments = load_file_from_module('experiments.config', 'config.yaml')
-    experiment_config = {args.experiment_name: load_yaml(experiments).get(args.experiment_name)}.pop(args.experiment_name)
+    config_params = get_config_params(experiment=args.experiment_name)
+    experiment_config = config_params.get("experiment")
 
-    robot_ids = experiment_config.get("fleet")
-    dataset_module = experiment_config.get("dataset_module")
-    datasets = experiment_config.get("datasets")
+    robot_ids = config_params.get("fleet")
+    dataset_module = config_params.get("dataset_module")
+    datasets = config_params.get("datasets")
+    bidding_rule = config_params.get("bidder").get("bidding_rule")
     experiments = list()
 
     logging.basicConfig(level=logging.DEBUG)
@@ -282,18 +363,16 @@ if __name__ == '__main__':
     logging.info("Getting results for experiment: %s", args.experiment_name)
 
     if args.all:
-        approaches = experiment_config.get("approaches")
+        approaches = config_params.get("approaches")
         for approach in approaches:
-            logging.info("Approach: %s", approach)
             for dataset_name in datasets:
-                experiment = get_experiment(args.experiment_name, approach, robot_ids, dataset_module, dataset_name)
+                experiment = get_experiment(args.experiment_name, approach, bidding_rule, robot_ids, dataset_module, dataset_name)
                 experiments.append(experiment)
     else:
-        logging.info("Approach: %s", args.approach)
         for dataset_name in datasets:
-            experiment = get_experiment(args.experiment_name, args.approach, robot_ids, dataset_module, dataset_name)
+            experiment = get_experiment(args.experiment_name, args.approach, bidding_rule, robot_ids, dataset_module, dataset_name)
             experiments.append(experiment)
 
     for experiment in experiments:
-        file_path = experiment.name + "/" + experiment.approach + "/"
+        file_path = experiment.name + "/" + experiment.approach + "/" + experiment.bidding_rule + "/"
         experiment.to_file(file_path)

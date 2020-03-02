@@ -16,6 +16,12 @@ class ExperimentQuerySet(QuerySet):
     def by_dataset(self, dataset):
         return self.raw({"dataset": dataset})
 
+    def by_bidding_rule(self, bidding_rule):
+        return self.raw({'bidding_rule': bidding_rule})
+
+    def by_dataset_and_bidding_rule(self, dataset, bidding_rule):
+        return self.raw({"dataset": dataset}) and self.raw({"bidding_rule": bidding_rule})
+
 
 ExperimentManager = Manager.from_queryset(ExperimentQuerySet)
 
@@ -24,6 +30,7 @@ class Experiment(MongoModel):
     run_id = fields.IntegerField(primary_key=True)
     name = fields.CharField()
     approach = fields.CharField()
+    bidding_rule = fields.CharField()
     dataset = fields.CharField()
     requests = fields.EmbeddedDocumentListField(TransportationRequest)
     tasks = fields.EmbeddedDocumentListField(Task)
@@ -38,7 +45,7 @@ class Experiment(MongoModel):
         ignore_unknown_fields = True
 
     @classmethod
-    def create_new(cls, name, approach, dataset, new_run=True):
+    def create_new(cls, name, approach, bidding_rule, dataset, new_run=True):
         requests = cls.get_requests()
         tasks = cls.get_tasks()
         actions = cls.get_actions()
@@ -54,10 +61,10 @@ class Experiment(MongoModel):
                   'robots_performance': robots_performance}
 
         MongoStore(db_name=name)
-        cls._mongometa.connection_name = name # comment this line
+        cls._mongometa.connection_name = name
         cls._mongometa.collection_name = approach
         run_id = cls.get_run_id(new_run)
-        experiment = cls(run_id, name, approach, dataset, **kwargs)
+        experiment = cls(run_id, name, approach, bidding_rule, dataset, **kwargs)
         experiment.save()
         return experiment
 
@@ -125,6 +132,8 @@ class Experiment(MongoModel):
         return [robot_performance for robot_performance in RobotPerformance.objects.all()]
 
     @classmethod
-    def get_experiments(cls, approach, dataset):
+    def get_experiments(cls, approach, bidding_rule, dataset):
         with switch_collection(cls, approach):
-            return [experiment for experiment in Experiment.objects.by_dataset(dataset)]
+            by_dataset = [e for e in Experiment.objects.by_dataset(dataset)]
+            by_bidding_rule = [e for e in Experiment.objects.by_bidding_rule(bidding_rule)]
+            return [e for e in by_dataset if e in by_bidding_rule]
