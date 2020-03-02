@@ -1,14 +1,16 @@
 import logging
+import time
 
 from fmlib.models.actions import Action
+from pymodm.context_managers import switch_collection
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.db.models.task import Task
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import SimulatorInterface
-from pymodm.context_managers import switch_collection
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from stn.exceptions.stp import NoSTPSolution
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -25,9 +27,16 @@ class TimetableMonitor(SimulatorInterface):
         self.tasks_to_remove = list()
         self.tasks_to_reallocate = list()
         self.completed_tasks = list()
+        self.deleting_task = False
+        self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
     def task_progress_cb(self, msg):
+        while self.deleting_task:
+            time.sleep(0.1)
+
+        self.processing_task = True
+
         payload = msg['payload']
         progress = TaskProgress.from_payload(payload)
         self.logger.debug("Task progress received: %s", progress)
@@ -40,16 +49,19 @@ class TimetableMonitor(SimulatorInterface):
         if progress.delayed:
             task.mark_as_delayed()
 
-        if progress.status == TaskStatusConst.COMPLETED:
-            self.tasks_to_remove.append((task, progress.status))
-
-        elif progress.status in [TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
-            self._remove_task(task, progress.status)
-        else:
+        if progress.status == TaskStatusConst.ONGOING:
             self._update_timetable(task, robot_id, action_progress)
             self._update_task_schedule(task, action_progress)
             self._update_task_progress(task, action_progress)
             task.update_status(progress.status)
+
+        elif progress.status == TaskStatusConst.COMPLETED:
+            self.tasks_to_remove.append((task, progress.status))
+
+        elif progress.status in [TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
+            self._remove_task(task, progress.status)
+
+        self.processing_task = False
 
     def re_allocate_cb(self, msg):
         payload = msg['payload']
@@ -114,7 +126,7 @@ class TimetableMonitor(SimulatorInterface):
         task.save()
         self.auctioneer.allocated_tasks.pop(task.task_id)
         self.auctioneer.allocate(task)
-        self.tasks_to_reallocate.append(task.task_id)
+        self.tasks_to_reallocate.append(task)
 
     def _abort(self, task):
         self.logger.critical("Aborting task %s", task.task_id)
@@ -191,12 +203,18 @@ class TimetableMonitor(SimulatorInterface):
     def run(self):
         # TODO: Check how this works outside simulation
         ready_to_be_removed = list()
-        for task, status in self.tasks_to_remove:
-            if task.finish_time < self.get_current_time():
-                ready_to_be_removed.append((task, status))
+        if not self.processing_task:
 
-        for task, status in ready_to_be_removed:
-            self.tasks_to_remove.remove((task, status))
-            if status == TaskStatusConst.COMPLETED:
-                self.completed_tasks.append(task)
-            self._remove_task(task, status)
+            for task, status in self.tasks_to_remove:
+                if task.finish_time < self.get_current_time():
+                    self.deleting_task = True
+                    ready_to_be_removed.append((task, status))
+
+            for task, status in ready_to_be_removed:
+                self.tasks_to_remove.remove((task, status))
+                if status == TaskStatusConst.COMPLETED:
+                    self.completed_tasks.append(task)
+                self._remove_task(task, status)
+
+        if self.deleting_task and not self.completed_tasks:
+            self.deleting_task = False
