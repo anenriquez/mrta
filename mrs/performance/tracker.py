@@ -38,13 +38,16 @@ class PerformanceTracker:
 
     def run(self):
         while self.timetable_monitor.completed_tasks:
-            task = self.timetable_monitor.completed_tasks.pop(0)
+            task = self.timetable_monitor.completed_tasks[0]
             self.task_performance_tracker.update_execution_metrics(task)
 
             for robot_id in task.assigned_robots:
                 tasks_progress = self.get_tasks_progress(robot_id)
                 self.robot_performance_tracker.update_metrics(robot_id, tasks_progress)
 
+            self.timetable_monitor.completed_tasks.pop(0)
+
         while self.timetable_monitor.tasks_to_reallocate:
-            task_id = self.timetable_monitor.tasks_to_reallocate.pop(0)
-            self.task_performance_tracker.update_re_allocations(task_id)
+            task = self.timetable_monitor.tasks_to_reallocate.pop(0)
+            self.task_performance_tracker.update_re_allocations(task)
+            self.robot_performance_tracker.update_re_allocations(task)
