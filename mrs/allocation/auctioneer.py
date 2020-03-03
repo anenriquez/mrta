@@ -245,7 +245,7 @@ class Auctioneer(SimulatorInterface):
         task_contract_cancellation = TaskContractCancellation(task_id, robot_id, prev_version_next_task)
         msg = self.api.create_message(task_contract_cancellation)
         self.logger.debug("Cancelling contract for task %s", task_id)
-        self.api.publish(msg, peer=robot_id + "_proxy")
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def send_task_contract(self, task_id, robot_id):
         # Send TaskContract only if the timetable of robot_id has not changed since the round opened

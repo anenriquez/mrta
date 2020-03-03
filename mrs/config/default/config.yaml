@@ -42,7 +42,7 @@ dispatcher:
   n_queued_tasks: 3
 
 bidder:
-  bidding_rule: completion-time
+  bidding_rule: completion_time
   auctioneer_name: fms_zyre_api # This is completely Zyre dependent
 
 executor:
@@ -86,7 +86,7 @@ ccu_api:
       task-contract-cancellation:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-CANCELLATION'
-        method: whisper
+        method: shout
       round-finished:
         groups: ['TASK-ALLOCATION']
         msg_type: 'ROUND-FINISHED'
@@ -154,7 +154,7 @@ robot_proxy_api:
       task-contract-acknowledgement:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
-        method: whisper
+        method: shout
     callbacks:
       - msg_type: 'TASK-ANNOUNCEMENT'
         component: 'bidder.task_announcement_cb'

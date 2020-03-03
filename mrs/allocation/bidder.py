@@ -311,17 +311,17 @@ class Bidder:
     def task_contract_cancellation_cb(self, msg):
         payload = msg['payload']
         cancellation = TaskContractCancellation.from_payload(payload)
-        self.logger.warning("Undoing allocation of task %s", cancellation.task_id)
+        if cancellation.robot_id == self.robot_id:
+            self.logger.warning("Undoing allocation of task %s", cancellation.task_id)
+            self.timetable.remove_task(cancellation.task_id)
 
-        self.timetable.remove_task(cancellation.task_id)
+            if cancellation.prev_version_next_task:
+                self.timetable.update_task(cancellation.prev_version_next_task)
+                self.timetable.add_stn_task(cancellation.prev_version_next_task)
 
-        if cancellation.prev_version_next_task:
-            self.timetable.update_task(cancellation.prev_version_next_task)
-            self.timetable.add_stn_task(cancellation.prev_version_next_task)
-
-        tasks = [task for task in self.timetable.get_tasks()]
-        self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
-        self.logger.debug("STN: \n %s", self.timetable.stn)
+            tasks = [task for task in self.timetable.get_tasks()]
+            self.logger.debug("Tasks allocated to robot %s:%s", self.robot_id, tasks)
+            self.logger.debug("STN: \n %s", self.timetable.stn)
 
     def send_contract_acknowledgement(self, task_contract, accept=True):
         allocation_info = self.bid_placed.get_allocation_info()
@@ -332,4 +332,4 @@ class Bidder:
         msg = self.api.create_message(task_contract_acknowledgement)
 
         self.logger.debug("Robot %s sends task-contract-acknowledgement msg ", self.robot_id)
-        self.api.publish(msg, peer=self.auctioneer_name)
+        self.api.publish(msg, groups=['TASK-ALLOCATION'])
