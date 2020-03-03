@@ -123,6 +123,6 @@ class MakespanDuration(Duration):
 
 bidding_rule_factory = BiddingRuleFactory()
 bidding_rule_factory.register_bidding_rule('makespan', Makespan)
-bidding_rule_factory.register_bidding_rule('completion-time', CompletionTime)
-bidding_rule_factory.register_bidding_rule('completion-time-duration', CompletionDuration)
-bidding_rule_factory.register_bidding_rule('makespan-duration', MakespanDuration)
+bidding_rule_factory.register_bidding_rule('completion_time', CompletionTime)
+bidding_rule_factory.register_bidding_rule('completion_time_duration', CompletionDuration)
+bidding_rule_factory.register_bidding_rule('makespan_duration', MakespanDuration)
