@@ -43,3 +43,8 @@ class RobotPerformanceTracker:
         start_fist_task = tasks_progress[0][0].start_time
         return start_fist_task, finish_last_task
 
+    @staticmethod
+    def update_re_allocations(task):
+        for robot_id in task.assigned_robots:
+            robot_performance = RobotPerformance.get_robot_performance(robot_id)
+            robot_performance.unallocated(task.task_id)

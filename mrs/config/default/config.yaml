@@ -83,10 +83,14 @@ ccu_api:
         msg_type: 'TASK-CONTRACT'
         groups: ['TASK-ALLOCATION']
         method: shout
-      task-contract-acknowledgement:
+      task-contract-cancellation:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        msg_type: 'TASK-CONTRACT-CANCELLATION'
         method: whisper
+      round-finished:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ROUND-FINISHED'
+        method: shout
       task:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
@@ -131,7 +135,8 @@ robot_proxy_api:
         - TASK
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
-        - TASK-CONTRACT-ACKNOWLEDGEMENT
+        - TASK-CONTRACT-CANCELLATION
+        - ROUND-FINISHED
         - ROBOT-POSE
         - TASK-PROGRESS
         - REMOVE-TASK
@@ -149,14 +154,16 @@ robot_proxy_api:
       task-contract-acknowledgement:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
-        method: shout
+        method: whisper
     callbacks:
       - msg_type: 'TASK-ANNOUNCEMENT'
         component: 'bidder.task_announcement_cb'
       - msg_type: 'TASK-CONTRACT'
         component: 'bidder.task_contract_cb'
-      - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
-        component: 'bidder.task_contract_acknowledgement_cb'
+      - msg_type: 'TASK-CONTRACT-CANCELLATION'
+        component: 'bidder.task_contract_cancellation_cb'
+      - msg_type: 'ROUND-FINISHED'
+        component: 'bidder.round_finished_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
       - msg_type: 'REMOVE-TASK'

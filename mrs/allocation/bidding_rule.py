@@ -32,7 +32,10 @@ class BiddingRuleBase:
     def compute_bid(self, stn, robot_id, round_id, task, allocation_info):
         try:
             dispatchable_graph = self.timetable.compute_dispatchable_graph(stn)
-            metrics = self.compute_metrics(dispatchable_graph, task_id=task.task_id, allocation_info=allocation_info)
+            metrics = self.compute_metrics(dispatchable_graph, allocation_info=allocation_info)
+
+            print("stn: ", stn)
+            print("dispatchable graph: ", dispatchable_graph)
 
             if task.constraints.hard:
                 bid = Bid(task.task_id,
@@ -72,24 +75,19 @@ class Duration(BiddingRuleBase):
         self.alpha = alpha
 
     def compute_metrics(self, dispatchable_graph, **kwargs):
-        task_id = kwargs.get("task_id")
         allocation_info = kwargs.get("allocation_info")
         temporal_metric = dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
-        new_task, next_task = allocation_info.get_stn_tasks(task_id)
 
         mean = 0
         variance = 0
 
-        if next_task:
-            # Previous version of the next task
-            prev_version_next_task = self.timetable.get_stn_task(next_task.task_id)
-
+        if allocation_info.next_task:
             # Subtracting the independent random variables new_travel_time - previous_travel_time
-            mean, variance = next_task.get_inter_timepoint_constraint("travel_time") - \
-                             prev_version_next_task.get_inter_timepoint_constraint("travel_time")
+            mean, variance = allocation_info.next_task.get_inter_timepoint_constraint("travel_time") - \
+                             allocation_info.prev_version_next_task.get_inter_timepoint_constraint("travel_time")
 
-        # Adding the travel_time and work_time of the next task
-        for constraint in new_task.inter_timepoint_constraints:
+        # Adding the travel_time and work_time of the new task
+        for constraint in allocation_info.new_task.inter_timepoint_constraints:
             mean += constraint.mean
             variance += constraint.variance
 

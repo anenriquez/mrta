@@ -2,6 +2,10 @@ import argparse
 import logging.config
 
 from fmlib.models.tasks import TaskPlan
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
@@ -16,9 +20,6 @@ from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.manager import TimetableManager
 from mrs.timetable.monitor import TimetableMonitor
-from planner.planner import Planner
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
 
 _component_modules = {'simulator': Simulator,
                       'timetable_manager': TimetableManager,
@@ -53,8 +54,9 @@ class CCU:
         self.task_plans = dict()
 
     def start_test_cb(self, msg):
-        self.logger.debug("Start test msg received")
+        self.simulator_interface.stop()
         initial_time = msg["payload"]["initial_time"]
+        self.logger.info("Start test at %s", initial_time)
 
         tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         for robot_id in self.auctioneer.robot_ids:
@@ -98,7 +100,7 @@ class CCU:
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
-            self.auctioneer.round.finish()
+            self.auctioneer.finish_round()
 
     def update_task_allocation_metrics(self, task_id, robot_ids):
         tasks_to_update = [pre_task_action.task_id for pre_task_action in self.auctioneer.pre_task_actions]

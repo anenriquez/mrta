@@ -21,6 +21,9 @@ class STNInterface:
     def insert_task(self, stn_task, insertion_point):
         self.stn.add_task(stn_task, insertion_point)
 
+    def update_task(self, stn_task):
+        self.stn.update_task(stn_task)
+
     def to_stn_task(self, task, insertion_point, earliest_admissible_time):
         self.update_pickup_constraint(task, insertion_point)
         self.update_start_constraint(task, insertion_point, earliest_admissible_time)

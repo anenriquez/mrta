@@ -43,7 +43,17 @@ class RunExperiment:
                 allocate.check_termination_test()
                 time.sleep(0.5)
 
-            Experiment.create_new(self.experiment_name, self.approach, dataset, self.new_run)
+            bidding_rule = self.config_params.get("bidder").get("bidding_rule")
+
+            self.logger.info("Creating experiment model for db")
+            experiment = Experiment.create_new(self.experiment_name, self.approach, bidding_rule, dataset, self.new_run)
+            self.logger.info("Experiment: %s \n id: %s \n Approach: %s \n Bidding rule %s \n "
+                             "Dataset: %s",
+                             experiment.name,
+                             experiment.run_id,
+                             experiment.approach,
+                             experiment.bidding_rule,
+                             experiment.dataset)
             allocate.terminate()
 
         except (KeyboardInterrupt, SystemExit):

@@ -105,21 +105,23 @@ class Allocate(RopodPyre):
             self.logger.debug("Task progress received: %s", progress)
 
     def check_termination_test(self):
+        planned_tasks = Task.get_tasks_by_status(TaskStatusConst.PLANNED)
         with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
             completed_tasks = Task.get_tasks_by_status(TaskStatusConst.COMPLETED)
             canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
             aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
 
-            self.logger.info("Number of completed tasks: %s ", len(completed_tasks))
-            self.logger.info("Number of canceled tasks: %s", len(canceled_tasks))
-            self.logger.info("Number of aborted tasks: %s", len(aborted_tasks))
+        self.logger.info("Number of planned tasks: %s ", len(planned_tasks))
+        self.logger.info("Number of completed tasks: %s ", len(completed_tasks))
+        self.logger.info("Number of canceled tasks: %s", len(canceled_tasks))
+        self.logger.info("Number of aborted tasks: %s", len(aborted_tasks))
 
-            tasks = completed_tasks + canceled_tasks + aborted_tasks
+        tasks = completed_tasks + canceled_tasks + aborted_tasks
 
-            if len(tasks) == len(self.tasks):
-                self.logger.info("Terminating test")
-                self.logger.info("Allocations: %s", self.allocations)
-                self.terminated = True
+        if len(tasks) == len(self.tasks):
+            self.logger.info("Terminating test")
+            self.logger.info("Allocations: %s", self.allocations)
+            self.terminated = True
 
     def terminate(self):
         print("Exiting test...")
