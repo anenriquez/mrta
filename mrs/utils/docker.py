@@ -125,7 +125,7 @@ class TestComposeFileGenerator(ComposeFileGenerator):
 
         self.test_service = {"build": {"context": "../../..",
                                        "dockerfile": "Dockerfile"},
-                             "container_name": "mrta-test",
+                             "container_name": "mrta",
                              "working_dir": "/mrta/mrs/tests/",
                              }
 
@@ -136,15 +136,9 @@ class TestComposeFileGenerator(ComposeFileGenerator):
             command.append("--" + arg_name)
             command.append(value)
 
-        depends_on = ["mongo", "ccu"]
-        for robot_id in self.robot_ids:
-            depends_on.append(robot_id)
-            depends_on.append("robot_proxy_" + robot_id.split('_')[1])
-
-        test_service["mrta_test"] = copy.deepcopy(self.component_template)
-        test_service["mrta_test"].update(command=command,
-                                         depends_on=depends_on,
-                                         **self.test_service)
+        test_service["mrta"] = copy.deepcopy(self.component_template)
+        test_service["mrta"].pop("depends_on")
+        test_service["mrta"].update(command=command, **self.test_service)
         return test_service
 
     def generate_services(self):
@@ -161,25 +155,19 @@ class ExperimentComposeFileGenerator(ComposeFileGenerator):
 
         self.experiment_service = {"build": {"context": "../../",
                                              "dockerfile": "Dockerfile"},
-                                   "container_name": "mrta-experiment",
+                                   "container_name": "mrta",
                                    "working_dir": "/mrta/experiments/",
                                    }
 
     def generate_experiment_service(self):
         experiment_service = dict()
-        command = ["python3", "run.py"]
+        command = ["python3", "experiment.py"]
         for arg in self.experiment_args:
             command.append(arg)
 
-        depends_on = ["mongo", "ccu"]
-        for robot_id in self.robot_ids:
-            depends_on.append(robot_id)
-            depends_on.append("robot_proxy_" + robot_id.split('_')[1])
-
-        experiment_service["mrta_experiment"] = copy.deepcopy(self.component_template)
-        experiment_service["mrta_experiment"].update(command=command,
-                                                     depends_on=depends_on,
-                                                     **self.experiment_service)
+        experiment_service["mrta"] = copy.deepcopy(self.component_template)
+        experiment_service["mrta"].pop("depends_on")
+        experiment_service["mrta"].update(command=command, **self.experiment_service)
         return experiment_service
 
     def generate_services(self):
