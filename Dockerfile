@@ -16,6 +16,9 @@ RUN git clone https://github.com/anenriquez/mrta_datasets.git /opt/mrs/datasets
 WORKDIR /opt/mrs/datasets
 RUN pip3 install -r requirements.txt && pip3 install -e .
 
+ENV TZ=CET
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 
