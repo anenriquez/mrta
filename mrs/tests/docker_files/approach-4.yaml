@@ -21,7 +21,7 @@ services:
     - 27017:27017
     volumes:
     - /data/db:/data/db
-  mrta_test:
+  mrta:
     build:
       context: ../../..
       dockerfile: Dockerfile
@@ -30,20 +30,7 @@ services:
     - test.py
     - --approach
     - tessi-corrective-re-allocate
-    container_name: mrta-test
-    depends_on:
-    - mongo
-    - ccu
-    - robot_001
-    - robot_proxy_001
-    - robot_002
-    - robot_proxy_002
-    - robot_003
-    - robot_proxy_003
-    - robot_004
-    - robot_proxy_004
-    - robot_005
-    - robot_proxy_005
+    container_name: mrta
     image: ropod-mrs
     network_mode: host
     stdin_open: 'true'
