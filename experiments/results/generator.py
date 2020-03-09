@@ -30,11 +30,11 @@ class ExecutionTimes(AsDictMixin):
 
 
 class TaskPerformanceMetrics(AsDictMixin):
-    def __init__(self, task_id, status, delayed, execution_times):
+    def __init__(self, task_id, status, delayed, **kwargs):
         self.task_id = task_id
         self.status = status
         self.delayed = delayed
-        self.execution_times = execution_times
+        self.execution_times = kwargs.get("execution_times")
         self.allocation_time = None
         self.n_re_allocation_attempts = None
         self.n_re_allocations = None
@@ -72,6 +72,7 @@ class RobotPerformanceMetrics(AsDictMixin):
     def get_metrics(self, run_info, n_allocated_tasks):
         robot_performance = [p for p in run_info.robots_performance if p.robot_id == self.robot_id].pop()
         robot_tasks = robot_performance.allocated_tasks
+        print("Robot id: ", self.robot_id)
 
         self.tasks_performance_metrics = self.get_tasks_performance_metrics(robot_tasks, run_info)
         self.time_distribution = self.get_time_distribution(robot_performance)
@@ -86,9 +87,13 @@ class RobotPerformanceMetrics(AsDictMixin):
             if task_id in robot_tasks:
                 status = dict_repr.get('status')
                 delayed = dict_repr.get('delayed')
-                execution_times = self.get_execution_times(task_status)
 
-                task_performance_metrics = TaskPerformanceMetrics(task_id, status, delayed, execution_times)
+                if status == TaskStatusConst.COMPLETED:
+                    execution_times = self.get_execution_times(task_status)
+                    task_performance_metrics = TaskPerformanceMetrics(task_id, status, delayed, execution_times=execution_times)
+                else:
+                    task_performance_metrics = TaskPerformanceMetrics(task_id, status, delayed)
+
                 task_performance = [p for p in run_info.tasks_performance if p.task_id == task_id].pop()
                 task_performance_metrics.get_metrics(task_performance)
                 tasks_performance_metrics.append(task_performance_metrics)

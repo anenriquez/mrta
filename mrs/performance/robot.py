@@ -9,12 +9,11 @@ class RobotPerformanceTracker:
         self.processed_tasks = list()
 
     def update_metrics(self, robot_id, tasks_progress):
-        self.logger.debug("Updating performance of robot %s", robot_id)
+        self.logger.critical("Updating performance of robot %s", robot_id)
         robot_performance = RobotPerformance.get_robot_performance(robot_id)
         for task_idx, actions_progress in enumerate(tasks_progress):
             task_id = actions_progress[0].action.task_id
             if task_id not in self.processed_tasks:
-                robot_performance.update_allocated_tasks(task_id)
                 for action_progress in actions_progress:
                     time_ = (action_progress.finish_time - action_progress.start_time).total_seconds()
                     if action_progress.action.type == "ROBOT-TO-PICKUP":
@@ -42,6 +41,11 @@ class RobotPerformanceTracker:
         finish_last_task = tasks_progress[-1][-1].finish_time
         start_fist_task = tasks_progress[0][0].start_time
         return start_fist_task, finish_last_task
+
+    def update_allocated_tasks(self, robot_id, task_id):
+        robot_performance = RobotPerformance.get_robot_performance(robot_id)
+        robot_performance.update_allocated_tasks(task_id)
+        self.logger.debug("Robot %s allocated tasks: %s", robot_id, [task_id for task_id in robot_performance.allocated_tasks])
 
     @staticmethod
     def update_re_allocations(task):

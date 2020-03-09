@@ -3,10 +3,10 @@ services:
     command:
     - python3
     - ccu.py
-    - --approach
-    - tessi-srea-preventive-re-schedule-re-allocate
     - --experiment
     - robot_scalability_2
+    - --approach
+    - tessi-srea-preventive-re-schedule-re-allocate
     container_name: ccu
     depends_on:
     - mongo
@@ -23,23 +23,16 @@ services:
     - 27017:27017
     volumes:
     - /data/db:/data/db
-  mrta_experiment:
+  mrta:
     build:
       context: ../../
       dockerfile: Dockerfile
     command:
     - python3
-    - run.py
+    - experiment.py
     - robot_scalability_2
     - tessi-srea-preventive-re-schedule-re-allocate
-    container_name: mrta-experiment
-    depends_on:
-    - mongo
-    - ccu
-    - robot_001
-    - robot_proxy_001
-    - robot_002
-    - robot_proxy_002
+    container_name: mrta
     image: ropod-mrs
     network_mode: host
     stdin_open: 'true'
@@ -50,10 +43,10 @@ services:
     - python3
     - robot.py
     - robot_001
-    - --approach
-    - tessi-srea-preventive-re-schedule-re-allocate
     - --experiment
     - robot_scalability_2
+    - --approach
+    - tessi-srea-preventive-re-schedule-re-allocate
     container_name: robot_001
     depends_on:
     - mongo
@@ -67,10 +60,10 @@ services:
     - python3
     - robot.py
     - robot_002
-    - --approach
-    - tessi-srea-preventive-re-schedule-re-allocate
     - --experiment
     - robot_scalability_2
+    - --approach
+    - tessi-srea-preventive-re-schedule-re-allocate
     container_name: robot_002
     depends_on:
     - mongo
@@ -84,10 +77,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_001
-    - --approach
-    - tessi-srea-preventive-re-schedule-re-allocate
     - --experiment
     - robot_scalability_2
+    - --approach
+    - tessi-srea-preventive-re-schedule-re-allocate
     container_name: robot_proxy_001
     depends_on:
     - mongo
@@ -101,10 +94,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_002
-    - --approach
-    - tessi-srea-preventive-re-schedule-re-allocate
     - --experiment
     - robot_scalability_2
+    - --approach
+    - tessi-srea-preventive-re-schedule-re-allocate
     container_name: robot_proxy_002
     depends_on:
     - mongo

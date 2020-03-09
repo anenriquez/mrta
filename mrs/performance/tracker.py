@@ -23,6 +23,7 @@ class PerformanceTracker:
         for robot_id in robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
             self.task_performance_tracker.update_allocation_metrics(allocated_task_id, timetable, tasks_to_update)
+            self.robot_performance_tracker.update_allocated_tasks(robot_id, allocated_task_id)
 
     @staticmethod
     def get_tasks_progress(robot_id):

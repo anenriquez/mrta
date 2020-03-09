@@ -66,7 +66,7 @@ class Bidder:
     def task_announcement_cb(self, msg):
         payload = msg['payload']
         task_announcement = TaskAnnouncement.from_payload(payload)
-        self.logger.debug("Received TASK-ANNOUNCEMENT msg round %s with tasks %s", task_announcement.round_id,
+        self.logger.debug("Received TASK-ANNOUNCEMENT msg round %s with %s tasks", task_announcement.round_id,
                                                                                    len(task_announcement.tasks))
         self.logger.debug("Current stn: %s", self.timetable.stn)
         self.logger.debug("Current dispatchable graph: %s", self.timetable.dispatchable_graph)
@@ -272,6 +272,11 @@ class Bidder:
         smallest_bid = None
 
         for bid in bids:
+            # Do not consider bids for tasks that were frozen after the bid computation
+            task = Task.get_task(bid.task_id)
+            if task.frozen:
+                continue
+
             if smallest_bid is None or\
                     bid < smallest_bid or\
                     (bid == smallest_bid and bid.task_id < smallest_bid.task_id):

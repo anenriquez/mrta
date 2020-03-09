@@ -1,7 +1,7 @@
 import argparse
 import subprocess
 
-from mrs.config.params import experiment_number, approach_number
+from mrs.config.params import approach_number
 from mrs.config.params import get_config_params
 
 
@@ -19,14 +19,13 @@ def run(robot_ids, docker_compose_file):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('experiment', type=str, action='store', help='Experiment_name')
+    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
     parser.add_argument('approach', type=str, action='store', help='Approach name')
     args = parser.parse_args()
 
-    docker_compose_file_ = "docker_files/exp-" + experiment_number.get(args.experiment) + \
-                           "-approach-" + approach_number.get(args.approach) + ".yaml"
+    docker_compose_file_ = "docker_files/approach-" + approach_number.get(args.approach) + ".yaml"
 
-    config_params = get_config_params(experiment=args.experiment)
+    config_params = get_config_params(args.file, approach=args.approach)
     robot_ids_ = config_params.get("fleet")
 
     run(robot_ids_, docker_compose_file_)
