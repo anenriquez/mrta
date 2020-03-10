@@ -47,7 +47,7 @@ bidder:
 
 executor:
   max_seed: 2147483647
-  delay_n_standard_dev: 1
+  map_name: brsu
 
 schedule_monitor:
   time_resolution: 0.5 # minutes
@@ -64,6 +64,7 @@ ccu_api:
         - TASK-ALLOCATION
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - START-TEST
+        - ROBOT-POSE
         - BID
         - NO-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
@@ -120,6 +121,8 @@ ccu_api:
         component: 'timetable_monitor.abort_cb'
       - msg_type: 'RE-SCHEDULE'
         component: 'timetable_monitor.re_schedule_cb'
+      - msg_type: 'ROBOT-POSE'
+        component: 'fleet_monitor.robot_pose_cb'
 
 robot_proxy_api:
   version: 0.1.0
@@ -154,6 +157,10 @@ robot_proxy_api:
       task-contract-acknowledgement:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        method: shout
+      robot-pose:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ROBOT-POSE'
         method: shout
     callbacks:
       - msg_type: 'TASK-ANNOUNCEMENT'

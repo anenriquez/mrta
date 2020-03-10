@@ -2,8 +2,11 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
+from pymodm.errors import DoesNotExist
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.allocation.bidding_rule import bidding_rule_factory
-from mrs.db.models.actions import GoTo
 from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import TaskNotFound
@@ -11,10 +14,6 @@ from mrs.messages.bid import NoBid, AllocationInfo
 from mrs.messages.round_finished import RoundFinished
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
-from pymodm.errors import DoesNotExist
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
-from stn.exceptions.stp import NoSTPSolution
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule
 specified in the config file
@@ -152,7 +151,6 @@ class Bidder:
                 self.logger.debug("Stop computing bid of task %s. Round closed", task.task_id)
                 return
 
-            pre_task_actions = list()
             prev_version_next_stn_task = None
 
             self.logger.debug("Computing bid for task %s in insertion_point %s", task.task_id, insertion_point)
@@ -160,12 +158,12 @@ class Bidder:
                 continue
 
             prev_location = self.get_previous_location(insertion_point)
-            pre_task_actions.append(self.get_pre_task_action(task, prev_location))
+            self.update_pre_task_constraint(task, prev_location)
 
             new_stn_task = self.timetable.to_stn_task(task, insertion_point, earliest_admissible_time)
 
             self.timetable.insert_task(new_stn_task, insertion_point)
-            allocation_info = AllocationInfo(insertion_point, pre_task_actions, new_stn_task)
+            allocation_info = AllocationInfo(insertion_point, new_stn_task)
 
             try:
                 # Update previous location and start constraints of next task (if any)
@@ -173,8 +171,7 @@ class Bidder:
                 prev_version_next_stn_task = self.timetable.get_stn_task(next_task.task_id)
 
                 prev_location = task.request.delivery_location
-                pre_task_actions.append(self.get_pre_task_action(next_task, prev_location))
-
+                self.update_pre_task_constraint(next_task, prev_location)
                 next_stn_task = self.timetable.update_stn_task(next_task, insertion_point+1, earliest_admissible_time)
                 self.timetable.update_task(next_stn_task)
 
@@ -229,23 +226,16 @@ class Bidder:
     def get_robot_location(self):
         try:
             position = Robot.get_robot(self.robot_id).position
-            robot_location = self.planner.get_node(position.x, position.y, position.theta)
+            robot_location = self.planner.get_node(position.x, position.y)
         except DoesNotExist:
             self.logger.warning("No information about robot's location")
             robot_location = "AMK_D_L-1_C39"
         return robot_location
 
-    def get_pre_task_action(self, task, previous_location):
+    def update_pre_task_constraint(self, task, previous_location):
         travel_path = self.get_travel_path(previous_location, task.request.pickup_location)
         travel_time = self.get_travel_time(travel_path)
         task.update_inter_timepoint_constraint(**travel_time.to_dict())
-
-        pre_task_action = GoTo(action_id=generate_uuid(),
-                               type="ROBOT-TO-PICKUP",
-                               locations=travel_path,
-                               task_id=task.task_id,
-                               estimated_duration=travel_time)
-        return pre_task_action
 
     def get_travel_path(self, robot_position, pickup_location):
         if self.planner:

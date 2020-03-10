@@ -3,6 +3,9 @@ import logging.config
 
 from fmlib.models.actions import Action
 from fmlib.models.robot import Robot as RobotModel
+from planner.planner import Planner
+from ropod.structs.task import TaskStatus as TaskStatusConst
+
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
@@ -12,8 +15,6 @@ from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_progress import TaskProgress
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.timetable import Timetable
-from planner.planner import Planner
-from ropod.structs.task import TaskStatus as TaskStatusConst
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -39,8 +40,9 @@ class RobotProxy:
 
     def robot_pose_cb(self, msg):
         payload = msg.get("payload")
-        self.logger.debug("Robot %s received pose", self.robot_id)
-        self.robot_model.update_position(**payload.get("pose"))
+        if payload.get("robotId") == self.robot_id:
+            self.logger.debug("Robot %s received pose", self.robot_id)
+            self.robot_model.update_position(**payload.get("pose"))
 
     def task_cb(self, msg):
         payload = msg['payload']

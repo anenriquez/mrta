@@ -1,6 +1,6 @@
-from mrs.db.models.actions import GoTo
-from mrs.utils.as_dict import AsDictMixin
 from stn.task import Task as STNTask
+
+from mrs.utils.as_dict import AsDictMixin
 
 
 class Metrics(AsDictMixin):
@@ -110,9 +110,8 @@ class Bid(BidBase):
 
 
 class AllocationInfo(AsDictMixin):
-    def __init__(self, insertion_point, pre_task_actions, new_task, next_task=None, prev_version_next_task=None):
+    def __init__(self, insertion_point, new_task, next_task=None, prev_version_next_task=None):
         self.insertion_point = insertion_point
-        self.pre_task_actions = pre_task_actions
         self.new_task = new_task
         self.next_task = next_task
         self.prev_version_next_task = prev_version_next_task
@@ -139,25 +138,12 @@ class AllocationInfo(AsDictMixin):
     def dispatchable_graph(self, dispatchable_graph):
         self._dispatchable_graph = dispatchable_graph
 
-    def to_dict(self):
-        dict_repr = super().to_dict()
-        pre_task_actions = list()
-        for action in self.pre_task_actions:
-            pre_task_actions.append(action.to_dict())
-        dict_repr.update(pre_task_actions=pre_task_actions)
-        return dict_repr
-
     @classmethod
     def to_attrs(cls, dict_repr):
         attrs = super().to_attrs(dict_repr)
         new_task = attrs.get("new_task")
         next_task = attrs.get("next_task")
         prev_version_next_task = attrs.get("prev_version_next_task")
-
-        pre_task_actions = list()
-        for action in attrs.get("pre_task_actions"):
-            pre_task_actions.append(GoTo.from_payload(action))
-        attrs.update(pre_task_actions=pre_task_actions)
 
         attrs.update(new_task=STNTask.from_dict(new_task))
         if next_task and prev_version_next_task:

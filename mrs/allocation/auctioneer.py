@@ -105,23 +105,13 @@ class Auctioneer(SimulatorInterface):
         self.winning_bid = bid
         self.send_task_contract(bid.task_id, bid.robot_id)
 
-    def process_allocation(self, allocation_info):
+    def process_allocation(self):
         try:
-            for action in allocation_info.pre_task_actions:
-                travel_time = action.estimated_duration
-                task = self.tasks_to_allocate.get(action.task_id) \
-                    if self.tasks_to_allocate.get(action.task_id) is not None \
-                    else self.allocated_tasks.get(action.task_id)
-
-                self.logger.debug("Updating travel time of task %s: ", task.task_id)
-                task.update_inter_timepoint_constraint(**travel_time.to_dict())
-                self.pre_task_actions.append(action)
-
             task = self.tasks_to_allocate.pop(self.winning_bid.task_id)
             self.allocated_tasks[task.task_id] = task
 
             self.timetable_manager.update_timetable(self.winning_bid.robot_id,
-                                                    allocation_info,
+                                                    self.winning_bid.get_allocation_info(),
                                                     task)
 
             allocation = (self.winning_bid.task_id, [self.winning_bid.robot_id])
@@ -136,7 +126,7 @@ class Auctioneer(SimulatorInterface):
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."
                                 "Task %s will be included in next allocation round", e.task_id, e.robot_id, e.task_id)
-            self.undo_allocation(allocation_info)
+            self.undo_allocation(self.winning_bid.get_allocation_info())
 
     def undo_allocation(self, allocation_info):
         self.logger.warning("Undoing allocation of round %s", self.round.id)
@@ -232,7 +222,8 @@ class Auctioneer(SimulatorInterface):
 
         if ack.accept and ack.robot_id not in self.changed_timetable:
             self.logger.debug("Concluding allocation of task %s", ack.task_id)
-            self.process_allocation(ack.allocation_info)
+            self.winning_bid.set_allocation_info(ack.allocation_info)
+            self.process_allocation()
 
         elif ack.accept and ack.robot_id in self.changed_timetable:
             self.undo_allocation(ack.allocation_info)

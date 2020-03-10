@@ -3,17 +3,20 @@ import logging
 import numpy as np
 from fmlib.models.actions import Action
 from fmlib.models.tasks import TaskStatus
+from planner.planner import Planner
+from pymodm.context_managers import switch_collection
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
+from stn.pstn.distempirical import norm_sample
+
 from mrs.db.models.actions import ActionProgress
 from mrs.db.models.task import TimepointConstraint
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.task_progress import TaskProgress
-from pymodm.context_managers import switch_collection
-from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 
 class Executor:
-    def __init__(self, robot_id, api, timetable, max_seed, **kwargs):
+    def __init__(self, robot_id, api, timetable, max_seed, map_name, **kwargs):
         self.robot_id = robot_id
         self.api = api
         self.timetable = timetable
@@ -21,7 +24,9 @@ class Executor:
         random_seed = np.random.randint(max_seed)
         self.random_state = np.random.RandomState(random_seed)
 
-        self.delay_n_standard_dev = kwargs.get('delay_n_standard_dev', 0)
+        # This is a virtual executor that uses a graph to get the task durations
+        self.planner = Planner(map_name)
+
         self.current_task = None
         self.action_progress = None
 
@@ -78,8 +83,13 @@ class Executor:
             self.action_progress = ActionProgress(progress.current_action.action_id)
 
     def get_action_duration(self, action):
-        duration = action.estimated_duration.sample_duration(self.random_state, self.delay_n_standard_dev)
-        return duration
+        source = action.locations[0]
+        destination = action.locations[-1]
+        path = self.planner.get_path(source, destination)
+        mean, variance = self.planner.get_estimated_duration(path)
+        stdev = round(variance**0.5, 3)
+        duration = norm_sample(mean, stdev, self.random_state)
+        return round(duration)
 
     def update_action(self, action_status, r_time):
         abs_time = TimepointConstraint.absolute_time(self.timetable.zero_timepoint, r_time)

@@ -8,20 +8,25 @@ class RobotPerformanceTracker:
         self.logger = logging.getLogger("mrs.performance.robot.tracker")
         self.processed_tasks = list()
 
-    def update_metrics(self, robot_id, tasks_progress):
-        self.logger.critical("Updating performance of robot %s", robot_id)
+    def update_metrics(self, robot_id, tasks_status):
+        self.logger.debug("Updating performance of robot %s", robot_id)
         robot_performance = RobotPerformance.get_robot_performance(robot_id)
-        for task_idx, actions_progress in enumerate(tasks_progress):
-            task_id = actions_progress[0].action.task_id
+
+        tasks = list(tasks_status.items())
+
+        for i, (task_id, task_status) in enumerate(tasks_status.items()):
             if task_id not in self.processed_tasks:
-                for action_progress in actions_progress:
+                for action_progress in task_status.progress.actions:
+
                     time_ = (action_progress.finish_time - action_progress.start_time).total_seconds()
+
                     if action_progress.action.type == "ROBOT-TO-PICKUP":
                         robot_performance.update_travel_time(time_)
 
-                        if task_idx > 0:
-                            prev_delivery_time = tasks_progress[task_idx-1][-1].finish_time
-                            start_time = tasks_progress[task_idx][0].start_time
+                        if i > 0:
+                            previous_task_status = tasks[i-1][1]
+                            prev_delivery_time = previous_task_status.progress.actions[-1].finish_time
+                            start_time = action_progress.start_time
                             idle_time = (start_time - prev_delivery_time).total_seconds()
                             robot_performance.update_idle_time(idle_time)
 
@@ -30,17 +35,12 @@ class RobotPerformanceTracker:
 
                 self.processed_tasks.append(task_id)
 
-        start_first_task, finish_last_task = self.get_start_finish_times(tasks_progress)
+        finish_last_task = tasks[-1][1].progress.actions[-1].finish_time
+        start_first_task = tasks[0][1].progress.actions[0].start_time
         total_time = (finish_last_task - start_first_task).total_seconds()
 
         robot_performance.update_total_time(total_time)
         robot_performance.update_makespan(finish_last_task)
-
-    @staticmethod
-    def get_start_finish_times(tasks_progress):
-        finish_last_task = tasks_progress[-1][-1].finish_time
-        start_fist_task = tasks_progress[0][0].start_time
-        return start_fist_task, finish_last_task
 
     def update_allocated_tasks(self, robot_id, task_id):
         robot_performance = RobotPerformance.get_robot_performance(robot_id)

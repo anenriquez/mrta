@@ -7,7 +7,6 @@ from mrs.db.models.task import InterTimepointConstraint
 
 
 class GoTo(Action):
-    task_id = fields.UUIDField()
     estimated_duration = fields.EmbeddedDocumentField(InterTimepointConstraint)
 
     def __str__(self):

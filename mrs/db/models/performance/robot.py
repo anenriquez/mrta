@@ -41,7 +41,8 @@ class RobotPerformance(MongoModel):
     def update_allocated_tasks(self, task_id):
         if not self.allocated_tasks:
             self.allocated_tasks = list()
-        self.allocated_tasks.append(task_id)
+        if task_id not in self.allocated_tasks:
+            self.allocated_tasks.append(task_id)
         self.save()
 
     def unallocated(self, task_id):
