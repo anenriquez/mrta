@@ -11,11 +11,9 @@ non_intentional_delays:
     - overlapping_random_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002
@@ -34,11 +32,9 @@ intentional_delays:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 10
+    map_name: brsu_obstacles
   fleet:
     - robot_001
     - robot_002
@@ -57,11 +53,9 @@ task_scalability:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002
@@ -80,11 +74,9 @@ robot_scalability_1:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
 
@@ -99,11 +91,9 @@ robot_scalability_2:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002
@@ -119,11 +109,9 @@ robot_scalability_3:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002
@@ -140,11 +128,9 @@ robot_scalability_4:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002
@@ -162,11 +148,9 @@ robot_scalability_5:
     - overlapping_tight_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
-  planner:
-    map_name: brsu
   executor:
     max_seed: 2147483647
-    delay_n_standard_dev: 0
+    map_name: brsu
   fleet:
     - robot_001
     - robot_002

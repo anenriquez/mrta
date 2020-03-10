@@ -9,7 +9,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 
 class Dispatcher(SimulatorInterface):
 
-    def __init__(self, stp_solver, timetable_manager, freeze_window, n_queued_tasks, **kwargs):
+    def __init__(self, stp_solver, timetable_manager, freeze_window, n_queued_tasks, planner, **kwargs):
         """ Dispatches tasks to a multi-robot system based on temporal constraints
 
         Args:
@@ -34,6 +34,7 @@ class Dispatcher(SimulatorInterface):
         self.timetable_manager = timetable_manager
         self.freeze_window = timedelta(minutes=freeze_window)
         self.n_queued_tasks = n_queued_tasks
+        self.planner = planner
 
         self.robot_ids = list()
         self.d_graph_updates = dict()
@@ -60,6 +61,16 @@ class Dispatcher(SimulatorInterface):
         if start_time.get_difference(current_time) < self.freeze_window:
             return True
         return False
+
+    def get_pre_task_action(self, task):
+        travel_path = self.get_travel_path(task., task.request.pickup_location)
+        travel_time = self.get_travel_time(travel_path)
+        task.update_inter_timepoint_constraint(**travel_time.to_dict())
+
+        # pre_task_action = GoTo(action_id=generate_uuid(),
+        #                        type="ROBOT-TO-PICKUP",
+        #                        locations=travel_path)
+        # return travel_time
 
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
