@@ -167,6 +167,7 @@ class TimetableMonitor(SimulatorInterface):
 
             if status == TaskStatusConst.COMPLETED:
                 self.validate_next_tasks(timetable, task)
+                self.update_robot_poses(task)
 
             timetable.remove_task(task.task_id)
             self.auctioneer.changed_timetable.append(robot_id)
@@ -199,6 +200,11 @@ class TimetableMonitor(SimulatorInterface):
         remove_task = RemoveTask(task_id, status)
         msg = self.api.create_message(remove_task)
         self.api.publish(msg, peer=robot_id + '_proxy')
+
+    def update_robot_poses(self, task):
+        for robot_id in task.assigned_robots:
+            x, y, theta = self.dispatcher.planner.get_pose(task.request.delivery_location)
+            self.dispatcher.fleet_monitor.update_robot_pose(robot_id, x=x, y=y, theta=theta)
 
     def run(self):
         # TODO: Check how this works outside simulation

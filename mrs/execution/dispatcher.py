@@ -2,19 +2,22 @@ import copy
 import logging
 from datetime import timedelta
 
-from mrs.simulation.simulator import SimulatorInterface
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import generate_uuid
+
+from mrs.db.models.actions import GoTo
+from mrs.db.models.task import InterTimepointConstraint
+from mrs.simulation.simulator import SimulatorInterface
 
 
 class Dispatcher(SimulatorInterface):
 
-    def __init__(self, stp_solver, timetable_manager, freeze_window, n_queued_tasks, planner, **kwargs):
+    def __init__(self, timetable_manager, freeze_window, n_queued_tasks, planner, fleet_monitor, **kwargs):
         """ Dispatches tasks to a multi-robot system based on temporal constraints
 
         Args:
 
-            stp_solver (STP): Simple Temporal Problem object
             timetable_manager (TimetableManager): contains the timetables of all the robots in the fleet
             freeze_window (float): Defines the time (minutes) within which a task can be scheduled
                         e.g, with a freeze window of 2 minutes, a task can be scheduled if its earliest
@@ -30,11 +33,11 @@ class Dispatcher(SimulatorInterface):
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
 
-        self.stp_solver = stp_solver
         self.timetable_manager = timetable_manager
         self.freeze_window = timedelta(minutes=freeze_window)
         self.n_queued_tasks = n_queued_tasks
         self.planner = planner
+        self.fleet_monitor = fleet_monitor
 
         self.robot_ids = list()
         self.d_graph_updates = dict()
@@ -53,7 +56,7 @@ class Dispatcher(SimulatorInterface):
         self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
 
-    def run(self):
+    def run(self, **kwargs):
         self.dispatch_tasks()
 
     def is_schedulable(self, start_time):
@@ -62,15 +65,23 @@ class Dispatcher(SimulatorInterface):
             return True
         return False
 
-    def get_pre_task_action(self, task):
-        travel_path = self.get_travel_path(task., task.request.pickup_location)
-        travel_time = self.get_travel_time(travel_path)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
+    def add_pre_task_action(self, task, robot_id):
+        self.logger.debug("Adding pre_task_action to task %s", task.task_id)
+        pose = self.fleet_monitor.get_robot_pose(robot_id)
+        robot_location = self.planner.get_node(pose.x, pose.y)
 
-        # pre_task_action = GoTo(action_id=generate_uuid(),
-        #                        type="ROBOT-TO-PICKUP",
-        #                        locations=travel_path)
-        # return travel_time
+        path = self.planner.get_path(robot_location, task.request.pickup_location)
+        mean, variance = self.planner.get_estimated_duration(path)
+        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
+        task.update_inter_timepoint_constraint(travel_time.name, travel_time.mean, travel_time.variance)
+
+        pre_task_action = GoTo(action_id=generate_uuid(),
+                               type="ROBOT-TO-PICKUP",
+                               locations=path,
+                               estimated_duration=travel_time)
+
+        task.plan[0].actions.insert(0, pre_task_action)
+        task.save()
 
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
@@ -81,6 +92,7 @@ class Dispatcher(SimulatorInterface):
                     start_time = timetable.get_start_time(task.task_id)
                     if self.is_schedulable(start_time):
                         task.freeze()
+                        self.add_pre_task_action(task, robot_id)
                         self.dispatch_task(task, robot_id)
             except DoesNotExist:
                 pass

@@ -11,7 +11,6 @@ from pymodm.context_managers import switch_collection
 from pymodm.context_managers import switch_connection
 from pymongo.errors import ServerSelectionTimeoutError
 from ropod.utils.timestamp import TimeStamp
-from stn.pstn.distempirical import norm_sample
 
 
 class TimepointConstraint(EmbeddedMongoModel):
@@ -77,13 +76,6 @@ class InterTimepointConstraint(EmbeddedMongoModel):
         to_print = ""
         to_print += "{}: N({}, {})".format(self.name, self.mean, self.variance ** 0.5)
         return to_print
-
-    def sample(self, random_state):
-        sample = norm_sample(self.mean, self.standard_dev, random_state)
-        return round(sample)
-
-    def sample_duration(self, random_state, delay_n_standard_dev):
-        return self.sample(random_state) + (delay_n_standard_dev*self.standard_dev)
 
     @classmethod
     def from_payload(cls, payload):

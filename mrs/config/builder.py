@@ -2,9 +2,10 @@ import logging
 
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.allocation.bidder import Bidder
-from mrs.dispatching.dispatcher import Dispatcher
+from mrs.execution.dispatcher import Dispatcher
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
+from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
@@ -23,6 +24,7 @@ class MRTABuilder:
                           'planner': Planner,
                           'delay_recovery': DelayRecovery,
                           'auctioneer': Auctioneer,
+                          'fleet_monitor': FleetMonitor,
                           'dispatcher': Dispatcher,
                           'bidder': Bidder,
                           'executor': Executor,
@@ -37,6 +39,7 @@ class MRTABuilder:
                      'planner',
                      'delay_recovery',
                      'auctioneer',
+                     'fleet_monitor',
                      'dispatcher',
                      'bidder',
                      'executor',

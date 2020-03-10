@@ -11,16 +11,15 @@ class TaskPerformanceTracker:
         self.auctioneer = auctioneer
         self.logger = logging.getLogger("mrs.performance.task.tracker")
 
-    def update_allocation_metrics(self, allocated_task_id, timetable, tasks_to_update):
-        for task_id in tasks_to_update:
-            task_performance = TaskPerformance.get_task_performance(task_id)
-            metrics = self.get_allocation_metrics(task_id, timetable)
-            if task_id == allocated_task_id:
-                task_performance.update_allocation(**metrics)
-                task_performance.allocated()
-            else:
-                task_performance.update_allocation(travel_time_boundaries=metrics.get("travel_time_boundaries"),
-                                                   work_time_boundaries=metrics.get("work_time_boundaries"))
+    def update_allocation_metrics(self, task_id, timetable, only_constraints=False):
+        task_performance = TaskPerformance.get_task_performance(task_id)
+        metrics = self.get_allocation_metrics(task_id, timetable)
+        if only_constraints:
+            task_performance.update_allocation(travel_time_boundaries=metrics.get("travel_time_boundaries"),
+                                               work_time_boundaries=metrics.get("work_time_boundaries"))
+        else:
+            task_performance.update_allocation(**metrics)
+            task_performance.allocated()
 
     def get_allocation_metrics(self, task_id, timetable):
         time_to_allocate = self.auctioneer.round.get_time_to_allocate()

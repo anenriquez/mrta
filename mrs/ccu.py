@@ -12,10 +12,10 @@ from mrs.config.params import get_config_params
 from mrs.db.models.actions import GoTo
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
-from mrs.db.models.task import InterTimepointConstraint
-from mrs.db.models.task import Task
-from mrs.dispatching.dispatcher import Dispatcher
+from mrs.db.models.task import Task, InterTimepointConstraint
 from mrs.execution.delay_recovery import DelayRecovery
+from mrs.execution.dispatcher import Dispatcher
+from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.manager import TimetableManager
@@ -24,6 +24,7 @@ from mrs.timetable.monitor import TimetableMonitor
 _component_modules = {'simulator': Simulator,
                       'timetable_manager': TimetableManager,
                       'auctioneer': Auctioneer,
+                      'fleet_monitor': FleetMonitor,
                       'dispatcher': Dispatcher,
                       'planner': Planner,
                       'delay_recovery': DelayRecovery,
@@ -37,6 +38,7 @@ class CCU:
     def __init__(self, components, **kwargs):
 
         self.auctioneer = components.get('auctioneer')
+        self.fleet_monitor = components.get('fleet_monitor')
         self.dispatcher = components.get('dispatcher')
         self.planner = components.get('planner')
         self.timetable_manager = components.get('timetable_manager')
@@ -94,30 +96,23 @@ class CCU:
             task_id, robot_ids = self.auctioneer.allocations.pop(0)
             task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
-            self.update_task_allocation_metrics(task_id, robot_ids)
-            self.update_task_plan(robot_ids)
+            task_plan = self.task_plans[task.task_id]
+            task.update_plan(robot_ids, task_plan)
+            self.logger.debug('Task plan of task %s updated', task.task_id)
+            self.update_allocation_metrics()
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
             self.auctioneer.finish_round()
 
-    def update_task_allocation_metrics(self, task_id, robot_ids):
-        tasks_to_update = [pre_task_action.task_id for pre_task_action in self.auctioneer.pre_task_actions]
-        self.performance_tracker.update_task_allocation_metrics(task_id, robot_ids, tasks_to_update)
-
-    def update_task_plan(self, robot_ids):
-        for pre_task_action in self.auctioneer.pre_task_actions:
-            task = Task.get_task(pre_task_action.task_id)
-            task_plan = self.task_plans[task.task_id]
-            if [action for action in task_plan.actions if action.type == "ROBOT-TO-PICKUP"]:
-                task_plan.actions[0] = pre_task_action
-            else:
-                task_plan.actions.insert(0, pre_task_action)
-
-            task.update_plan(robot_ids, task_plan)
-            self.logger.debug('Task plan of task %s updated', task.task_id)
-        self.auctioneer.pre_task_actions = list()
+    def update_allocation_metrics(self):
+        allocation_info = self.auctioneer.winning_bid.get_allocation_info()
+        task = Task.get_task(allocation_info.new_task.task_id)
+        self.performance_tracker.update_allocation_metrics(task)
+        if allocation_info.next_task:
+            task = Task.get_task(allocation_info.next_task.task_id)
+            self.performance_tracker.update_allocation_metrics(task, only_constraints=True)
 
     def run(self):
         try:

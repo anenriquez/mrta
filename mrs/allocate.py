@@ -71,7 +71,7 @@ class Allocate(RopodPyre):
             pose = self._robot_poses.get(robot_id)
             msg['payload']['robotId'] = robot_id
             msg['payload']['pose'] = pose
-            self.whisper(msg, peer=robot_id + "_proxy")
+            self.shout(msg)
             self.logger.info("Send init pose to %s: ", robot_id)
 
     def load_tasks(self):

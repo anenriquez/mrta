@@ -1,3 +1,4 @@
+import collections
 import logging
 
 from fmlib.models.tasks import TaskStatus
@@ -19,23 +20,23 @@ class PerformanceTracker:
 
         self.logger = logging.getLogger("mrs.performance.tracker")
 
-    def update_task_allocation_metrics(self, allocated_task_id, robot_ids, tasks_to_update):
-        for robot_id in robot_ids:
+    def update_allocation_metrics(self, task, only_constraints=False):
+        for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            self.task_performance_tracker.update_allocation_metrics(allocated_task_id, timetable, tasks_to_update)
-            self.robot_performance_tracker.update_allocated_tasks(robot_id, allocated_task_id)
+            self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, only_constraints)
+            self.robot_performance_tracker.update_allocated_tasks(robot_id, task.task_id)
 
     @staticmethod
-    def get_tasks_progress(robot_id):
-        tasks_progress = list()
+    def get_tasks_status(robot_id):
+        tasks_status = collections.OrderedDict()
         with switch_collection(Task, Task.Meta.archive_collection):
             tasks = Task.get_tasks_by_robot(robot_id)
         with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
             for task in tasks:
                 task_status = TaskStatus.objects.get({"_id": task.task_id})
                 if task_status.status == TaskStatusConst.COMPLETED:
-                    tasks_progress.append(task_status.progress.actions)
-        return tasks_progress
+                    tasks_status[task.task_id] = task_status
+        return tasks_status
 
     def run(self):
         while self.timetable_monitor.completed_tasks:
@@ -43,8 +44,8 @@ class PerformanceTracker:
             self.task_performance_tracker.update_execution_metrics(task)
 
             for robot_id in task.assigned_robots:
-                tasks_progress = self.get_tasks_progress(robot_id)
-                self.robot_performance_tracker.update_metrics(robot_id, tasks_progress)
+                tasks_status = self.get_tasks_status(robot_id)
+                self.robot_performance_tracker.update_metrics(robot_id, tasks_status)
 
             self.timetable_monitor.completed_tasks.pop(0)
 
