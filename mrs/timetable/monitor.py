@@ -14,13 +14,13 @@ from mrs.simulation.simulator import SimulatorInterface
 
 
 class TimetableMonitor(SimulatorInterface):
-    def __init__(self, auctioneer, dispatcher, timetable_manager, delay_recovery, **kwargs):
+    def __init__(self, auctioneer, dispatcher, delay_recovery, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
         self.auctioneer = auctioneer
         self.dispatcher = dispatcher
-        self.timetable_manager = timetable_manager
+        self.timetables = auctioneer.timetables
         self.recovery_method = delay_recovery.method
         self.api = kwargs.get('api')
 
@@ -83,7 +83,7 @@ class TimetableMonitor(SimulatorInterface):
 
     def _update_timetable(self, task, robot_id, action_progress):
         if action_progress.start_time and action_progress.finish_time:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
             self.logger.debug("Updating timetable of robot %s", robot_id)
             action = Action.get_action(action_progress.action.action_id)
             start_node, finish_node = action.get_node_names()
@@ -136,7 +136,7 @@ class TimetableMonitor(SimulatorInterface):
 
     def _re_schedule(self, task):
         for robot_id in task.assigned_robots:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
             stn = timetable.stn
             self.logger.debug("Recomputing dispatchable graph of robot %s", robot_id)
             try:
@@ -163,7 +163,7 @@ class TimetableMonitor(SimulatorInterface):
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
 
             if status == TaskStatusConst.COMPLETED:
                 self.validate_next_tasks(timetable, task)
