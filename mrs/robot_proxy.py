@@ -10,17 +10,16 @@ from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
 from mrs.db.models.task import Task
-from mrs.execution.delay_recovery import DelayRecovery
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_progress import TaskProgress
-from mrs.simulation.simulator import Simulator, SimulatorInterface
+from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'bidder': Bidder,
                       'planner': Planner,
-                      'delay_recovery': DelayRecovery}
+                      }
 
 
 class RobotProxy:
@@ -33,7 +32,6 @@ class RobotProxy:
         self.bidder = bidder
         self.timetable = timetable
         self.robot_model = RobotModel.create_new(robot_id)
-        self.simulator_interface = SimulatorInterface(kwargs.get('simulator'))
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized RobotProxy %s", robot_id)
