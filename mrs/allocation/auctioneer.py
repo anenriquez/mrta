@@ -21,7 +21,7 @@ specified in the config file
 
 class Auctioneer(SimulatorInterface):
 
-    def __init__(self, stp_solver, timetable_manager, closure_window=5, **kwargs):
+    def __init__(self, timetable_manager, closure_window=5, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
@@ -31,8 +31,6 @@ class Auctioneer(SimulatorInterface):
         self.robot_ids = list()
         self.timetable_manager = timetable_manager
 
-        self.stp_solver = stp_solver
-
         self.closure_window = timedelta(minutes=closure_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
 
@@ -41,7 +39,6 @@ class Auctioneer(SimulatorInterface):
         self.tasks_to_allocate = dict()
         self.allocated_tasks = dict()
         self.allocations = list()
-        self.pre_task_actions = list()
         self.winning_bid = None
         self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
