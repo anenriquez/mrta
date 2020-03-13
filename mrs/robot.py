@@ -8,6 +8,7 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.execution.scheduler import Scheduler
 from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.messages.recover import ReAllocate, Abort, ReSchedule
 from mrs.simulation.simulator import Simulator
@@ -18,18 +19,20 @@ from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'executor': Executor,
+                      'scheduler': Scheduler,
                       'schedule_monitor': ScheduleMonitor,
                       'delay_recovery': DelayRecovery}
 
 
 class Robot:
-    def __init__(self, robot_id, api, executor, schedule_monitor, timetable, **kwargs):
+    def __init__(self, robot_id, api, executor, scheduler, schedule_monitor, **kwargs):
 
         self.robot_id = robot_id
         self.api = api
         self.executor = executor
+        self.scheduler = scheduler
         self.schedule_monitor = schedule_monitor
-        self.timetable = timetable
+        self.timetable = schedule_monitor.timetable
         self.timetable.fetch()
 
         self.tasks = list()
@@ -85,7 +88,7 @@ class Robot:
 
     def schedule(self, task):
         try:
-            self.schedule_monitor.schedule(task)
+            self.scheduler.schedule(task)
         except InconsistentSchedule:
             if "re-allocate" in self.recovery_method:
                 self.re_allocate(task)

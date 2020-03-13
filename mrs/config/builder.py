@@ -7,6 +7,7 @@ from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.execution.scheduler import Scheduler
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable, Timetables
@@ -27,6 +28,7 @@ class MRTABuilder:
                           'dispatcher': Dispatcher,
                           'bidder': Bidder,
                           'executor': Executor,
+                          'scheduler': Scheduler,
                           'schedule_monitor': ScheduleMonitor,
                           'timetable_monitor': TimetableMonitor,
                           'performance_tracker': PerformanceTracker,
@@ -42,6 +44,7 @@ class MRTABuilder:
                      'dispatcher',
                      'bidder',
                      'executor',
+                     'scheduler',
                      'schedule_monitor',
                      'timetable_monitor',
                      'performance_tracker',
