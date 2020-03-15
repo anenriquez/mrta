@@ -236,6 +236,7 @@ class Bidder:
         travel_path = self.get_travel_path(previous_location, task.request.pickup_location)
         travel_time = self.get_travel_time(travel_path)
         task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        return travel_time
 
     def get_travel_path(self, robot_position, pickup_location):
         if self.planner:
