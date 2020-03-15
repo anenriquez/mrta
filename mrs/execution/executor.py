@@ -63,12 +63,12 @@ class Executor:
         action = Action.get_action(self.action_progress.action.action_id)
         self.logger.debug("Current action %s: ", action)
 
-        duration = self.get_action_duration(action)
         start_node, finish_node = action.get_node_names()
-
         r_start_time = self.timetable.stn.get_time(self.current_task.task_id, start_node)
         self.update_action(ActionStatus.ONGOING, r_start_time)
         self.send_task_progress(self.current_task)
+
+        duration = self.get_action_duration(action)
 
         r_finish_time = r_start_time + duration
         self.update_action(ActionStatus.COMPLETED, r_finish_time)
@@ -88,8 +88,9 @@ class Executor:
         path = self.planner.get_path(source, destination)
         mean, variance = self.planner.get_estimated_duration(path)
         stdev = round(variance**0.5, 3)
-        duration = norm_sample(mean, stdev, self.random_state)
-        return round(duration)
+        duration = round(norm_sample(mean, stdev, self.random_state))
+        self.logger.debug("Time between %s and %s: %s", source, destination, duration)
+        return duration
 
     def update_action(self, action_status, r_time):
         abs_time = TimepointConstraint.absolute_time(self.timetable.zero_timepoint, r_time)
