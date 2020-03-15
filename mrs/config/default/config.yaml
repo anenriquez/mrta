@@ -69,9 +69,7 @@ ccu_api:
         - NO-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - TASK-PROGRESS
-        - RE-ALLOCATE
-        - ABORT
-        - RE-SCHEDULE
+        - RECOVER-TASK
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -115,12 +113,8 @@ ccu_api:
         component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'TASK-PROGRESS'
         component: 'timetable_monitor.task_progress_cb'
-      - msg_type: 'RE-ALLOCATE'
-        component: 'timetable_monitor.re_allocate_cb'
-      - msg_type: 'ABORT'
-        component: 'timetable_monitor.abort_cb'
-      - msg_type: 'RE-SCHEDULE'
-        component: 'timetable_monitor.re_schedule_cb'
+      - msg_type: 'RECOVER-TASK'
+        component: 'timetable_monitor.recover_task_cb'
       - msg_type: 'ROBOT-POSE'
         component: 'fleet_monitor.robot_pose_cb'
 
@@ -142,6 +136,7 @@ robot_proxy_api:
         - ROUND-FINISHED
         - ROBOT-POSE
         - TASK-PROGRESS
+        - RECOVER-TASK
         - REMOVE-TASK
       debug_msgs: false
     acknowledge: false
@@ -179,6 +174,8 @@ robot_proxy_api:
         component: '.task_cb'
       - msg_type: 'TASK-PROGRESS'
         component: '.task_progress_cb'
+      - msg_type: 'RECOVER-TASK'
+        component: '.recover_task_cb'
 
 
 robot_api:
@@ -201,17 +198,9 @@ robot_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-PROGRESS'
         method: shout
-      re-allocate:
+      recover-task:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'RE-ALLOCATE'
-        method: shout
-      abort:
-        msg_type: 'ABORT'
-        groups: ['TASK-ALLOCATION']
-        method: shout
-      re-schedule:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'RE-SCHEDULE'
+        msg_type: 'RECOVER-TASK'
         method: shout
     callbacks:
       - msg_type: 'D-GRAPH-UPDATE'

@@ -10,7 +10,7 @@ from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.execution.scheduler import Scheduler
 from mrs.messages.d_graph_update import DGraphUpdate
-from mrs.messages.recover import ReAllocate, Abort, ReSchedule
+from mrs.messages.recover_task import RecoverTask
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from pymodm.errors import DoesNotExist
@@ -71,19 +71,19 @@ class Robot:
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
-        recover = ReAllocate(self.recovery_method, task.task_id)
+        recover = RecoverTask("re-allocate", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def abort(self, task):
         self.logger.debug("Trigger abortion of task %s", task.task_id)
         task.update_status(TaskStatusConst.ABORTED)
         self.timetable.remove_task(task.task_id)
-        recover = Abort(self.recovery_method, task.task_id)
+        recover = RecoverTask("abort", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def re_schedule(self, task):
         self.logger.debug("Trigger rescheduling")
-        recover = ReSchedule(self.recovery_method, task.task_id)
+        recover = RecoverTask("re-schedule", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def schedule(self, task):
