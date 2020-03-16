@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+import dateutil.parser
 import numpy as np
 from fmlib.models.requests import TransportationRequest
 from fmlib.models.tasks import Task as BaseTask
@@ -26,6 +27,9 @@ class TimepointConstraint(EmbeddedMongoModel):
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
+        document["_id"] = document.pop("name")
+        document["earliest_time"] = dateutil.parser.parse(document.pop("earliest_time"))
+        document["latest_time"] = dateutil.parser.parse(document.pop("latest_time"))
         return cls.from_document(document)
 
     def to_dict(self):
@@ -234,6 +238,7 @@ class Task(BaseTask):
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
         document['_id'] = document.pop('task_id')
+        document["constraints"] = TemporalConstraints.from_payload(document.pop("constraints"))
         document["request"] = TransportationRequest.from_payload(document.pop("request"))
         task = cls.from_document(document)
         task.save()
@@ -241,6 +246,7 @@ class Task(BaseTask):
 
     def to_dict(self):
         dict_repr = super().to_dict()
+        dict_repr["constraints"] = self.constraints.to_dict()
         dict_repr["request"] = self.request.to_dict()
         return dict_repr
 
