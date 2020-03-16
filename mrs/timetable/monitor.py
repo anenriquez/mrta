@@ -2,25 +2,24 @@ import logging
 import time
 
 from fmlib.models.actions import Action
+from mrs.db.models.task import Task, InterTimepointConstraint
+from mrs.messages.recover_task import RecoverTask
+from mrs.messages.remove_task import RemoveTask
+from mrs.messages.task_progress import TaskProgress
+from mrs.simulation.simulator import SimulatorInterface
 from pymodm.context_managers import switch_collection
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from stn.exceptions.stp import NoSTPSolution
 
-from mrs.db.models.task import Task
-from mrs.messages.recover import ReAllocate, Abort, ReSchedule
-from mrs.messages.remove_task import RemoveTask
-from mrs.messages.task_progress import TaskProgress
-from mrs.simulation.simulator import SimulatorInterface
-
 
 class TimetableMonitor(SimulatorInterface):
-    def __init__(self, auctioneer, dispatcher, timetable_manager, delay_recovery, **kwargs):
+    def __init__(self, auctioneer, dispatcher, delay_recovery, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
         self.auctioneer = auctioneer
         self.dispatcher = dispatcher
-        self.timetable_manager = timetable_manager
+        self.timetables = auctioneer.timetables
         self.recovery_method = delay_recovery.method
         self.api = kwargs.get('api')
 
@@ -63,27 +62,20 @@ class TimetableMonitor(SimulatorInterface):
 
         self.processing_task = False
 
-    def re_allocate_cb(self, msg):
+    def recover_task_cb(self, msg):
         payload = msg['payload']
-        recover = ReAllocate.from_payload(payload)
+        recover = RecoverTask.from_payload(payload)
         task = Task.get_task(recover.task_id)
-        self._re_allocate(task)
-
-    def abort_cb(self, msg):
-        payload = msg['payload']
-        recover = Abort.from_payload(payload)
-        task = Task.get_task(recover.task_id)
-        self._abort(task)
-
-    def re_schedule_cb(self, msg):
-        payload = msg['payload']
-        recover = ReSchedule.from_payload(payload)
-        task = Task.get_task(recover.task_id)
-        self._re_schedule(task)
+        if recover.method == "re-allocate":
+            self._re_allocate(task)
+        elif recover.method == "abort":
+            self._abort(task)
+        elif recover.method == "re-schedule":
+            self._re_schedule(task)
 
     def _update_timetable(self, task, robot_id, action_progress):
         if action_progress.start_time and action_progress.finish_time:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
             self.logger.debug("Updating timetable of robot %s", robot_id)
             action = Action.get_action(action_progress.action.action_id)
             start_node, finish_node = action.get_node_names()
@@ -136,23 +128,23 @@ class TimetableMonitor(SimulatorInterface):
 
     def _re_schedule(self, task):
         for robot_id in task.assigned_robots:
-            timetable = self.timetable_manager.get_timetable(robot_id)
-            stn = timetable.stn
-            self.logger.debug("Recomputing dispatchable graph of robot %s", robot_id)
-            try:
-                dispatchable_graph = timetable.compute_dispatchable_graph(stn)
-                self.logger.debug("Updated DispatchableGraph %s: ", dispatchable_graph)
-                timetable.dispatchable_graph = dispatchable_graph
-                self.auctioneer.changed_timetable.append(robot_id)
-                timetable.store()
-                self.dispatcher.send_d_graph_update(robot_id)
-            except NoSTPSolution:
-                self.logger.warning("Temporal network is inconsistent")
-                next_task = timetable.get_next_task(task)
-                if next_task:
-                    self.recover(next_task)
-                else:
-                    self.dispatcher.send_d_graph_update(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
+            next_task = timetable.get_next_task(task)
+            self._re_compute_dispatchable_graph(timetable, next_task)
+
+    def _re_compute_dispatchable_graph(self, timetable, next_task=None):
+        self.logger.debug("Recomputing dispatchable graph of robot %s", timetable.robot_id)
+        try:
+            timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
+            self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
+            self.auctioneer.changed_timetable.append(timetable.robot_id)
+            self.dispatcher.send_d_graph_update(timetable.robot_id)
+        except NoSTPSolution:
+            self.logger.warning("Temporal network is inconsistent")
+            if next_task:
+                self.recover(next_task)
+            else:
+                self.dispatcher.send_d_graph_update(timetable.robot_id)
 
     def recover(self, task):
         if self.recovery_method.name.endswith("abort"):
@@ -163,21 +155,41 @@ class TimetableMonitor(SimulatorInterface):
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
+            next_task = timetable.get_next_task(task)
 
             if status == TaskStatusConst.COMPLETED:
-                self.validate_next_tasks(timetable, task)
+                if next_task:
+                    finish_current_task = timetable.stn.get_time(task.task_id, 'delivery', False)
+                    timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
                 self.update_robot_poses(task)
+                timetable.remove_task(task.task_id)
 
-            timetable.remove_task(task.task_id)
-            self.auctioneer.changed_timetable.append(robot_id)
-            self.dispatcher.send_d_graph_update(robot_id)
+            else:
+                prev_task = timetable.get_previous_task(task)
+                timetable.remove_task(task.task_id)
+                if prev_task and next_task:
+                    self.update_pre_task_constraint(prev_task, next_task, timetable)
+
+            self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+
             self.send_remove_task(task.task_id, status, robot_id)
             task.unfreeze()
             task.update_status(status)
+            self._re_compute_dispatchable_graph(timetable, next_task)
 
-            self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
-            self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+    def update_pre_task_constraint(self, prev_task, task, timetable):
+        self.logger.critical("Update pre_task constraint of task %s", task.task_id)
+        prev_location = prev_task.request.delivery_location
+        path = self.dispatcher.planner.get_path(prev_location, task.request.pickup_location)
+        mean, variance = self.dispatcher.planner.get_estimated_duration(path)
+        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
+
+        stn_task = timetable.get_stn_task(task.task_id)
+        task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        timetable.add_stn_task(stn_task)
+        timetable.update_task(stn_task)
 
     def validate_next_tasks(self, timetable, task_to_delete):
         # Get next task until the next task is valid

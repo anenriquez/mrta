@@ -7,10 +7,10 @@ from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.execution.scheduler import Scheduler
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
-from mrs.timetable.timetable import Timetable
-from mrs.timetable.manager import TimetableManager
+from mrs.timetable.timetable import Timetable, Timetables
 from mrs.timetable.monitor import TimetableMonitor
 from planner.planner import Planner
 from stn.stp import STP
@@ -20,7 +20,7 @@ class MRTABuilder:
 
     _component_modules = {'simulator': Simulator,
                           'timetable': Timetable,
-                          'timetable_manager': TimetableManager,
+                          'timetables': Timetables,
                           'planner': Planner,
                           'delay_recovery': DelayRecovery,
                           'auctioneer': Auctioneer,
@@ -28,6 +28,7 @@ class MRTABuilder:
                           'dispatcher': Dispatcher,
                           'bidder': Bidder,
                           'executor': Executor,
+                          'scheduler': Scheduler,
                           'schedule_monitor': ScheduleMonitor,
                           'timetable_monitor': TimetableMonitor,
                           'performance_tracker': PerformanceTracker,
@@ -35,7 +36,7 @@ class MRTABuilder:
 
     _config_order = ['simulator',
                      'timetable',
-                     'timetable_manager',
+                     'timetables',
                      'planner',
                      'delay_recovery',
                      'auctioneer',
@@ -43,6 +44,7 @@ class MRTABuilder:
                      'dispatcher',
                      'bidder',
                      'executor',
+                     'scheduler',
                      'schedule_monitor',
                      'timetable_monitor',
                      'performance_tracker',

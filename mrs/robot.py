@@ -8,8 +8,9 @@ from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.execution.scheduler import Scheduler
 from mrs.messages.d_graph_update import DGraphUpdate
-from mrs.messages.recover import ReAllocate, Abort, ReSchedule
+from mrs.messages.recover_task import RecoverTask
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from pymodm.errors import DoesNotExist
@@ -18,18 +19,20 @@ from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'executor': Executor,
+                      'scheduler': Scheduler,
                       'schedule_monitor': ScheduleMonitor,
                       'delay_recovery': DelayRecovery}
 
 
 class Robot:
-    def __init__(self, robot_id, api, executor, schedule_monitor, timetable, **kwargs):
+    def __init__(self, robot_id, api, executor, scheduler, schedule_monitor, **kwargs):
 
         self.robot_id = robot_id
         self.api = api
         self.executor = executor
+        self.scheduler = scheduler
         self.schedule_monitor = schedule_monitor
-        self.timetable = timetable
+        self.timetable = schedule_monitor.timetable
         self.timetable.fetch()
 
         self.tasks = list()
@@ -68,24 +71,24 @@ class Robot:
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
-        recover = ReAllocate(self.recovery_method, task.task_id)
+        recover = RecoverTask("re-allocate", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def abort(self, task):
         self.logger.debug("Trigger abortion of task %s", task.task_id)
         task.update_status(TaskStatusConst.ABORTED)
         self.timetable.remove_task(task.task_id)
-        recover = Abort(self.recovery_method, task.task_id)
+        recover = RecoverTask("abort", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def re_schedule(self, task):
         self.logger.debug("Trigger rescheduling")
-        recover = ReSchedule(self.recovery_method, task.task_id)
+        recover = RecoverTask("re-schedule", task.task_id, self.robot_id)
         self.send_recover_msg(recover)
 
     def schedule(self, task):
         try:
-            self.schedule_monitor.schedule(task)
+            self.scheduler.schedule(task)
         except InconsistentSchedule:
             if "re-allocate" in self.recovery_method:
                 self.re_allocate(task)

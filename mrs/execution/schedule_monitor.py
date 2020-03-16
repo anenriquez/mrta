@@ -1,12 +1,9 @@
 import logging
 
-from mrs.exceptions.execution import InconsistentSchedule
-from mrs.execution.scheduler import Scheduler
-
 
 class ScheduleMonitor:
 
-    def __init__(self, robot_id, timetable, time_resolution, delay_recovery, **kwargs):
+    def __init__(self, robot_id, timetable, delay_recovery, **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
         """
         self.robot_id = robot_id
@@ -16,8 +13,6 @@ class ScheduleMonitor:
         self.timetable.fetch()
 
         self.recovery_method = delay_recovery.method
-
-        self.scheduler = Scheduler(robot_id, timetable, time_resolution)
 
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
 
@@ -31,12 +26,3 @@ class ScheduleMonitor:
         """
 
         return self.recovery_method.recover(self.timetable, task, is_consistent)
-
-    def schedule(self, task):
-        try:
-            self.scheduler.schedule(task)
-            self.logger.info("Task %s scheduled to start at %s", task.task_id, task.start_time)
-            self.logger.debug("STN %s", self.timetable.stn)
-
-        except InconsistentSchedule as e:
-            raise InconsistentSchedule(e.earliest_time, e.latest_time)
