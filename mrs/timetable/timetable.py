@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from mrs.db.models.task import Task
 from mrs.db.models.timetable import Timetable as TimetableMongo
+from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.d_graph_update import DGraphUpdate
@@ -101,11 +102,11 @@ class Timetable(STNInterface):
             return False
 
     def is_next_task_invalid(self, task, next_task):
-        finish_current_task = self.dispatchable_graph.get_time(task.task_id, 'delivery')
+        finish_current_task = self.dispatchable_graph.get_time(task.task_id, 'delivery', False)
         earliest_start_next_task = self.dispatchable_graph.get_time(next_task.task_id, 'start')
-        latest_start_next_task = self.dispatchable_graph.get_time(next_task.task_id, 'start', None)
+        latest_start_next_task = self.dispatchable_graph.get_time(next_task.task_id, 'start', False)
         if latest_start_next_task < finish_current_task:
-            self.logger.warning("Task %s is invalid", task.task_id)
+            self.logger.warning("Task %s is invalid", next_task.task_id)
             return True
         elif earliest_start_next_task < finish_current_task:
             # Next task is valid but we need to update its earliest start time
@@ -166,6 +167,13 @@ class Timetable(STNInterface):
                 self.logger.warning("Task %s is not in db", next_task_id)
                 next_task = Task.create_new(task_id=next_task_id)
             return next_task
+
+    def get_previous_task(self, task):
+        task_first_node = self.stn.get_task_node_ids(task.task_id)[0]
+        if self.stn.has_node(task_first_node - 1):
+            prev_task_id = self.stn.nodes[task_first_node - 1]['data'].task_id
+            prev_task = Task.get_task(prev_task_id)
+            return prev_task
 
     def get_task_position(self, task_id):
         return self.stn.get_task_position(task_id)
@@ -282,3 +290,67 @@ class Timetable(STNInterface):
             # Resetting values
             self.stn = self.stp_solver.get_stn()
             self.dispatchable_graph = self.stp_solver.get_stn()
+
+
+class Timetables(dict):
+    """
+    Manages the timetable of all the robots in the fleet
+    """
+    def __init__(self, stp_solver, **kwargs):
+        super().__init__()
+        self.logger = logging.getLogger("mrs.timetable.manager")
+        self.stp_solver = stp_solver
+        self.simulator = kwargs.get('simulator')
+
+        self.logger.debug("TimetableManager started")
+
+    @property
+    def ztp(self):
+        if self:
+            any_timetable = next(iter(self.values()))
+            return any_timetable.ztp
+        else:
+            self.logger.error("The zero timepoint has not been initialized")
+
+    @ztp.setter
+    def ztp(self, time_):
+        for robot_id, timetable in self.items():
+            timetable.update_zero_timepoint(time_)
+
+    def get_timetable(self, robot_id):
+        return self.get(robot_id)
+
+    def register_robot(self, robot_id):
+        self.logger.debug("Registering robot %s", robot_id)
+        timetable = Timetable(robot_id, self.stp_solver, simulator=self.simulator)
+        timetable.fetch()
+        self[robot_id] = timetable
+        timetable.store()
+
+    def fetch_timetables(self):
+        for robot_id, timetable in self.items():
+            timetable.fetch()
+
+    def update_timetable(self, robot_id, allocation_info, task):
+        timetable = self.get(robot_id)
+        try:
+            timetable.insert_task(allocation_info.new_task, allocation_info.insertion_point)
+            timetable.add_stn_task(allocation_info.new_task)
+            if allocation_info.next_task:
+                timetable.update_task(allocation_info.next_task)
+                timetable.add_stn_task(allocation_info.next_task)
+
+            dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
+            timetable.dispatchable_graph = dispatchable_graph
+            self.update({robot_id: timetable})
+
+        except NoSTPSolution:
+            self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id,
+                                allocation_info.insertion_point)
+            raise InvalidAllocation(task.task_id, robot_id, allocation_info.insertion_point)
+
+        timetable.store()
+
+        self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+        self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+

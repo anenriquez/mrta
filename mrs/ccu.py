@@ -18,11 +18,11 @@ from mrs.execution.dispatcher import Dispatcher
 from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
-from mrs.timetable.manager import TimetableManager
 from mrs.timetable.monitor import TimetableMonitor
+from mrs.timetable.timetable import Timetables
 
 _component_modules = {'simulator': Simulator,
-                      'timetable_manager': TimetableManager,
+                      'timetables': Timetables,
                       'auctioneer': Auctioneer,
                       'fleet_monitor': FleetMonitor,
                       'dispatcher': Dispatcher,
@@ -41,7 +41,6 @@ class CCU:
         self.fleet_monitor = components.get('fleet_monitor')
         self.dispatcher = components.get('dispatcher')
         self.planner = components.get('planner')
-        self.timetable_manager = components.get('timetable_manager')
         self.timetable_monitor = components.get("timetable_monitor")
         self.simulator_interface = SimulatorInterface(components.get('simulator'))
         self.performance_tracker = components.get("performance_tracker")

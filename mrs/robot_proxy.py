@@ -3,24 +3,24 @@ import logging.config
 
 from fmlib.models.actions import Action
 from fmlib.models.robot import Robot as RobotModel
-from planner.planner import Planner
-from ropod.structs.task import TaskStatus as TaskStatusConst
-
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
 from mrs.db.models.task import Task
-from mrs.execution.delay_recovery import DelayRecovery
+from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_progress import TaskProgress
-from mrs.simulation.simulator import Simulator, SimulatorInterface
+from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
+from planner.planner import Planner
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from stn.exceptions.stp import NoSTPSolution
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'bidder': Bidder,
                       'planner': Planner,
-                      'delay_recovery': DelayRecovery}
+                      }
 
 
 class RobotProxy:
@@ -33,7 +33,6 @@ class RobotProxy:
         self.bidder = bidder
         self.timetable = timetable
         self.robot_model = RobotModel.create_new(robot_id)
-        self.simulator_interface = SimulatorInterface(kwargs.get('simulator'))
 
         self.api.register_callbacks(self)
         self.logger.info("Initialized RobotProxy %s", robot_id)
@@ -69,6 +68,12 @@ class RobotProxy:
         remove_task = RemoveTask.from_payload(payload)
         task = Task.get_task(remove_task.task_id)
         self._remove_task(task, remove_task.status)
+
+    def recover_task_cb(self, msg):
+        payload = msg['payload']
+        recover = RecoverTask.from_payload(payload)
+        if recover.robot_id == self.robot_id and recover.method == "re-schedule":
+            self._re_compute_dispatchable_graph()
 
     def _update_timetable(self, task, action_progress):
         if action_progress.start_time and action_progress.finish_time:
@@ -107,15 +112,50 @@ class RobotProxy:
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+        next_task = self.timetable.get_next_task(task)
+
         if status == TaskStatusConst.COMPLETED:
-            x, y, theta = self.bidder.planner.get_pose(task.request.delivery_location)
-            self.robot_model.update_position(x=x, y=y, theta=theta)
-        self.timetable.remove_task(task.task_id)
-        self.bidder.changed_timetable = True
+            if next_task:
+                finish_current_task = self.timetable.stn.get_time(task.task_id, 'delivery', False)
+                self.timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
+            self.update_robot_pose(task)
+            self.timetable.remove_task(task.task_id)
+
+        else:
+            prev_task = self.timetable.get_previous_task(task)
+            self.timetable.remove_task(task.task_id)
+            if prev_task and next_task:
+                self.update_pre_task_constraint(task, next_task)
+
         task.unfreeze()
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
-        self.logger.debug("Dispatchable graph: %s", self.timetable.dispatchable_graph)
+        self._re_compute_dispatchable_graph()
+
+    def _re_compute_dispatchable_graph(self):
+        self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
+        try:
+            self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
+            self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
+            self.bidder.changed_timetable = True
+        except NoSTPSolution:
+            self.logger.warning("Temporal network is inconsistent")
+
+    def update_robot_pose(self, task):
+        x, y, theta = self.bidder.planner.get_pose(task.request.delivery_location)
+        self.robot_model.update_position(x=x, y=y, theta=theta)
+
+    def update_pre_task_constraint(self, task, next_task):
+        self.logger.critical("Update pre_task constraint of task %s", next_task.task_id)
+        position = self.timetable.get_task_position(next_task.task_id)
+        prev_location = self.bidder.get_previous_location(position)
+        travel_time = self.bidder.update_pre_task_constraint(next_task, prev_location)
+
+        stn_task = self.timetable.get_stn_task(next_task.task_id)
+        task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        self.timetable.add_stn_task(stn_task)
+        self.timetable.update_task(stn_task)
 
     def run(self):
         try:

@@ -10,9 +10,9 @@ from ropod.structs.status import TaskStatus as TaskStatusConst
 
 
 class PerformanceTracker:
-    def __init__(self, auctioneer, timetable_manager, timetable_monitor, **kwargs):
+    def __init__(self, auctioneer, timetable_monitor, **kwargs):
         self.auctioneer = auctioneer
-        self.timetable_manager = timetable_manager
+        self.timetables = auctioneer.timetables
         self.timetable_monitor = timetable_monitor
 
         self.task_performance_tracker = TaskPerformanceTracker(auctioneer)
@@ -22,7 +22,7 @@ class PerformanceTracker:
 
     def update_allocation_metrics(self, task, only_constraints=False):
         for robot_id in task.assigned_robots:
-            timetable = self.timetable_manager.get_timetable(robot_id)
+            timetable = self.timetables.get_timetable(robot_id)
             self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, only_constraints)
             self.robot_performance_tracker.update_allocated_tasks(robot_id, task.task_id)
 
