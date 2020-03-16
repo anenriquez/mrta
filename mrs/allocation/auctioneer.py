@@ -249,7 +249,7 @@ class Auctioneer(SimulatorInterface):
         # For now, returning the start navigation time from the dispatchable graph
         task_schedule = dict()
 
-        timetable = self.timetables.timetables.get(robot_id)
+        timetable = self.timetables.get(robot_id)
 
         relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
         relative_pickup_time = timetable.dispatchable_graph.get_time(task_id, "pickup")
