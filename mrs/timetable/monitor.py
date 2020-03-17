@@ -2,14 +2,16 @@ import logging
 import time
 
 from fmlib.models.actions import Action
+from pymodm.context_managers import switch_collection
+from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
+from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.db.models.task import Task, InterTimepointConstraint
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
-from mrs.messages.task_progress import TaskProgress
+from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
-from pymodm.context_managers import switch_collection
-from ropod.structs.status import TaskStatus as TaskStatusConst
-from stn.exceptions.stp import NoSTPSolution
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -30,35 +32,36 @@ class TimetableMonitor(SimulatorInterface):
         self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
-    def task_progress_cb(self, msg):
+    def task_status_cb(self, msg):
         while self.deleting_task:
             time.sleep(0.1)
 
         self.processing_task = True
 
         payload = msg['payload']
-        progress = TaskProgress.from_payload(payload)
-        self.logger.debug("Task progress received: %s", progress)
+        timestamp = TimeStamp.from_str(msg["header"]["timestamp"])
+        task_status = TaskStatus.from_payload(payload)
+        task = Task.get_task(task_status.task_id)
+        self.logger.debug("Received task status message for task %s by %s", task_status.task_id, task_status.robot_id)
 
-        task = Task.get_task(progress.task_id)
+        if not task.status.progress:
+            task.update_progress(task_status.task_progress.action_id, task_status.task_progress.action_status.status)
+        action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
 
-        robot_id = progress.robot_id
-        action_progress = progress.action_progress
-
-        if progress.delayed:
+        if task_status.delayed:
             task.mark_as_delayed()
 
-        if progress.status == TaskStatusConst.ONGOING:
-            self._update_timetable(task, robot_id, action_progress)
-            self._update_task_schedule(task, action_progress)
-            self._update_task_progress(task, action_progress)
-            task.update_status(progress.status)
+        if task_status.task_status == TaskStatusConst.ONGOING:
+            self._update_timetable(task, task_status, action_progress, timestamp)
+            self._update_task_schedule(task, task_status.task_progress, action_progress, timestamp)
+            self._update_task_progress(task, task_status.task_progress, action_progress, timestamp)
+            task.update_status(task_status.task_status)
 
-        elif progress.status == TaskStatusConst.COMPLETED:
-            self.tasks_to_remove.append((task, progress.status))
+        elif task_status.task_status == TaskStatusConst.COMPLETED:
+            self.tasks_to_remove.append((task, task_status.task_status))
 
-        elif progress.status in [TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
-            self._remove_task(task, progress.status)
+        elif task_status.status in [TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
+            self._remove_task(task, task_status.status)
 
         self.processing_task = False
 
@@ -73,41 +76,52 @@ class TimetableMonitor(SimulatorInterface):
         elif recover.method == "re-schedule":
             self._re_schedule(task)
 
-    def _update_timetable(self, task, robot_id, action_progress):
-        if action_progress.start_time and action_progress.finish_time:
-            timetable = self.timetables.get_timetable(robot_id)
-            self.logger.debug("Updating timetable of robot %s", robot_id)
-            action = Action.get_action(action_progress.action.action_id)
-            start_node, finish_node = action.get_node_names()
-            timetable.update_timetable(task.task_id, start_node, finish_node,
-                                       action_progress.r_start_time, action_progress.r_finish_time)
-            self.auctioneer.changed_timetable.append(robot_id)
+    def _update_timetable(self, task, task_status, action_progress, timestamp):
+        self.logger.debug("Updating timetable of robot %s", task_status.robot_id)
+        timetable = self.timetables.get_timetable(task_status.robot_id)
 
-            self.logger.debug("Updated stn: \n %s ", timetable.stn)
-            self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
+        # Get relative time (referenced to the ztp)
+        assigned_time = timestamp.get_difference(timetable.ztp).total_seconds()
 
-    def _update_task_schedule(self, task, action_progress):
+        action = Action.get_action(task_status.task_progress.action_id)
+        start_node, finish_node = action.get_node_names()
+
+        if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
+                action_progress.start_time is None:
+            timetable.update_timetable(assigned_time, task.task_id, start_node)
+
+        elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
+                action_progress.finish_time is None:
+            timetable.update_timetable(assigned_time, task.task_id, finish_node)
+            timetable.execute_edge(task.task_id, start_node, finish_node)
+
+        self.auctioneer.changed_timetable.append(task_status.robot_id)
+
+        self.logger.debug("Updated stn: \n %s ", timetable.stn)
+        self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
+
+    def _update_task_schedule(self, task, task_progress, action_progress, timestamp):
         first_action = task.plan[0].actions[0]
         last_action = task.plan[0].actions[-1]
 
-        if action_progress.action.action_id == first_action.action_id and\
-                action_progress.start_time and not task.start_time:
-            self.logger.debug("Task %s start time %s", task.task_id, action_progress.start_time)
-            task.update_start_time(action_progress.start_time)
+        if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
+            self.logger.debug("Task %s start time %s", task.task_id, timestamp)
+            task.update_start_time(timestamp.to_datetime())
 
-        elif action_progress.action.action_id == last_action.action_id and\
-                action_progress.finish_time and not task.finish_time:
-            self.logger.debug("Task %s finish time %s", task.task_id, action_progress.finish_time)
-            task.update_finish_time(action_progress.finish_time)
+        elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
+            self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
+            task.update_finish_time(timestamp.to_datetime())
 
-    def _update_task_progress(self, task, action_progress):
+    def _update_task_progress(self, task, task_progress, action_progress, timestamp):
         self.logger.debug("Updating task progress of task %s", task.task_id)
+
         kwargs = {}
-        if action_progress.start_time:
-            kwargs.update(start_time=action_progress.start_time)
-        if action_progress.finish_time:
-            kwargs.update(finish_time=action_progress.finish_time)
-        task.update_progress(action_progress.action.action_id, action_progress.status, **kwargs)
+        if task_progress.action_status.status == ActionStatusConst.ONGOING and action_progress.start_time is None:
+            kwargs.update(start_time=timestamp.to_datetime())
+        elif task_progress.action_status.status == ActionStatusConst.COMPLETED and action_progress.finish_time is None:
+            kwargs.update(start_time=action_progress.start_time, finish_time=timestamp.to_datetime())
+
+        task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
 
     def _re_allocate(self, task):
         self.logger.critical("Re-allocating task %s", task.task_id)

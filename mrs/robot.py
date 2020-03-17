@@ -99,7 +99,7 @@ class Robot:
         self.executor.start_execution(task)
 
     def execute(self):
-        if self.executor.action_progress.status == ActionStatus.COMPLETED:
+        if self.executor.task_progress.action_status.status == ActionStatus.COMPLETED:
             self.executor.complete_execution()
 
         elif not self.recovery_method.startswith("re-schedule") or\
@@ -108,7 +108,7 @@ class Robot:
             self.d_graph_update_received = False
             self.executor.execute()
 
-            if self.schedule_monitor.recover(self.executor.current_task, self.executor.action_progress.is_consistent):
+            if self.schedule_monitor.recover(self.executor.current_task, self.executor.task_progress.is_consistent):
                 self.recover(self.executor.current_task)
 
             self.executor.update_action_progress()
