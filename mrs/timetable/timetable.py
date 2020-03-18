@@ -289,7 +289,7 @@ class Timetable(STNInterface):
             self.dispatchable_graph = self.stp_solver.get_stn()
 
 
-class Timetables(dict):
+class TimetableManager(dict):
     """
     Manages the timetable of all the robots in the fleet
     """

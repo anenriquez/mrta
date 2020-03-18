@@ -10,7 +10,7 @@ from mrs.db.models.task import Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
-from mrs.execution.schedule_monitor import ScheduleMonitor
+from mrs.execution.schedule_execution_monitor import ScheduleExecutionMonitor
 from mrs.execution.scheduler import Scheduler
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
@@ -19,19 +19,19 @@ _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'executor': Executor,
                       'scheduler': Scheduler,
-                      'schedule_monitor': ScheduleMonitor,
+                      'schedule_execution_monitor': ScheduleExecutionMonitor,
                       'delay_recovery': DelayRecovery}
 
 
 class Robot:
-    def __init__(self, robot_id, api, executor, scheduler, schedule_monitor, **kwargs):
+    def __init__(self, robot_id, api, executor, scheduler, schedule_execution_monitor, **kwargs):
 
         self.robot_id = robot_id
         self.api = api
         self.executor = executor
         self.scheduler = scheduler
-        self.schedule_monitor = schedule_monitor
-        self.timetable = schedule_monitor.timetable
+        self.schedule_execution_monitor = schedule_execution_monitor
+        self.timetable = schedule_execution_monitor.timetable
         self.timetable.fetch()
 
         self.d_graph_update_received = False
@@ -42,7 +42,7 @@ class Robot:
 
     @property
     def recovery_method(self):
-        return self.schedule_monitor.recovery_method.name
+        return self.schedule_execution_monitor.recovery_method.name
 
     def task_cb(self, msg):
         payload = msg['payload']
@@ -57,9 +57,9 @@ class Robot:
             self.scheduler.schedule(task)
         except InconsistentSchedule:
             if "re-allocate" in self.recovery_method:
-                self.schedule_monitor.re_allocate(task)
+                self.schedule_execution_monitor.re_allocate(task)
             else:
-                self.schedule_monitor.abort(task)
+                self.schedule_execution_monitor.abort(task)
 
     def process_tasks(self, tasks):
         for task in tasks:
@@ -70,7 +70,7 @@ class Robot:
 
             # For real-time execution add is_executable condition
             if task_status.status == TaskStatusConst.SCHEDULED:
-                self.schedule_monitor.update_current_task(task)
+                self.schedule_execution_monitor.update_current_task(task)
 
     def run(self):
         try:
@@ -78,10 +78,10 @@ class Robot:
             while True:
                 try:
                     tasks = Task.get_tasks_by_robot(self.robot_id)
-                    if self.schedule_monitor.current_task is None:
+                    if self.schedule_execution_monitor.current_task is None:
                         self.process_tasks(tasks)
                     else:
-                        self.schedule_monitor.run()
+                        self.schedule_execution_monitor.run()
                 except DoesNotExist:
                     pass
                 self.api.run()

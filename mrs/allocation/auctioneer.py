@@ -1,18 +1,18 @@
 import logging
 from datetime import timedelta
 
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task, TimepointConstraint
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid
-from mrs.messages.round_finished import RoundFinished
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -21,7 +21,7 @@ specified in the config file
 
 class Auctioneer(SimulatorInterface):
 
-    def __init__(self, timetables, closure_window=5, **kwargs):
+    def __init__(self, timetable_manager, closure_window=5, **kwargs):
         simulator = kwargs.get('simulator')
         super().__init__(simulator)
 
@@ -29,7 +29,7 @@ class Auctioneer(SimulatorInterface):
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
         self.robot_ids = list()
-        self.timetables = timetables
+        self.timetable_manager = timetable_manager
 
         self.closure_window = timedelta(minutes=closure_window)
         self.alternative_timeslots = kwargs.get('alternative_timeslots', False)
@@ -55,10 +55,10 @@ class Auctioneer(SimulatorInterface):
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
         self.robot_ids.append(robot_id)
-        self.timetables.register_robot(robot_id)
+        self.timetable_manager.register_robot(robot_id)
 
     def set_ztp(self, time_):
-        self.timetables.ztp = time_
+        self.timetable_manager.ztp = time_
 
     def run(self):
         if self.tasks_to_allocate and self.round.finished:
@@ -107,7 +107,7 @@ class Auctioneer(SimulatorInterface):
             task = self.tasks_to_allocate.pop(self.winning_bid.task_id)
             self.allocated_tasks[task.task_id] = task
 
-            self.timetables.update_timetable(self.winning_bid.robot_id,
+            self.timetable_manager.update_timetable(self.winning_bid.robot_id,
                                                     self.winning_bid.get_allocation_info(),
                                                     task)
 
@@ -147,10 +147,8 @@ class Auctioneer(SimulatorInterface):
         self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
 
     def finish_round(self):
-        round_finished = RoundFinished(self.round.id)
+        self.logger.debug("Finishing round %s", self.round.id)
         self.round.finish()
-        msg = self.api.create_message(round_finished)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
@@ -182,7 +180,7 @@ class Auctioneer(SimulatorInterface):
 
         earliest_admissible_time = TimeStamp()
         earliest_admissible_time.timestamp = self.get_current_time() + timedelta(minutes=1)
-        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetables.ztp, earliest_admissible_time)
+        task_announcement = TaskAnnouncement(tasks, self.round.id, self.timetable_manager.ztp, earliest_admissible_time)
 
         self.logger.debug("Starting round: %s", self.round.id)
         self.logger.debug("Number of tasks to allocate: %s", len(tasks))
@@ -249,21 +247,21 @@ class Auctioneer(SimulatorInterface):
         # For now, returning the start navigation time from the dispatchable graph
         task_schedule = dict()
 
-        timetable = self.timetables.get(robot_id)
+        timetable = self.timetable_manager.get(robot_id)
 
         relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
         relative_pickup_time = timetable.dispatchable_graph.get_time(task_id, "pickup")
         relative_latest_delivery_time = timetable.dispatchable_graph.get_time(task_id, "delivery", False)
 
         self.logger.debug("Current time %s: ", TimeStamp())
-        self.logger.debug("ztp %s: ", self.timetables.ztp)
+        self.logger.debug("ztp %s: ", self.timetable_manager.ztp)
         self.logger.debug("Relative start navigation time: %s", relative_start_time)
         self.logger.debug("Relative pickup time: %s", relative_pickup_time)
         self.logger.debug("Relative latest delivery time: %s", relative_latest_delivery_time)
 
-        start_time = self.timetables.ztp + timedelta(seconds=relative_start_time)
-        pickup_time = self.timetables.ztp + timedelta(seconds=relative_pickup_time)
-        delivery_time = self.timetables.ztp + timedelta(seconds=relative_latest_delivery_time)
+        start_time = self.timetable_manager.ztp + timedelta(seconds=relative_start_time)
+        pickup_time = self.timetable_manager.ztp + timedelta(seconds=relative_pickup_time)
+        delivery_time = self.timetable_manager.ztp + timedelta(seconds=relative_latest_delivery_time)
 
         self.logger.debug("Task %s start time: %s", task_id, start_time)
         self.logger.debug("Task %s pickup time : %s", task_id, pickup_time)
