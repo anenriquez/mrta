@@ -1,6 +1,9 @@
 import argparse
 import logging.config
 
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import TaskStatus as TaskStatusConst
+
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
 from mrs.db.models.task import Task
@@ -9,12 +12,8 @@ from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.execution.scheduler import Scheduler
-from mrs.messages.d_graph_update import DGraphUpdate
-from mrs.messages.recover_task import RecoverTask
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
-from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus, TaskStatus as TaskStatusConst
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -35,7 +34,6 @@ class Robot:
         self.timetable = schedule_monitor.timetable
         self.timetable.fetch()
 
-        self.tasks = list()
         self.d_graph_update_received = False
 
         self.api.register_callbacks(self)
@@ -54,76 +52,14 @@ class Robot:
             task.update_status(TaskStatusConst.DISPATCHED)
             task.freeze()
 
-    def d_graph_update_cb(self, msg):
-        payload = msg['payload']
-        self.logger.critical("Received DGraph update")
-        d_graph_update = DGraphUpdate.from_payload(payload)
-        d_graph_update.update_timetable(self.timetable)
-        self.logger.debug("STN update %s", self.timetable.stn)
-        self.logger.debug("Dispatchable graph update %s", self.timetable.dispatchable_graph)
-        self.d_graph_update_received = True
-
-    def send_recover_msg(self, recover):
-        msg = self.api.create_message(recover)
-        self.api.publish(msg)
-
-    def re_allocate(self, task):
-        self.logger.debug("Trigger re-allocation of task %s", task.task_id)
-        task.update_status(TaskStatusConst.UNALLOCATED)
-        self.timetable.remove_task(task.task_id)
-        recover = RecoverTask("re-allocate", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
-
-    def abort(self, task):
-        self.logger.debug("Trigger abortion of task %s", task.task_id)
-        task.update_status(TaskStatusConst.ABORTED)
-        self.timetable.remove_task(task.task_id)
-        recover = RecoverTask("abort", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
-
-    def re_schedule(self, task):
-        self.logger.debug("Trigger rescheduling")
-        recover = RecoverTask("re-schedule", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
-
     def schedule(self, task):
         try:
             self.scheduler.schedule(task)
         except InconsistentSchedule:
             if "re-allocate" in self.recovery_method:
-                self.re_allocate(task)
+                self.schedule_monitor.re_allocate(task)
             else:
-                self.abort(task)
-
-    def start_execution(self, task):
-        self.executor.start_execution(task)
-
-    def execute(self):
-        if self.executor.task_progress.action_status.status == ActionStatus.COMPLETED:
-            self.executor.complete_execution()
-
-        elif not self.recovery_method.startswith("re-schedule") or\
-                self.recovery_method.startswith("re-schedule") and self.d_graph_update_received:
-
-            self.d_graph_update_received = False
-            self.executor.execute()
-
-            if self.schedule_monitor.recover(self.executor.current_task, self.executor.task_progress.is_consistent):
-                self.recover(self.executor.current_task)
-
-            self.executor.update_action_progress()
-
-    def recover(self, task):
-        if self.recovery_method == "re-allocate":
-            next_task = self.timetable.get_next_task(task)
-            self.re_allocate(next_task)
-
-        elif self.recovery_method.startswith("re-schedule"):
-            self.re_schedule(self.executor.current_task)
-
-        elif self.recovery_method == "abort":
-            next_task = self.timetable.get_next_task(task)
-            self.abort(next_task)
+                self.schedule_monitor.abort(task)
 
     def process_tasks(self, tasks):
         for task in tasks:
@@ -134,7 +70,7 @@ class Robot:
 
             # For real-time execution add is_executable condition
             if task_status.status == TaskStatusConst.SCHEDULED:
-                self.start_execution(task)
+                self.schedule_monitor.update_current_task(task)
 
     def run(self):
         try:
@@ -142,10 +78,10 @@ class Robot:
             while True:
                 try:
                     tasks = Task.get_tasks_by_robot(self.robot_id)
-                    if self.executor.current_task is None:
+                    if self.schedule_monitor.current_task is None:
                         self.process_tasks(tasks)
                     else:
-                        self.execute()
+                        self.schedule_monitor.run()
                 except DoesNotExist:
                     pass
                 self.api.run()

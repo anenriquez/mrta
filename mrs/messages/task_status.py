@@ -21,8 +21,6 @@ class TaskProgress(AsDictMixin):
 
         # In simulation, we set the timestamp
         self._timestamp = None
-        # Used by the ScheduleMonitor
-        self._is_consistent = True
 
     @property
     def timestamp(self):
@@ -31,14 +29,6 @@ class TaskProgress(AsDictMixin):
     @timestamp.setter
     def timestamp(self, timestamp):
         self._timestamp = timestamp
-
-    @property
-    def is_consistent(self):
-        return self._is_consistent
-
-    @is_consistent.setter
-    def is_consistent(self, is_consistent):
-        self._is_consistent = is_consistent
 
     def update_action_status(self, status):
         self.action_status.update(status)
