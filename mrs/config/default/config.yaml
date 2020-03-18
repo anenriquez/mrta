@@ -197,7 +197,7 @@ robot_api:
         method: shout
     callbacks:
       - msg_type: 'D-GRAPH-UPDATE'
-        component: 'schedule_monitor.d_graph_update_cb'
+        component: 'schedule_execution_monitor.d_graph_update_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
 
