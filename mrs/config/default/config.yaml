@@ -86,10 +86,6 @@ ccu_api:
         groups: ['TASK-ALLOCATION']
         msg_type: 'TASK-CONTRACT-CANCELLATION'
         method: shout
-      round-finished:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'ROUND-FINISHED'
-        method: shout
       task:
         msg_type: 'TASK'
         groups: ['TASK-ALLOCATION']
@@ -133,7 +129,6 @@ robot_proxy_api:
         - TASK-ANNOUNCEMENT
         - TASK-CONTRACT
         - TASK-CONTRACT-CANCELLATION
-        - ROUND-FINISHED
         - ROBOT-POSE
         - TASK-STATUS
         - RECOVER-TASK
@@ -164,8 +159,6 @@ robot_proxy_api:
         component: 'bidder.task_contract_cb'
       - msg_type: 'TASK-CONTRACT-CANCELLATION'
         component: 'bidder.task_contract_cancellation_cb'
-      - msg_type: 'ROUND-FINISHED'
-        component: 'bidder.round_finished_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
       - msg_type: 'REMOVE-TASK'
@@ -204,7 +197,7 @@ robot_api:
         method: shout
     callbacks:
       - msg_type: 'D-GRAPH-UPDATE'
-        component: 'schedule_monitor.d_graph_update_cb'
+        component: 'schedule_execution_monitor.d_graph_update_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
 

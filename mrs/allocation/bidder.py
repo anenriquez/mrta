@@ -11,7 +11,6 @@ from mrs.db.models.task import InterTimepointConstraint
 from mrs.db.models.task import Task
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid, AllocationInfo
-from mrs.messages.round_finished import RoundFinished
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 
@@ -50,7 +49,6 @@ class Bidder:
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
         self.changed_timetable = False
-        self.round_opened = False
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
@@ -86,28 +84,15 @@ class Bidder:
                                     self.bid_placed)
                 self.send_contract_acknowledgement(task_contract, accept=False)
 
-    def round_finished_cb(self, msg):
-        payload = msg['payload']
-        round_finished = RoundFinished.from_payload(payload)
-        self.logger.debug("Round %s finished", round_finished.round_id)
-        self.round_opened = False
-
     def compute_bids(self, task_announcement):
         bids = list()
         no_bids = list()
         round_id = task_announcement.round_id
         earliest_admissible_time = task_announcement.earliest_admissible_time
-        self.round_opened = True
         self.changed_timetable = False
         self.bid_placed = None
 
         for task in task_announcement.tasks:
-
-            # Stop executing this method if the round closed
-            if not self.round_opened:
-                self.logger.debug("Stop computing bids for round %s. Round closed", round_id)
-                return
-
             self.logger.debug("Computing bid of task %s round %s", task.task_id, round_id)
             best_bid = self.compute_bid(task, round_id, earliest_admissible_time)
 
@@ -146,10 +131,6 @@ class Bidder:
         # Insert task in each possible insertion_point of the stn
         # Add from insertion_point 1 onwards (insertion_point 0 is reserved for the ztp)
         for insertion_point in range(1, n_tasks+2):
-
-            if not self.round_opened:
-                self.logger.debug("Stop computing bid of task %s. Round closed", task.task_id)
-                return
 
             prev_version_next_stn_task = None
 

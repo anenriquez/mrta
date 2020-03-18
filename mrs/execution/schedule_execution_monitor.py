@@ -10,7 +10,7 @@ from mrs.messages.recover_task import RecoverTask
 from mrs.messages.task_status import TaskProgress
 
 
-class ScheduleMonitor:
+class ScheduleExecutionMonitor:
 
     def __init__(self, robot_id, timetable, delay_recovery, executor, **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
