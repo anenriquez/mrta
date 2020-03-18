@@ -10,7 +10,7 @@ from mrs.execution.schedule_monitor import ScheduleMonitor
 from mrs.execution.scheduler import Scheduler
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
-from mrs.timetable.timetable import Timetable, Timetables
+from mrs.timetable.timetable import Timetable, TimetableManager
 from mrs.timetable.monitor import TimetableMonitor
 from planner.planner import Planner
 from stn.stp import STP
@@ -20,7 +20,7 @@ class MRTABuilder:
 
     _component_modules = {'simulator': Simulator,
                           'timetable': Timetable,
-                          'timetables': Timetables,
+                          'timetable_manager': TimetableManager,
                           'planner': Planner,
                           'delay_recovery': DelayRecovery,
                           'auctioneer': Auctioneer,
@@ -36,7 +36,7 @@ class MRTABuilder:
 
     _config_order = ['simulator',
                      'timetable',
-                     'timetables',
+                     'timetable_manager',
                      'planner',
                      'delay_recovery',
                      'auctioneer',

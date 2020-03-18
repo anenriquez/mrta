@@ -21,7 +21,7 @@ class TimetableMonitor(SimulatorInterface):
 
         self.auctioneer = auctioneer
         self.dispatcher = dispatcher
-        self.timetables = auctioneer.timetables
+        self.timetable_manager = auctioneer.timetable_manager
         self.recovery_method = delay_recovery.method
         self.api = kwargs.get('api')
 
@@ -79,7 +79,7 @@ class TimetableMonitor(SimulatorInterface):
 
     def _update_timetable(self, task, task_status, action_progress, timestamp):
         self.logger.debug("Updating timetable of robot %s", task_status.robot_id)
-        timetable = self.timetables.get_timetable(task_status.robot_id)
+        timetable = self.timetable_manager.get_timetable(task_status.robot_id)
 
         # Get relative time (referenced to the ztp)
         assigned_time = timestamp.get_difference(timetable.ztp).total_seconds()
@@ -143,7 +143,7 @@ class TimetableMonitor(SimulatorInterface):
 
     def _re_schedule(self, task):
         for robot_id in task.assigned_robots:
-            timetable = self.timetables.get_timetable(robot_id)
+            timetable = self.timetable_manager.get_timetable(robot_id)
             next_task = timetable.get_next_task(task)
             self._re_compute_dispatchable_graph(timetable, next_task)
 
@@ -170,7 +170,7 @@ class TimetableMonitor(SimulatorInterface):
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
-            timetable = self.timetables.get_timetable(robot_id)
+            timetable = self.timetable_manager.get_timetable(robot_id)
             next_task = timetable.get_next_task(task)
 
             if status == TaskStatusConst.COMPLETED:

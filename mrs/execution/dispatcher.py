@@ -13,12 +13,12 @@ from mrs.simulation.simulator import SimulatorInterface
 
 class Dispatcher(SimulatorInterface):
 
-    def __init__(self, timetables, freeze_window, n_queued_tasks, planner, fleet_monitor, **kwargs):
+    def __init__(self, timetable_manager, freeze_window, n_queued_tasks, planner, fleet_monitor, **kwargs):
         """ Dispatches tasks to a multi-robot system based on temporal constraints
 
         Args:
 
-            timetables (Timetables): contains the timetables of all the robots in the fleet
+            timetable_manager (TimetableManager): contains the timetables of all the robots in the fleet
             freeze_window (float): Defines the time (minutes) within which a task can be scheduled
                         e.g, with a freeze window of 2 minutes, a task can be scheduled if its earliest
                         start navigation time is within the next 2 minutes.
@@ -33,7 +33,7 @@ class Dispatcher(SimulatorInterface):
         self.api = kwargs.get('api')
         self.ccu_store = kwargs.get('ccu_store')
 
-        self.timetables = timetables
+        self.timetable_manager = timetable_manager
         self.freeze_window = timedelta(minutes=freeze_window)
         self.n_queued_tasks = n_queued_tasks
         self.planner = planner
@@ -85,7 +85,7 @@ class Dispatcher(SimulatorInterface):
 
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
-            timetable = self.timetables.get_timetable(robot_id)
+            timetable = self.timetable_manager.get_timetable(robot_id)
             try:
                 task = timetable.get_earliest_task()
                 if task and task.status.status == TaskStatusConst.PLANNED:
@@ -111,7 +111,7 @@ class Dispatcher(SimulatorInterface):
         task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, robot_id):
-        timetable = self.timetables.get_timetable(robot_id)
+        timetable = self.timetable_manager.get_timetable(robot_id)
         prev_d_graph_update = self.d_graph_updates.get(robot_id)
         d_graph_update = timetable.get_d_graph_update(self.n_queued_tasks)
 

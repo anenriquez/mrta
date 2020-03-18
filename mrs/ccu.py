@@ -19,10 +19,10 @@ from mrs.execution.fleet_monitor import FleetMonitor
 from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.monitor import TimetableMonitor
-from mrs.timetable.timetable import Timetables
+from mrs.timetable.timetable import TimetableManager
 
 _component_modules = {'simulator': Simulator,
-                      'timetables': Timetables,
+                      'timetable_manager': TimetableManager,
                       'auctioneer': Auctioneer,
                       'fleet_monitor': FleetMonitor,
                       'dispatcher': Dispatcher,
