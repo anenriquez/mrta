@@ -61,7 +61,7 @@ class AsDictMixin:
     def _get_value(cls, key, value):
         if key in ['task_id', 'round_id', 'action_id']:
             return from_str(value)
-        elif key in ['zero_timepoint', 'earliest_admissible_time', 'earliest_start_time']:
+        elif key in ['ztp', 'earliest_admissible_time', 'earliest_start_time']:
             return TimeStamp.from_str(value)
         else:
             return value

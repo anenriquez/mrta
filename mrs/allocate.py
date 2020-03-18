@@ -5,15 +5,15 @@ import time
 from fmlib.db.mongo import MongoStore
 from fmlib.db.mongo import MongoStoreInterface
 from fmlib.models.tasks import TaskStatus
-from mrs.db.models.task import Task
-from mrs.messages.task_contract import TaskContract
-from mrs.messages.task_progress import TaskProgress
-from mrs.simulation.simulator import Simulator, SimulatorInterface
-from mrs.utils.datasets import load_tasks_to_db
-from mrs.utils.utils import get_msg_fixture
 from pymodm.context_managers import switch_collection
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.structs.task import TaskStatus as TaskStatusConst
+
+from mrs.db.models.task import Task
+from mrs.messages.task_contract import TaskContract
+from mrs.simulation.simulator import Simulator, SimulatorInterface
+from mrs.utils.datasets import load_tasks_to_db
+from mrs.utils.utils import get_msg_fixture
 
 
 class Allocate(RopodPyre):
@@ -100,21 +100,26 @@ class Allocate(RopodPyre):
             self.allocations[task_contract.task_id] = task_contract.robot_id
             self.logger.debug("Allocation: (%s, %s)", task_contract.task_id, task_contract.robot_id)
 
-        if msg_type == 'TASK-PROGRESS':
-            progress = TaskProgress.from_payload(payload)
-            self.logger.debug("Task progress received: %s", progress)
-
     def check_termination_test(self):
+        unallocated_tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
+        allocated_tasks = Task.get_tasks_by_status(TaskStatusConst.ALLOCATED)
         planned_tasks = Task.get_tasks_by_status(TaskStatusConst.PLANNED)
+        dispatched_tasks = Task.get_tasks_by_status(TaskStatusConst.DISPATCHED)
+        ongoing_tasks = Task.get_tasks_by_status(TaskStatusConst.ONGOING)
+
         with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
             completed_tasks = Task.get_tasks_by_status(TaskStatusConst.COMPLETED)
             canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
             aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
 
-        self.logger.info("Number of planned tasks: %s ", len(planned_tasks))
-        self.logger.info("Number of completed tasks: %s ", len(completed_tasks))
-        self.logger.info("Number of canceled tasks: %s", len(canceled_tasks))
-        self.logger.info("Number of aborted tasks: %s", len(aborted_tasks))
+        self.logger.info("Unallocated: %s", len(unallocated_tasks))
+        self.logger.info("Allocated: %s", len(allocated_tasks))
+        self.logger.info("Planned: %s ", len(planned_tasks))
+        self.logger.info("Dispatched: %s", len(dispatched_tasks))
+        self.logger.info("Ongoing: %s", len(ongoing_tasks))
+        self.logger.info("Completed: %s ", len(completed_tasks))
+        self.logger.info("Canceled: %s", len(canceled_tasks))
+        self.logger.info("Aborted: %s", len(aborted_tasks))
 
         tasks = completed_tasks + canceled_tasks + aborted_tasks
 

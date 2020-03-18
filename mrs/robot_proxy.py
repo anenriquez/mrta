@@ -3,18 +3,20 @@ import logging.config
 
 from fmlib.models.actions import Action
 from fmlib.models.robot import Robot as RobotModel
+from planner.planner import Planner
+from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
+from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
+
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
 from mrs.db.models.task import Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
-from mrs.messages.task_progress import TaskProgress
+from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
-from planner.planner import Planner
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from stn.exceptions.stp import NoSTPSolution
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -50,18 +52,24 @@ class RobotProxy:
             self.logger.debug("Received task %s", task.task_id)
             task.freeze()
 
-    def task_progress_cb(self, msg):
+    def task_status_cb(self, msg):
         payload = msg['payload']
-        progress = TaskProgress.from_payload(payload)
-        if self.robot_id == progress.robot_id:
-            self.logger.debug("Task progress received: %s", progress)
-            task = Task.get_task(progress.task_id)
-            action_progress = progress.action_progress
+        timestamp = TimeStamp.from_str(msg["header"]["timestamp"])
+        task_status = TaskStatus.from_payload(payload)
 
-            if progress.status not in [TaskStatusConst.COMPLETED, TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
-                self._update_timetable(task, action_progress)
-                self._update_task_schedule(task, action_progress)
-                self._update_task_progress(task, action_progress)
+        if self.robot_id == task_status.robot_id and task_status.task_status == TaskStatusConst.ONGOING:
+            self.logger.debug("Received task status message for task %s", task_status.task_id)
+
+            task = Task.get_task(task_status.task_id)
+            if not task.status.progress:
+                task.update_progress(task_status.task_progress.action_id,
+                                     task_status.task_progress.action_status.status)
+            action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
+
+            self._update_timetable(task, task_status, action_progress, timestamp)
+            self._update_task_schedule(task, task_status.task_progress, action_progress, timestamp)
+            self._update_task_progress(task, task_status.task_progress, action_progress, timestamp)
+            task.update_status(task_status.task_status)
 
     def remove_task_cb(self, msg):
         payload = msg['payload']
@@ -75,40 +83,50 @@ class RobotProxy:
         if recover.robot_id == self.robot_id and recover.method == "re-schedule":
             self._re_compute_dispatchable_graph()
 
-    def _update_timetable(self, task, action_progress):
-        if action_progress.start_time and action_progress.finish_time:
-            self.logger.debug("Updating timetable")
-            action = Action.get_action(action_progress.action.action_id)
-            start_node, finish_node = action.get_node_names()
-            self.timetable.update_timetable(task.task_id, start_node, finish_node,
-                                            action_progress.r_start_time, action_progress.r_finish_time)
-            self.bidder.changed_timetable = True
+    def _update_timetable(self, task, task_status, action_progress, timestamp):
+        self.logger.debug("Updating timetable")
 
-            self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
-            self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+        # Get relative time (referenced to the ztp)
+        assigned_time = timestamp.get_difference(self.timetable.ztp).total_seconds()
 
-    def _update_task_schedule(self, task, action_progress):
+        action = Action.get_action(task_status.task_progress.action_id)
+        start_node, finish_node = action.get_node_names()
+
+        if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
+                action_progress.start_time is None:
+            self.timetable.update_timetable(assigned_time, task.task_id, start_node)
+
+        elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
+                action_progress.finish_time is None:
+            self.timetable.update_timetable(assigned_time, task.task_id, finish_node)
+            self.timetable.execute_edge(task.task_id, start_node, finish_node)
+
+        self.bidder.changed_timetable = True
+        self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
+        self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+
+    def _update_task_schedule(self, task, task_progress, action_progress, timestamp):
         first_action = task.plan[0].actions[0]
         last_action = task.plan[0].actions[-1]
 
-        if action_progress.action.action_id == first_action.action_id and \
-                action_progress.start_time and not task.start_time:
-            self.logger.debug("Task %s start time %s", task.task_id, action_progress.start_time)
-            task.update_start_time(action_progress.start_time)
+        if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
+            self.logger.debug("Task %s start time %s", task.task_id, timestamp)
+            task.update_start_time(timestamp.to_datetime())
 
-        elif action_progress.action.action_id == last_action.action_id and \
-                action_progress.finish_time and not task.finish_time:
-            self.logger.debug("Task %s finish time %s", task.task_id, action_progress.finish_time)
-            task.update_finish_time(action_progress.finish_time)
+        elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
+            self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
+            task.update_finish_time(timestamp.to_datetime())
 
-    def _update_task_progress(self, task, action_progress):
+    def _update_task_progress(self, task, task_progress, action_progress, timestamp):
         self.logger.debug("Updating task progress of task %s", task.task_id)
+
         kwargs = {}
-        if action_progress.start_time:
-            kwargs.update(start_time=action_progress.start_time)
-        if action_progress.finish_time:
-            kwargs.update(finish_time=action_progress.finish_time)
-        task.update_progress(action_progress.action.action_id, action_progress.status, **kwargs)
+        if task_progress.action_status.status == ActionStatusConst.ONGOING and action_progress.start_time is None:
+            kwargs.update(start_time=timestamp.to_datetime())
+        elif task_progress.action_status.status == ActionStatusConst.COMPLETED and action_progress.finish_time is None:
+            kwargs.update(start_time=action_progress.start_time, finish_time=timestamp.to_datetime())
+
+        task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
