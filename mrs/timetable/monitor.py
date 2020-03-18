@@ -58,6 +58,7 @@ class TimetableMonitor(SimulatorInterface):
             task.update_status(task_status.task_status)
 
         elif task_status.task_status == TaskStatusConst.COMPLETED:
+            self.logger.debug("Adding task %s to tasks to remove", task.task_id)
             self.tasks_to_remove.append((task, task_status.task_status))
 
         elif task_status.status in [TaskStatusConst.CANCELED, TaskStatusConst.ABORTED]:
