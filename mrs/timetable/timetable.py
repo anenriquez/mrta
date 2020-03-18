@@ -113,25 +113,22 @@ class Timetable(STNInterface):
             self.dispatchable_graph.assign_earliest_time(finish_current_task, next_task.task_id, "start", force=True)
         return False
 
-    def update_timetable(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
-        self.update_stn(task_id, start_node, finish_node, r_start_time, r_finish_time)
-        self.update_dispatchable_graph(task_id, start_node, finish_node, r_start_time, r_finish_time)
+    def update_timetable(self, assigned_time, task_id, node_type):
+        self.update_stn(assigned_time, task_id, node_type)
+        self.update_dispatchable_graph(assigned_time, task_id, node_type)
 
-    def update_stn(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
-        self.stn.assign_timepoint(r_start_time, task_id, start_node, force=True)
-        self.stn.assign_timepoint(r_finish_time, task_id, finish_node, force=True)
-        self.stn.execute_timepoint(task_id, start_node)
-        self.stn.execute_timepoint(task_id, finish_node)
+    def update_stn(self, assigned_time, task_id, node_type):
+        self.stn.assign_timepoint(assigned_time, task_id, node_type, force=True)
+        self.stn.execute_timepoint(task_id, node_type)
+
+    def update_dispatchable_graph(self, assigned_time, task_id, node_type):
+        self.dispatchable_graph.assign_timepoint(assigned_time, task_id, node_type, force=True)
+        self.dispatchable_graph.execute_timepoint(task_id, node_type)
+
+    def execute_edge(self, task_id, start_node, finish_node):
         start_node_idx, finish_node_idx = self.stn.get_edge_nodes_idx(task_id, start_node, finish_node)
         self.stn.execute_edge(start_node_idx, finish_node_idx)
         self.stn.remove_old_timepoints()
-
-    def update_dispatchable_graph(self, task_id, start_node, finish_node, r_start_time, r_finish_time):
-        self.dispatchable_graph.assign_timepoint(r_start_time, task_id, start_node, force=True)
-        self.dispatchable_graph.assign_timepoint(r_finish_time, task_id, finish_node, force=True)
-        self.dispatchable_graph.execute_timepoint(task_id, start_node)
-        self.dispatchable_graph.execute_timepoint(task_id, finish_node)
-        start_node_idx, finish_node_idx = self.dispatchable_graph.get_edge_nodes_idx(task_id, start_node, finish_node)
         self.dispatchable_graph.execute_edge(start_node_idx, finish_node_idx)
         self.dispatchable_graph.remove_old_timepoints()
 

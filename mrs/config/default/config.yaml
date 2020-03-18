@@ -68,7 +68,7 @@ ccu_api:
         - BID
         - NO-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
-        - TASK-PROGRESS
+        - TASK-STATUS
         - RECOVER-TASK
     acknowledge: false
     debug_messages:
@@ -111,8 +111,8 @@ ccu_api:
         component: 'auctioneer.no_bid_cb'
       - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
         component: 'auctioneer.task_contract_acknowledgement_cb'
-      - msg_type: 'TASK-PROGRESS'
-        component: 'timetable_monitor.task_progress_cb'
+      - msg_type: 'TASK-STATUS'
+        component: 'timetable_monitor.task_status_cb'
       - msg_type: 'RECOVER-TASK'
         component: 'timetable_monitor.recover_task_cb'
       - msg_type: 'ROBOT-POSE'
@@ -135,7 +135,7 @@ robot_proxy_api:
         - TASK-CONTRACT-CANCELLATION
         - ROUND-FINISHED
         - ROBOT-POSE
-        - TASK-PROGRESS
+        - TASK-STATUS
         - RECOVER-TASK
         - REMOVE-TASK
       debug_msgs: false
@@ -172,8 +172,8 @@ robot_proxy_api:
         component: '.remove_task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
-      - msg_type: 'TASK-PROGRESS'
-        component: '.task_progress_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
       - msg_type: 'RECOVER-TASK'
         component: '.recover_task_cb'
 
@@ -194,9 +194,9 @@ robot_api:
       debug_msgs: false
     acknowledge: false
     publish:
-      task-progress:
+      task-status:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-PROGRESS'
+        msg_type: 'TASK-STATUS'
         method: shout
       recover-task:
         groups: ['TASK-ALLOCATION']
@@ -204,7 +204,7 @@ robot_api:
         method: shout
     callbacks:
       - msg_type: 'D-GRAPH-UPDATE'
-        component: '.d_graph_update_cb'
+        component: 'schedule_monitor.d_graph_update_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
 

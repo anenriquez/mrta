@@ -33,7 +33,7 @@ class Scheduler(object):
             self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
             try:
                 self.timetable.assign_timepoint(start_time, task.task_id, "start")
-                start_time = (self.timetable.zero_timepoint + timedelta(seconds=start_time)).to_datetime()
+                start_time = (self.timetable.ztp + timedelta(seconds=start_time)).to_datetime()
                 task.update_start_time(start_time)
                 task.update_status(TaskStatusConst.SCHEDULED)
                 return

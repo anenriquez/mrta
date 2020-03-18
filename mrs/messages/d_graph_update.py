@@ -6,8 +6,8 @@ from mrs.utils.as_dict import AsDictMixin
 
 class DGraphUpdate(AsDictMixin):
 
-    def __init__(self, zero_timepoint, stn, dispatchable_graph, **kwargs):
-        self.zero_timepoint = zero_timepoint
+    def __init__(self, ztp, stn, dispatchable_graph, **kwargs):
+        self.ztp = ztp
         self.stn = stn
         self.dispatchable_graph = dispatchable_graph
 
@@ -24,7 +24,7 @@ class DGraphUpdate(AsDictMixin):
         stn_cls = timetable.stp_solver.get_stn()
         stn = stn_cls.from_dict(self.stn)
         dispatchable_graph = stn_cls.from_dict(self.dispatchable_graph)
-        timetable.zero_timepoint = self.zero_timepoint
+        timetable.ztp = self.ztp
         if replace:
             timetable.stn = stn
             timetable.dispatchable_graph = dispatchable_graph
