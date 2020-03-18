@@ -1,18 +1,18 @@
 import logging
 from datetime import timedelta
 
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+
 from mrs.allocation.round import Round
 from mrs.db.models.task import Task, TimepointConstraint
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
 from mrs.messages.bid import Bid, NoBid
-from mrs.messages.round_finished import RoundFinished
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -147,10 +147,8 @@ class Auctioneer(SimulatorInterface):
         self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
 
     def finish_round(self):
-        round_finished = RoundFinished(self.round.id)
+        self.logger.debug("Finishing round %s", self.round.id)
         self.round.finish()
-        msg = self.api.create_message(round_finished)
-        self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
