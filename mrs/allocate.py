@@ -112,14 +112,14 @@ class Allocate(RopodPyre):
             canceled_tasks = Task.get_tasks_by_status(TaskStatusConst.CANCELED)
             aborted_tasks = Task.get_tasks_by_status(TaskStatusConst.ABORTED)
 
-        self.logger.info("Unallocated tasks: %s", len(unallocated_tasks))
-        self.logger.info("Allocated tasks: %s", len(allocated_tasks))
-        self.logger.info("Planned tasks: %s ", len(planned_tasks))
-        self.logger.info("Dispatched tasks: %s", len(dispatched_tasks))
-        self.logger.info("Ongoing tasks: %s", len(ongoing_tasks))
-        self.logger.info("Completed tasks: %s ", len(completed_tasks))
-        self.logger.info("Canceled tasks: %s", len(canceled_tasks))
-        self.logger.info("Aborted tasks: %s", len(aborted_tasks))
+        self.logger.info("Unallocated: %s", len(unallocated_tasks))
+        self.logger.info("Allocated: %s", len(allocated_tasks))
+        self.logger.info("Planned: %s ", len(planned_tasks))
+        self.logger.info("Dispatched: %s", len(dispatched_tasks))
+        self.logger.info("Ongoing: %s", len(ongoing_tasks))
+        self.logger.info("Completed: %s ", len(completed_tasks))
+        self.logger.info("Canceled: %s", len(canceled_tasks))
+        self.logger.info("Aborted: %s", len(aborted_tasks))
 
         tasks = completed_tasks + canceled_tasks + aborted_tasks
 
