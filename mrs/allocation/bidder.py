@@ -41,7 +41,6 @@ class Bidder:
         self.timetable.fetch()
         self.api = kwargs.get('api')
         self.robot_store = kwargs.get('robot_store')
-        self.planner = kwargs.get('planner')
 
         self.logger = logging.getLogger('mrs.bidder.%s' % self.robot_id)
 
@@ -53,12 +52,9 @@ class Bidder:
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
     def configure(self, **kwargs):
-        api = kwargs.get('api')
-        robot_store = kwargs.get('robot_store')
-        if api:
-            self.api = api
-        if robot_store:
-            self.robot_store = robot_store
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
 
     def task_announcement_cb(self, msg):
         payload = msg['payload']
@@ -196,7 +192,12 @@ class Bidder:
 
     def get_previous_location(self, insertion_point):
         if insertion_point == 1:
-            previous_location = self.get_robot_location()
+            try:
+                pose = Robot.get_robot(self.robot_id).position
+                previous_location = self.get_robot_location(pose)
+            except DoesNotExist:
+                self.logger.warning("No information about robot's location")
+                previous_location = "AMK_D_L-1_C39"
         else:
             previous_task = self.timetable.get_task(insertion_point - 1)
             previous_location = previous_task.request.delivery_location
@@ -204,32 +205,35 @@ class Bidder:
         self.logger.debug("Previous location: %s ", previous_location)
         return previous_location
 
-    def get_robot_location(self):
-        try:
-            position = Robot.get_robot(self.robot_id).position
-            robot_location = self.planner.get_node(position.x, position.y)
-        except DoesNotExist:
-            self.logger.warning("No information about robot's location")
-            robot_location = "AMK_D_L-1_C39"
-        return robot_location
-
     def update_pre_task_constraint(self, task, previous_location):
         travel_path = self.get_travel_path(previous_location, task.request.pickup_location)
         travel_time = self.get_travel_time(travel_path)
         task.update_inter_timepoint_constraint(**travel_time.to_dict())
         return travel_time
 
+    def get_robot_location(self, pose):
+        """ Returns the name of the node in the map where the robot is located"""
+        try:
+            robot_location = self.planner.get_node(pose.x, pose.y)
+        except AttributeError:
+            self.logger.warning("No planner configured")
+            # For now, return a known area
+            robot_location = "AMK_D_L-1_C39"
+        return robot_location
+
     def get_travel_path(self, robot_position, pickup_location):
-        if self.planner:
+        try:
             return self.planner.get_path(robot_position, pickup_location)
+        except AttributeError:
+            self.logger.warning("No planner configured")
 
     def get_travel_time(self, path):
-        if path:
+        try:
             mean, variance = self.planner.get_estimated_duration(path)
-        else:  # temporal hack
+        except AttributeError:
+            self.logger.warning("No planner configured")
             mean = 1
             variance = 0.1
-
         travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
         self.logger.debug("Travel time: %s", travel_time)
         return travel_time

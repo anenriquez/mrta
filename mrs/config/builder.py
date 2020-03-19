@@ -12,7 +12,6 @@ from mrs.performance.tracker import PerformanceTracker
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable, TimetableManager
 from mrs.timetable.monitor import TimetableMonitor
-from planner.planner import Planner
 from stn.stp import STP
 
 
@@ -21,7 +20,6 @@ class MRTABuilder:
     _component_modules = {'simulator': Simulator,
                           'timetable': Timetable,
                           'timetable_manager': TimetableManager,
-                          'planner': Planner,
                           'delay_recovery': DelayRecovery,
                           'auctioneer': Auctioneer,
                           'fleet_monitor': FleetMonitor,
@@ -37,7 +35,6 @@ class MRTABuilder:
     _config_order = ['simulator',
                      'timetable',
                      'timetable_manager',
-                     'planner',
                      'delay_recovery',
                      'auctioneer',
                      'fleet_monitor',
