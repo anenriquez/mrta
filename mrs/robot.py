@@ -92,6 +92,8 @@ class Robot:
 
 
 if __name__ == '__main__':
+    from planner.planner import Planner
+
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: robot_001')
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
@@ -100,12 +102,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
-
-    print("Experiment: ", config_params.get("experiment"))
-    print("Approach: ", config_params.get("approach"))
-
     config = Configurator(config_params, component_modules=_component_modules)
     components = config.config_robot(args.robot_id)
     robot = Robot(**components)
+
+    for name, c in components.items():
+        if hasattr(c, 'configure'):
+            c.configure(planner=Planner(**config_params.get("planner")))
 
     robot.run()

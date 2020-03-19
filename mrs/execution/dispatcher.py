@@ -13,7 +13,7 @@ from mrs.simulation.simulator import SimulatorInterface
 
 class Dispatcher(SimulatorInterface):
 
-    def __init__(self, timetable_manager, freeze_window, n_queued_tasks, planner, fleet_monitor, **kwargs):
+    def __init__(self, timetable_manager, freeze_window, n_queued_tasks, fleet_monitor, **kwargs):
         """ Dispatches tasks to a multi-robot system based on temporal constraints
 
         Args:
@@ -36,7 +36,6 @@ class Dispatcher(SimulatorInterface):
         self.timetable_manager = timetable_manager
         self.freeze_window = timedelta(minutes=freeze_window)
         self.n_queued_tasks = n_queued_tasks
-        self.planner = planner
         self.fleet_monitor = fleet_monitor
 
         self.robot_ids = list()
@@ -45,12 +44,9 @@ class Dispatcher(SimulatorInterface):
         self.logger.debug("Dispatcher started")
 
     def configure(self, **kwargs):
-        api = kwargs.get('api')
-        ccu_store = kwargs.get('ccu_store')
-        if api:
-            self.api = api
-        if ccu_store:
-            self.ccu_store = ccu_store
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
 
     def register_robot(self, robot_id):
         self.logger.debug("Registering robot %s", robot_id)
@@ -65,13 +61,37 @@ class Dispatcher(SimulatorInterface):
             return True
         return False
 
+    def get_robot_location(self, pose):
+        """ Returns the name of the node in the map where the robot is located"""
+        try:
+            robot_location = self.planner.get_node(pose.x, pose.y)
+        except AttributeError:
+            self.logger.warning("No planner configured")
+            # For now, return a known area
+            robot_location = "AMK_D_L-1_C39"
+        return robot_location
+
+    def get_path(self, source, destination):
+        try:
+            return self.planner.get_path(source, destination)
+        except AttributeError:
+            self.logger.warning("No planner configured")
+
+    def get_path_estimated_duration(self, path):
+        try:
+            mean, variance = self.planner.get_estimated_duration(path)
+        except AttributeError:
+            self.logger.warning("No planner configured")
+            mean = 1
+            variance = 0.1
+        return mean, variance
+
     def add_pre_task_action(self, task, robot_id):
         self.logger.debug("Adding pre_task_action to task %s", task.task_id)
         pose = self.fleet_monitor.get_robot_pose(robot_id)
-        robot_location = self.planner.get_node(pose.x, pose.y)
-
-        path = self.planner.get_path(robot_location, task.request.pickup_location)
-        mean, variance = self.planner.get_estimated_duration(path)
+        robot_location = self.get_robot_location(pose)
+        path = self.get_path(robot_location, task.request.pickup_location)
+        mean, variance = self.get_path_estimated_duration(path)
         travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
         task.update_inter_timepoint_constraint(travel_time.name, travel_time.mean, travel_time.variance)
 
