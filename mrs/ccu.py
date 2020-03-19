@@ -2,7 +2,6 @@ import argparse
 import logging.config
 
 from fmlib.models.tasks import TaskPlan
-from planner.planner import Planner
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
 
@@ -26,7 +25,6 @@ _component_modules = {'simulator': Simulator,
                       'auctioneer': Auctioneer,
                       'fleet_monitor': FleetMonitor,
                       'dispatcher': Dispatcher,
-                      'planner': Planner,
                       'delay_recovery': DelayRecovery,
                       'timetable_monitor': TimetableMonitor,
                       'performance_tracker': PerformanceTracker,
@@ -40,7 +38,6 @@ class CCU:
         self.auctioneer = components.get('auctioneer')
         self.fleet_monitor = components.get('fleet_monitor')
         self.dispatcher = components.get('dispatcher')
-        self.planner = components.get('planner')
         self.timetable_monitor = components.get("timetable_monitor")
         self.simulator_interface = SimulatorInterface(components.get('simulator'))
         self.performance_tracker = components.get("performance_tracker")
@@ -53,6 +50,11 @@ class CCU:
         self.logger.info("Initialized CCU")
 
         self.task_plans = dict()
+
+    def configure(self, **kwargs):
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
 
     def start_test_cb(self, msg):
         self.simulator_interface.stop()
@@ -71,7 +73,7 @@ class CCU:
         self.auctioneer.allocate(tasks)
 
     def get_task_plan(self, task):
-        path = self.planner.get_path(task.request.pickup_location, task.request.delivery_location)
+        path = self.dispatcher.get_path(task.request.pickup_location, task.request.delivery_location)
 
         mean, variance = self.get_plan_work_time(path)
         work_time = InterTimepointConstraint(name="work_time", mean=mean, variance=variance)
@@ -87,7 +89,7 @@ class CCU:
         return task_plan
 
     def get_plan_work_time(self, plan):
-        mean, variance = self.planner.get_estimated_duration(plan)
+        mean, variance = self.dispatcher.get_path_estimated_duration(plan)
         return mean, variance
 
     def process_allocation(self):
@@ -133,6 +135,8 @@ class CCU:
 
 
 if __name__ == '__main__':
+    from planner.planner import Planner
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
     parser.add_argument('--experiment', type=str, action='store', help='Experiment_name')
@@ -140,12 +144,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
-
-    print("Experiment: ", config_params.get("experiment"))
-    print("Approach: ", config_params.get("approach"))
-
     config = Configurator(config_params, component_modules=_component_modules)
     components_ = config.config_ccu()
+
+    for name, c in components_.items():
+        if hasattr(c, 'configure'):
+            c.configure(planner=Planner(**config_params.get("planner")))
+
     ccu = CCU(components_)
 
     ccu.run()

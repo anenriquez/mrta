@@ -3,7 +3,6 @@ import logging.config
 
 from fmlib.models.actions import Action
 from fmlib.models.robot import Robot as RobotModel
-from planner.planner import Planner
 from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
@@ -21,7 +20,6 @@ from mrs.timetable.timetable import Timetable
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
                       'bidder': Bidder,
-                      'planner': Planner,
                       }
 
 
@@ -188,6 +186,8 @@ class RobotProxy:
 
 
 if __name__ == '__main__':
+    from planner.planner import Planner
+
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: robot_001')
     parser.add_argument('--file', type=str, action='store', help='Path to the config file')
@@ -196,12 +196,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
-
-    print("Experiment: ", config_params.get("experiment"))
-    print("Approach: ", config_params.get("approach"))
-
     config = Configurator(config_params, component_modules=_component_modules)
     components = config.config_robot_proxy(args.robot_id)
+
+    for name, c in components.items():
+        if hasattr(c, 'configure'):
+            c.configure(planner=Planner(**config_params.get("planner")))
 
     robot = RobotProxy(**components)
     robot.run()

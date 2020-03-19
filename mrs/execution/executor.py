@@ -3,7 +3,6 @@ from datetime import timedelta
 
 import numpy as np
 from fmlib.models.tasks import TaskStatus
-from planner.planner import Planner
 from pymodm.context_managers import switch_collection
 from pymodm.errors import DoesNotExist
 from stn.pstn.distempirical import norm_sample
@@ -20,10 +19,14 @@ class Executor:
         self.random_state = np.random.RandomState(random_seed)
 
         # This is a virtual executor that uses a graph to get the task durations
-        self.planner = Planner(map_name)
 
         self.logger = logging.getLogger("mrs.executor.%s" % self.robot_id)
         self.logger.debug("Executor initialized %s", self.robot_id)
+
+    def configure(self, **kwargs):
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
 
     def send_task_status(self, task, task_progress):
         try:
@@ -50,9 +53,14 @@ class Executor:
     def get_action_duration(self, action):
         source = action.locations[0]
         destination = action.locations[-1]
-        path = self.planner.get_path(source, destination)
-        mean, variance = self.planner.get_estimated_duration(path)
-        stdev = round(variance**0.5, 3)
-        duration = round(norm_sample(mean, stdev, self.random_state))
+        try:
+            path = self.planner.get_path(source, destination)
+            mean, variance = self.planner.get_estimated_duration(path)
+            stdev = round(variance**0.5, 3)
+            duration = round(norm_sample(mean, stdev, self.random_state))
+        except AttributeError:
+            self.logger.warning("No planner configured")
+            duration = 1.0
+
         self.logger.debug("Time between %s and %s: %s", source, destination, duration)
         return duration
