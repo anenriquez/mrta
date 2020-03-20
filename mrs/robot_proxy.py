@@ -10,7 +10,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.db.models.task import Task
+from fmlib.models.tasks import Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
@@ -109,11 +109,15 @@ class RobotProxy:
 
         if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
             self.logger.debug("Task %s start time %s", task.task_id, timestamp)
-            task.update_start_time(timestamp.to_datetime())
+            task_schedule = {"start_time": timestamp.to_datetime(),
+                             "finish_time": task.finish_time}
+            task.update_schedule(task_schedule)
 
         elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
             self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
-            task.update_finish_time(timestamp.to_datetime())
+            task_schedule = {"start_time": task.start_time,
+                             "finish_time": timestamp.to_datetime()}
+            task.update_schedule(task_schedule)
 
     def _update_task_progress(self, task, task_progress, action_progress, timestamp):
         self.logger.debug("Updating task progress of task %s", task.task_id)

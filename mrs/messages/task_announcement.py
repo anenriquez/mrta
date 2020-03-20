@@ -1,7 +1,8 @@
+from fmlib.models.requests import TransportationRequest
+from fmlib.models.tasks import Task, TaskConstraints
 from ropod.utils.timestamp import TimeStamp
 from ropod.utils.uuid import generate_uuid
 
-from mrs.db.models.task import Task
 from mrs.utils.as_dict import AsDictMixin
 
 
@@ -30,7 +31,7 @@ class TaskAnnouncement(AsDictMixin):
         dict_repr = super().to_dict()
         tasks_dict = dict()
         for task in self.tasks:
-            tasks_dict[str(task.task_id)] = task.to_dict()
+            tasks_dict[str(task.task_id)] = task.to_dict(constraints=True, request=True)
         dict_repr.update(tasks=tasks_dict)
         return dict_repr
 
@@ -39,7 +40,7 @@ class TaskAnnouncement(AsDictMixin):
         attrs = super().to_attrs(dict_repr)
         tasks = list()
         for task_id, task_dict in attrs.get("tasks").items():
-            tasks.append(Task.from_payload(task_dict))
+            tasks.append(Task.from_payload(task_dict, constraints=TaskConstraints, request=TransportationRequest))
         attrs.update(tasks=tasks)
         return attrs
 

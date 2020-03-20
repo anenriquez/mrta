@@ -9,7 +9,7 @@ from pymodm.context_managers import switch_collection
 from ropod.pyre_communicator.base_class import RopodPyre
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
-from mrs.db.models.task import Task
+from fmlib.models.tasks import Task
 from mrs.messages.task_contract import TaskContract
 from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.utils.datasets import load_tasks_to_db

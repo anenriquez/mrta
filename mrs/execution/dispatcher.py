@@ -7,7 +7,7 @@ from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
 
 from mrs.db.models.actions import GoTo
-from mrs.db.models.task import InterTimepointConstraint
+from fmlib.models.tasks import InterTimepointConstraint
 from mrs.simulation.simulator import SimulatorInterface
 
 
@@ -91,14 +91,14 @@ class Dispatcher(SimulatorInterface):
         pose = self.fleet_monitor.get_robot_pose(robot_id)
         robot_location = self.get_robot_location(pose)
         path = self.get_path(robot_location, task.request.pickup_location)
+        # TODO: Add travel_time constraint upon bid reception, not before dispatching
         mean, variance = self.get_path_estimated_duration(path)
         travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
         task.update_inter_timepoint_constraint(travel_time.name, travel_time.mean, travel_time.variance)
 
         pre_task_action = GoTo(action_id=generate_uuid(),
                                type="ROBOT-TO-PICKUP",
-                               locations=path,
-                               estimated_duration=travel_time)
+                               locations=path)
 
         task.plan[0].actions.insert(0, pre_task_action)
         task.save()
@@ -127,6 +127,7 @@ class Dispatcher(SimulatorInterface):
         """
         self.logger.debug("Dispatching task %s to robot %s", task.task_id, robot_id)
         task_msg = self.api.create_message(task)
+        task_msg["payload"].pop("constraints")
         self.api.publish(task_msg)
         task.update_status(TaskStatusConst.DISPATCHED)
 

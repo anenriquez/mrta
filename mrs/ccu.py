@@ -1,6 +1,7 @@
 import argparse
 import logging.config
 
+from fmlib.models.tasks import Task, InterTimepointConstraint
 from fmlib.models.tasks import TaskPlan
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
@@ -11,7 +12,6 @@ from mrs.config.params import get_config_params
 from mrs.db.models.actions import GoTo
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
-from mrs.db.models.task import Task, InterTimepointConstraint
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.dispatcher import Dispatcher
 from mrs.execution.fleet_monitor import FleetMonitor
@@ -82,8 +82,7 @@ class CCU:
         task_plan = TaskPlan()
         action = GoTo(action_id=generate_uuid(),
                       type="PICKUP-TO-DELIVERY",
-                      locations=path,
-                      estimated_duration=work_time)
+                      locations=path)
         task_plan.actions.append(action)
 
         return task_plan
@@ -97,6 +96,8 @@ class CCU:
             task_id, robot_ids = self.auctioneer.allocations.pop(0)
             task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
+            task_schedule = self.auctioneer.get_task_schedule(task_id, robot_ids[0])
+            task.update_schedule(task_schedule)
             task_plan = self.task_plans[task.task_id]
             task.update_plan(robot_ids, task_plan)
             self.logger.debug('Task plan of task %s updated', task.task_id)
