@@ -107,6 +107,6 @@ if __name__ == '__main__':
 
     for name, c in components.items():
         if hasattr(c, 'configure'):
-            c.configure(planner=Planner(**config_params.get("planner")))
+            c.configure(planner=Planner(**config_params.get("executor")))
 
     robot.run()
