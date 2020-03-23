@@ -31,6 +31,11 @@ class TimetableMonitor(SimulatorInterface):
         self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
+    def configure(self, **kwargs):
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
+
     def task_status_cb(self, msg):
         while self.deleting_task:
             time.sleep(0.1)
@@ -87,11 +92,15 @@ class TimetableMonitor(SimulatorInterface):
         if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
                 action_progress.start_time is None:
             timetable.check_is_task_delayed(task, assigned_time, start_node)
+            self.performance_tracker.update_delay(task.task_id, assigned_time, start_node, timetable)
+            self.performance_tracker.update_earliness(task.task_id, assigned_time, start_node, timetable)
             timetable.update_timetable(assigned_time, task.task_id, start_node)
 
         elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
                 action_progress.finish_time is None:
             timetable.check_is_task_delayed(task, assigned_time, finish_node)
+            self.performance_tracker.update_delay(task.task_id, assigned_time, finish_node, timetable)
+            self.performance_tracker.update_earliness(task.task_id, assigned_time, finish_node, timetable)
             timetable.update_timetable(assigned_time, task.task_id, finish_node)
             timetable.execute_edge(task.task_id, start_node, finish_node)
 

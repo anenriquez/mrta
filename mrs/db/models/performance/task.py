@@ -51,9 +51,19 @@ class TaskExecutionPerformance(EmbeddedMongoModel):
     work_time (float):  Time taken to perform the task. i.e,
                         Time to transport an object from the pickup to the delivery location
 
+    delay (float): Time (in seconds) between latest admissible time and execution time
+                  (if the execution time is later than the latest admissible time)
+                   for all timepoints in the dispatchable graph
+
+
+    earliness (float): Time (in seconds) between the execution time and earliest admissible
+                       (if the execution time is earlier than the earliest admissible time)
+                       for all timepoints in the dispatchable graph
     """
     travel_time = fields.FloatField()
     work_time = fields.FloatField()
+    delay = fields.FloatField(default=0.0)
+    earliness = fields.FloatField(default=0.0)
 
     def update(self, travel_time, work_time):
         self.travel_time = travel_time
@@ -95,6 +105,18 @@ class TaskPerformance(MongoModel):
         if not self.execution:
             self.execution = TaskExecutionPerformance()
         self.execution.update(travel_time, work_time)
+        self.save(cascade=True)
+
+    def update_delay(self, delay):
+        if not self.execution:
+            self.execution = TaskExecutionPerformance()
+        self.execution.delay += delay
+        self.save(cascade=True)
+
+    def update_earliness(self, earliness):
+        if not self.execution:
+            self.execution = TaskExecutionPerformance()
+        self.execution.earliness += earliness
         self.save(cascade=True)
 
     def increase_n_re_allocation_attempts(self):

@@ -39,6 +39,22 @@ class TaskPerformanceTracker:
                 'travel_time_boundaries': travel_time_boundaries,
                 'work_time_boundaries': work_time_boundaries}
 
+    def update_delay(self, task_id, assigned_time, node_type, timetable):
+        self.logger.debug("Updating delay of task %s ", task_id)
+        task_performance = TaskPerformance.get_task_performance(task_id)
+        latest_time = timetable.dispatchable_graph.get_time(task_id, node_type, False)
+        if assigned_time > latest_time:
+            delay = assigned_time - latest_time
+            task_performance.update_delay(delay)
+
+    def update_earliness(self, task_id, assigned_time, node_type, timetable):
+        self.logger.debug("Updating delay of task %s ", task_id)
+        task_performance = TaskPerformance.get_task_performance(task_id)
+        earliest_time = timetable.dispatchable_graph.get_time(task_id, node_type)
+        if assigned_time < earliest_time:
+            earliness = earliest_time - assigned_time
+            task_performance.update_earliness(earliness)
+
     def update_execution_metrics(self, task):
         self.logger.debug("Updating execution metrics of task %s", task.task_id)
         with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):

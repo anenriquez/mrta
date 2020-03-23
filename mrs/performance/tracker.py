@@ -26,6 +26,12 @@ class PerformanceTracker:
             self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, only_constraints)
             self.robot_performance_tracker.update_allocated_tasks(robot_id, task.task_id)
 
+    def update_delay(self, task_id, assigned_time, node_type, timetable):
+        self.task_performance_tracker.update_delay(task_id, assigned_time, node_type, timetable)
+
+    def update_earliness(self, task_id, assigned_time, node_type, timetable):
+        self.task_performance_tracker.update_earliness(task_id, assigned_time, node_type, timetable)
+
     @staticmethod
     def get_tasks_status(robot_id):
         tasks_status = collections.OrderedDict()
