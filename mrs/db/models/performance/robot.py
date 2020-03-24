@@ -1,6 +1,8 @@
 from fmlib.models.robot import RobotManager as RobotPerformanceManager
 from pymodm import fields, MongoModel
 
+from mrs.db.models.timetable import Timetable
+
 
 class RobotPerformance(MongoModel):
     """ Stores robot performance information:
@@ -26,6 +28,7 @@ class RobotPerformance(MongoModel):
     travel_time = fields.FloatField(default=0.0)
     work_time = fields.FloatField(default=0.0)
     idle_time = fields.FloatField(default=0.0)
+    timetables = fields.EmbeddedDocumentListField(Timetable)
 
     objects = RobotPerformanceManager()
 
@@ -63,6 +66,13 @@ class RobotPerformance(MongoModel):
 
     def update_total_time(self, total_time):
         self.total_time = total_time
+        self.save()
+
+    def update_timetables(self, timetable):
+        if not self.timetables:
+            self.timetables = list()
+        timetable_model = timetable.to_model()
+        self.timetables.append(timetable_model)
         self.save()
 
     def update_makespan(self, makespan):
