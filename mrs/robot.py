@@ -50,7 +50,6 @@ class Robot:
         if self.robot_id in task.assigned_robots:
             self.logger.debug("Received task %s", task.task_id)
             task.update_status(TaskStatusConst.DISPATCHED)
-            task.freeze()
 
     def schedule(self, task):
         try:

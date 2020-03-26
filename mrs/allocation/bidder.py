@@ -182,8 +182,8 @@ class Bidder:
     def insert_in(self, insertion_point):
         try:
             task = self.timetable.get_task(insertion_point)
-            if task.frozen:
-                self.logger.debug("Task %s is frozen. "
+            if task.status.status == TaskStatusConst.DISPATCHED:
+                self.logger.debug("Task %s was already dispatched "
                                   "Not computing bid for this insertion point %s", task.task_id, insertion_point)
                 return False
             return True
@@ -238,9 +238,9 @@ class Bidder:
         smallest_bid = None
 
         for bid in bids:
-            # Do not consider bids for tasks that were frozen after the bid computation
+            # Do not consider bids for tasks that were dispatched after the bid computation
             task = Task.get_task(bid.task_id)
-            if task.frozen:
+            if task.status.status == TaskStatusConst.DISPATCHED:
                 continue
 
             if smallest_bid is None or\

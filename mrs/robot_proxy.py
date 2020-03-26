@@ -48,7 +48,7 @@ class RobotProxy:
         task = Task.from_payload(payload)
         if self.robot_id in task.assigned_robots:
             self.logger.debug("Received task %s", task.task_id)
-            task.freeze()
+            task.update_status(TaskStatusConst.DISPATCHED)
 
     def task_status_cb(self, msg):
         payload = msg['payload']
@@ -147,7 +147,6 @@ class RobotProxy:
             if prev_task and next_task:
                 self.update_pre_task_constraint(task, next_task)
 
-        task.unfreeze()
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
         self._re_compute_dispatchable_graph()

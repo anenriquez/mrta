@@ -111,7 +111,6 @@ class Dispatcher(SimulatorInterface):
                 if task and task.status.status == TaskStatusConst.PLANNED:
                     start_time = timetable.get_start_time(task.task_id)
                     if self.is_schedulable(start_time):
-                        task.freeze()
                         self.add_pre_task_action(task, robot_id)
                         self.dispatch_task(task, robot_id)
             except DoesNotExist:
