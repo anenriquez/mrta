@@ -49,7 +49,7 @@ class TimetableMonitor(SimulatorInterface):
         action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
 
         if task_status.delayed:
-            task.mark_as_delayed()
+            task.delayed = True
 
         if task_status.task_status == TaskStatusConst.ONGOING:
             self._update_timetable(task, task_status, action_progress, timestamp)
@@ -133,7 +133,7 @@ class TimetableMonitor(SimulatorInterface):
         self._remove_task(task, TaskStatusConst.UNALLOCATED)
         task.assign_robots(list())
         task.plan = list()
-        task.unmark_as_delayed()
+        task.delayed = False
         task.save()
         self.auctioneer.allocated_tasks.pop(task.task_id)
         self.auctioneer.allocate(task)
@@ -193,7 +193,6 @@ class TimetableMonitor(SimulatorInterface):
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
 
             self.send_remove_task(task.task_id, status, robot_id)
-            task.unfreeze()
             task.update_status(status)
             self._re_compute_dispatchable_graph(timetable, next_task)
 

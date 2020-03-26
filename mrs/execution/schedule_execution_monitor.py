@@ -57,7 +57,7 @@ class ScheduleExecutionMonitor:
 
         if self.task_is_delayed(task, assigned_time, node_type):
             self.logger.warning("Task %s is delayed", task.task_id)
-            task.mark_as_delayed()
+            task.delayed = True
 
         return is_consistent
 
