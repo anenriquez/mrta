@@ -2,7 +2,7 @@ import copy
 import logging
 from datetime import timedelta
 
-from mrs.db.models.task import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import TaskNotFound

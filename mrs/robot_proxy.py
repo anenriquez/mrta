@@ -10,7 +10,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.db.models.task import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
@@ -48,7 +48,7 @@ class RobotProxy:
         task = Task.from_payload(payload)
         if self.robot_id in task.assigned_robots:
             self.logger.debug("Received task %s", task.task_id)
-            task.freeze()
+            task.update_status(TaskStatusConst.DISPATCHED)
 
     def task_status_cb(self, msg):
         payload = msg['payload']
@@ -109,11 +109,15 @@ class RobotProxy:
 
         if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
             self.logger.debug("Task %s start time %s", task.task_id, timestamp)
-            task.update_start_time(timestamp.to_datetime())
+            task_schedule = {"start_time": timestamp.to_datetime(),
+                             "finish_time": task.finish_time}
+            task.update_schedule(task_schedule)
 
         elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
             self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
-            task.update_finish_time(timestamp.to_datetime())
+            task_schedule = {"start_time": task.start_time,
+                             "finish_time": timestamp.to_datetime()}
+            task.update_schedule(task_schedule)
 
     def _update_task_progress(self, task, task_progress, action_progress, timestamp):
         self.logger.debug("Updating task progress of task %s", task.task_id)
@@ -141,9 +145,8 @@ class RobotProxy:
             prev_task = self.timetable.get_previous_task(task)
             self.timetable.remove_task(task.task_id)
             if prev_task and next_task:
-                self.update_pre_task_constraint(task, next_task)
+                self.update_pre_task_constraint(next_task)
 
-        task.unfreeze()
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
         self._re_compute_dispatchable_graph()
@@ -161,15 +164,14 @@ class RobotProxy:
         x, y, theta = self.bidder.planner.get_pose(task.request.delivery_location)
         self.robot_model.update_position(x=x, y=y, theta=theta)
 
-    def update_pre_task_constraint(self, task, next_task):
+    def update_pre_task_constraint(self, next_task):
         self.logger.critical("Update pre_task constraint of task %s", next_task.task_id)
         position = self.timetable.get_task_position(next_task.task_id)
         prev_location = self.bidder.get_previous_location(position)
-        travel_time = self.bidder.update_pre_task_constraint(next_task, prev_location)
+        travel_duration = self.bidder.get_travel_duration(next_task, prev_location)
 
         stn_task = self.timetable.get_stn_task(next_task.task_id)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint("travel_time", travel_duration.mean, travel_duration.variance)
         self.timetable.add_stn_task(stn_task)
         self.timetable.update_task(stn_task)
 

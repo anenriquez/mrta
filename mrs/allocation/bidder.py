@@ -2,13 +2,13 @@ import copy
 import logging
 
 from fmlib.models.robot import Robot
+from fmlib.models.tasks import InterTimepointConstraint
+from fmlib.models.tasks import TransportationTask as Task
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from stn.exceptions.stp import NoSTPSolution
 
 from mrs.allocation.bidding_rule import bidding_rule_factory
-from mrs.db.models.task import InterTimepointConstraint
-from mrs.db.models.task import Task
 from mrs.exceptions.allocation import TaskNotFound
 from mrs.messages.bid import NoBid, AllocationInfo
 from mrs.messages.task_announcement import TaskAnnouncement
@@ -135,9 +135,9 @@ class Bidder:
                 continue
 
             prev_location = self.get_previous_location(insertion_point)
-            self.update_pre_task_constraint(task, prev_location)
+            travel_duration = self.get_travel_duration(task, prev_location)
 
-            new_stn_task = self.timetable.to_stn_task(task, insertion_point, earliest_admissible_time)
+            new_stn_task = self.timetable.to_stn_task(task, travel_duration, insertion_point, earliest_admissible_time)
 
             self.timetable.insert_task(new_stn_task, insertion_point)
             allocation_info = AllocationInfo(insertion_point, new_stn_task)
@@ -148,8 +148,11 @@ class Bidder:
                 prev_version_next_stn_task = self.timetable.get_stn_task(next_task.task_id)
 
                 prev_location = task.request.delivery_location
-                self.update_pre_task_constraint(next_task, prev_location)
-                next_stn_task = self.timetable.update_stn_task(next_task, insertion_point+1, earliest_admissible_time)
+                travel_duration = self.get_travel_duration(next_task, prev_location)
+                next_stn_task = self.timetable.update_stn_task(copy.deepcopy(prev_version_next_stn_task),
+                                                               travel_duration,
+                                                               insertion_point+1,
+                                                               earliest_admissible_time)
                 self.timetable.update_task(next_stn_task)
 
                 allocation_info.update_next_task(next_stn_task, prev_version_next_stn_task)
@@ -182,8 +185,8 @@ class Bidder:
     def insert_in(self, insertion_point):
         try:
             task = self.timetable.get_task(insertion_point)
-            if task.frozen:
-                self.logger.debug("Task %s is frozen. "
+            if task.status.status in [TaskStatusConst.DISPATCHED, TaskStatusConst.ONGOING]:
+                self.logger.debug("Task %s was already dispatched "
                                   "Not computing bid for this insertion point %s", task.task_id, insertion_point)
                 return False
             return True
@@ -205,12 +208,6 @@ class Bidder:
         self.logger.debug("Previous location: %s ", previous_location)
         return previous_location
 
-    def update_pre_task_constraint(self, task, previous_location):
-        travel_path = self.get_travel_path(previous_location, task.request.pickup_location)
-        travel_time = self.get_travel_time(travel_path)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        return travel_time
-
     def get_robot_location(self, pose):
         """ Returns the name of the node in the map where the robot is located"""
         try:
@@ -221,22 +218,19 @@ class Bidder:
             robot_location = "AMK_D_L-1_C39"
         return robot_location
 
-    def get_travel_path(self, robot_position, pickup_location):
+    def get_travel_duration(self, task, previous_location):
+        """ Returns time (mean, variance) to go from previous_location to task.pickup_location
+        """
         try:
-            return self.planner.get_path(robot_position, pickup_location)
-        except AttributeError:
-            self.logger.warning("No planner configured")
-
-    def get_travel_time(self, path):
-        try:
+            path = self.planner.get_path(previous_location, task.request.pickup_location)
             mean, variance = self.planner.get_estimated_duration(path)
         except AttributeError:
             self.logger.warning("No planner configured")
             mean = 1
             variance = 0.1
-        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
-        self.logger.debug("Travel time: %s", travel_time)
-        return travel_time
+        travel_duration = InterTimepointConstraint(mean=mean, variance=variance)
+        self.logger.debug("Travel duration: %s", travel_duration)
+        return travel_duration
 
     @staticmethod
     def get_smallest_bid(bids):
@@ -248,9 +242,9 @@ class Bidder:
         smallest_bid = None
 
         for bid in bids:
-            # Do not consider bids for tasks that were frozen after the bid computation
+            # Do not consider bids for tasks that were dispatched after the bid computation
             task = Task.get_task(bid.task_id)
-            if task.frozen:
+            if task.status.status in [TaskStatusConst.DISPATCHED, TaskStatusConst.ONGOING]:
                 continue
 
             if smallest_bid is None or\

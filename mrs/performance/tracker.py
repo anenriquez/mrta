@@ -2,7 +2,7 @@ import collections
 import logging
 
 from fmlib.models.tasks import TaskStatus
-from mrs.db.models.task import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.performance.robot import RobotPerformanceTracker
 from mrs.performance.task import TaskPerformanceTracker
 from pymodm.context_managers import switch_collection
