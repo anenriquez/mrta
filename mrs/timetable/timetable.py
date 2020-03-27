@@ -209,6 +209,12 @@ class Timetable(STNInterface):
         delivery_time = self.ztp + timedelta(seconds=r_delivery_time)
         return delivery_time
 
+    def check_is_task_delayed(self, task, assigned_time, node_type):
+        latest_time = self.dispatchable_graph.get_time(task.task_id, node_type, False)
+        if assigned_time > latest_time:
+            self.logger.warning("Task %s is delayed", task.task_id)
+            task.delayed = True
+
     def remove_task(self, task_id):
         self.remove_task_from_stn(task_id)
         self.remove_task_from_dispatchable_graph(task_id)

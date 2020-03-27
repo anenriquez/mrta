@@ -42,13 +42,11 @@ class TimetableMonitor(SimulatorInterface):
         task_status = TaskStatus.from_payload(payload)
         task = Task.get_task(task_status.task_id)
         self.logger.debug("Received task status message for task %s by %s", task_status.task_id, task_status.robot_id)
+        self.logger.debug("Task progress: %s", task_status.task_progress)
 
         if not task.status.progress:
             task.update_progress(task_status.task_progress.action_id, task_status.task_progress.action_status.status)
         action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
-
-        if task_status.delayed:
-            task.delayed = True
 
         if task_status.task_status == TaskStatusConst.ONGOING:
             self._update_timetable(task, task_status, action_progress, timestamp)
@@ -88,10 +86,12 @@ class TimetableMonitor(SimulatorInterface):
 
         if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
                 action_progress.start_time is None:
+            timetable.check_is_task_delayed(task, assigned_time, start_node)
             timetable.update_timetable(assigned_time, task.task_id, start_node)
 
         elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
                 action_progress.finish_time is None:
+            timetable.check_is_task_delayed(task, assigned_time, finish_node)
             timetable.update_timetable(assigned_time, task.task_id, finish_node)
             timetable.execute_edge(task.task_id, start_node, finish_node)
 
