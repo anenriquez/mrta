@@ -6,7 +6,7 @@ from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.tasks import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor

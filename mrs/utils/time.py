@@ -14,7 +14,6 @@ def relative_to_ztp(ztp, time_, resolution="seconds"):
 def to_timestamp(ztp, r_time):
     """ Returns a timestamp ztp(TimeStamp) + relative time(float) in seconds
     """
-    print("to timestamp")
     if r_time == float('inf'):
         time_ = TimeStamp()
         time_.timestamp = datetime.max

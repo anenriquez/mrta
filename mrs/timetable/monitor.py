@@ -2,16 +2,15 @@ import logging
 import time
 
 from fmlib.models.actions import Action
-from pymodm.context_managers import switch_collection
-from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
-from ropod.utils.timestamp import TimeStamp
-from stn.exceptions.stp import NoSTPSolution
-
-from fmlib.models.tasks import Task, InterTimepointConstraint
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
+from pymodm.context_managers import switch_collection
+from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
+from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -201,11 +200,9 @@ class TimetableMonitor(SimulatorInterface):
         prev_location = prev_task.request.delivery_location
         path = self.dispatcher.planner.get_path(prev_location, task.request.pickup_location)
         mean, variance = self.dispatcher.planner.get_estimated_duration(path)
-        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
 
         stn_task = timetable.get_stn_task(task.task_id)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint("travel_time", mean, variance)
         timetable.add_stn_task(stn_task)
         timetable.update_task(stn_task)
 

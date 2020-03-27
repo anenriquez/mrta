@@ -1,11 +1,7 @@
 import logging
 from datetime import timedelta
 
-from fmlib.models.tasks import Task
-from fmlib.models.tasks import TimepointConstraint
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.allocation.round import Round
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
@@ -15,6 +11,8 @@ from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import to_timestamp
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -151,7 +149,7 @@ class Auctioneer(SimulatorInterface):
     def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
-        closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
+        closure_time = earliest_task.pickup_constraint.earliest_time - self.closure_window
 
         if not self.is_valid_time(closure_time) and self.alternative_timeslots:
             # Closure window should be long enough to allow robots to bid (tune if necessary)
@@ -166,7 +164,7 @@ class Auctioneer(SimulatorInterface):
 
         self.changed_timetable.clear()
         for task in tasks:
-            if not task.constraints.hard:
+            if not task.hard_constraints:
                 self.update_soft_constraints(task)
 
         self.round = Round(self.robot_ids,
@@ -191,15 +189,11 @@ class Auctioneer(SimulatorInterface):
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def update_soft_constraints(self, task):
-        hard_pickup_constraint = task.get_timepoint_constraint("pickup")
-        pickup_time_window = hard_pickup_constraint.latest_time - hard_pickup_constraint.earliest_time
+        pickup_time_window = task.pickup_constraint.latest_time - task.pickup_constraint.earliest_time
 
         earliest_pickup_time = self.get_current_time() + timedelta(minutes=5)
         latest_pickup_time = earliest_pickup_time + pickup_time_window
-        soft_pickup_constraint = TimepointConstraint(name="pickup",
-                                                     earliest_time=earliest_pickup_time,
-                                                     latest_time=latest_pickup_time)
-        task.update_timepoint_constraint(**soft_pickup_constraint.to_dict())
+        task.update_pickup_constraint(earliest_pickup_time, latest_pickup_time)
 
     def bid_cb(self, msg):
         payload = msg['payload']

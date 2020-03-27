@@ -1,7 +1,7 @@
 import argparse
 import logging.config
 
-from fmlib.models.tasks import Task, InterTimepointConstraint
+from fmlib.models.tasks import TransportationTask as Task
 from fmlib.models.tasks import TaskPlan
 from ropod.structs.status import TaskStatus as TaskStatusConst
 from ropod.utils.uuid import generate_uuid
@@ -75,9 +75,8 @@ class CCU:
     def get_task_plan(self, task):
         path = self.dispatcher.get_path(task.request.pickup_location, task.request.delivery_location)
 
-        mean, variance = self.get_plan_work_time(path)
-        work_time = InterTimepointConstraint(name="work_time", mean=mean, variance=variance)
-        task.update_inter_timepoint_constraint(work_time.name, work_time.mean, work_time.variance)
+        mean, variance = self.get_task_duration(path)
+        task.update_duration(mean, variance)
 
         task_plan = TaskPlan()
         action = GoTo(action_id=generate_uuid(),
@@ -87,7 +86,7 @@ class CCU:
 
         return task_plan
 
-    def get_plan_work_time(self, plan):
+    def get_task_duration(self, plan):
         mean, variance = self.dispatcher.get_path_estimated_duration(plan)
         return mean, variance
 

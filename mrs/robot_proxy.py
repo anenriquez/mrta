@@ -10,7 +10,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.tasks import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
@@ -145,7 +145,7 @@ class RobotProxy:
             prev_task = self.timetable.get_previous_task(task)
             self.timetable.remove_task(task.task_id)
             if prev_task and next_task:
-                self.update_pre_task_constraint(task, next_task)
+                self.update_pre_task_constraint(next_task)
 
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
@@ -164,15 +164,14 @@ class RobotProxy:
         x, y, theta = self.bidder.planner.get_pose(task.request.delivery_location)
         self.robot_model.update_position(x=x, y=y, theta=theta)
 
-    def update_pre_task_constraint(self, task, next_task):
+    def update_pre_task_constraint(self, next_task):
         self.logger.critical("Update pre_task constraint of task %s", next_task.task_id)
         position = self.timetable.get_task_position(next_task.task_id)
         prev_location = self.bidder.get_previous_location(position)
-        travel_time = self.bidder.update_pre_task_constraint(next_task, prev_location)
+        travel_duration = self.bidder.get_travel_duration(next_task, prev_location)
 
         stn_task = self.timetable.get_stn_task(next_task.task_id)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint("travel_time", travel_duration.mean, travel_duration.variance)
         self.timetable.add_stn_task(stn_task)
         self.timetable.update_task(stn_task)
 
