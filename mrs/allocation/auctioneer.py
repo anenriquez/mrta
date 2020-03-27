@@ -1,11 +1,8 @@
 import logging
 from datetime import timedelta
 
-from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.allocation.round import Round
-from mrs.db.models.task import Task, TimepointConstraint
 from mrs.exceptions.allocation import AlternativeTimeSlot
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import NoAllocation
@@ -13,6 +10,9 @@ from mrs.messages.bid import Bid, NoBid
 from mrs.messages.task_announcement import TaskAnnouncement
 from mrs.messages.task_contract import TaskContract, TaskContractAcknowledgment, TaskContractCancellation
 from mrs.simulation.simulator import SimulatorInterface
+from mrs.utils.time import to_timestamp
+from ropod.structs.task import TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -136,13 +136,9 @@ class Auctioneer(SimulatorInterface):
         if isinstance(tasks, list):
             self.logger.debug("Auctioneer received a list of tasks")
             for task in tasks:
-                if not isinstance(task, Task):
-                    task = Task.from_task(task)
                 self.tasks_to_allocate[task.task_id] = task
         else:
             self.logger.debug("Auctioneer received one task")
-            if not isinstance(tasks, Task):
-                tasks = Task.from_task(tasks)
             self.tasks_to_allocate[tasks.task_id] = tasks
         self.logger.debug("Tasks to allocate %s", {task_id for (task_id, task) in self.tasks_to_allocate.items()})
 
@@ -153,7 +149,7 @@ class Auctioneer(SimulatorInterface):
     def announce_tasks(self):
         tasks = list(self.tasks_to_allocate.values())
         earliest_task = Task.get_earliest_task(tasks)
-        closure_time = earliest_task.get_timepoint_constraint("pickup").earliest_time - self.closure_window
+        closure_time = earliest_task.pickup_constraint.earliest_time - self.closure_window
 
         if not self.is_valid_time(closure_time) and self.alternative_timeslots:
             # Closure window should be long enough to allow robots to bid (tune if necessary)
@@ -168,7 +164,7 @@ class Auctioneer(SimulatorInterface):
 
         self.changed_timetable.clear()
         for task in tasks:
-            if not task.constraints.hard:
+            if not task.hard_constraints:
                 self.update_soft_constraints(task)
 
         self.round = Round(self.robot_ids,
@@ -193,15 +189,11 @@ class Auctioneer(SimulatorInterface):
         self.api.publish(msg, groups=['TASK-ALLOCATION'])
 
     def update_soft_constraints(self, task):
-        hard_pickup_constraint = task.get_timepoint_constraint("pickup")
-        pickup_time_window = hard_pickup_constraint.latest_time - hard_pickup_constraint.earliest_time
+        pickup_time_window = task.pickup_constraint.latest_time - task.pickup_constraint.earliest_time
 
         earliest_pickup_time = self.get_current_time() + timedelta(minutes=5)
         latest_pickup_time = earliest_pickup_time + pickup_time_window
-        soft_pickup_constraint = TimepointConstraint(name="pickup",
-                                                     earliest_time=earliest_pickup_time,
-                                                     latest_time=latest_pickup_time)
-        task.update_timepoint_constraint(**soft_pickup_constraint.to_dict())
+        task.update_pickup_constraint(earliest_pickup_time, latest_pickup_time)
 
     def bid_cb(self, msg):
         payload = msg['payload']
@@ -244,31 +236,26 @@ class Auctioneer(SimulatorInterface):
             self.finish_round()
 
     def get_task_schedule(self, task_id, robot_id):
-        # For now, returning the start navigation time from the dispatchable graph
-        task_schedule = dict()
-
+        """ Returns a dict
+            start_time:  earliest start time according to the dispatchable graph
+            finish_time: latest start time according to the dispatchable graph
+        """
         timetable = self.timetable_manager.get(robot_id)
 
-        relative_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
-        relative_pickup_time = timetable.dispatchable_graph.get_time(task_id, "pickup")
-        relative_latest_delivery_time = timetable.dispatchable_graph.get_time(task_id, "delivery", False)
+        r_earliest_start_time = timetable.dispatchable_graph.get_time(task_id, "start")
+        r_earliest_pickup_time = timetable.dispatchable_graph.get_time(task_id, "pickup")
+        r_latest_delivery_time = timetable.dispatchable_graph.get_time(task_id, "delivery", False)
 
-        self.logger.debug("Current time %s: ", TimeStamp())
-        self.logger.debug("ztp %s: ", self.timetable_manager.ztp)
-        self.logger.debug("Relative start navigation time: %s", relative_start_time)
-        self.logger.debug("Relative pickup time: %s", relative_pickup_time)
-        self.logger.debug("Relative latest delivery time: %s", relative_latest_delivery_time)
-
-        start_time = self.timetable_manager.ztp + timedelta(seconds=relative_start_time)
-        pickup_time = self.timetable_manager.ztp + timedelta(seconds=relative_pickup_time)
-        delivery_time = self.timetable_manager.ztp + timedelta(seconds=relative_latest_delivery_time)
+        start_time = to_timestamp(self.timetable_manager.ztp, r_earliest_start_time)
+        pickup_time = to_timestamp(self.timetable_manager.ztp, r_earliest_pickup_time)
+        delivery_time = to_timestamp(self.timetable_manager.ztp, r_latest_delivery_time)
 
         self.logger.debug("Task %s start time: %s", task_id, start_time)
         self.logger.debug("Task %s pickup time : %s", task_id, pickup_time)
         self.logger.debug("Task %s latest delivery time: %s", task_id, delivery_time)
 
-        task_schedule['start_time'] = start_time.to_datetime()
-        task_schedule['finish_time'] = delivery_time.to_datetime()
+        task_schedule = {"start_time": start_time.to_datetime(),
+                         "finish_time": delivery_time.to_datetime()}
 
         return task_schedule
 

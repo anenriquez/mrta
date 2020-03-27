@@ -2,16 +2,15 @@ import logging
 import time
 
 from fmlib.models.actions import Action
-from pymodm.context_managers import switch_collection
-from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
-from ropod.utils.timestamp import TimeStamp
-from stn.exceptions.stp import NoSTPSolution
-
-from mrs.db.models.task import Task, InterTimepointConstraint
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
+from pymodm.context_managers import switch_collection
+from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
+from ropod.utils.timestamp import TimeStamp
+from stn.exceptions.stp import NoSTPSolution
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -49,7 +48,7 @@ class TimetableMonitor(SimulatorInterface):
         action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
 
         if task_status.delayed:
-            task.mark_as_delayed()
+            task.delayed = True
 
         if task_status.task_status == TaskStatusConst.ONGOING:
             self._update_timetable(task, task_status, action_progress, timestamp)
@@ -107,11 +106,15 @@ class TimetableMonitor(SimulatorInterface):
 
         if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
             self.logger.debug("Task %s start time %s", task.task_id, timestamp)
-            task.update_start_time(timestamp.to_datetime())
+            task_schedule = {"start_time": timestamp.to_datetime(),
+                             "finish_time": task.finish_time}
+            task.update_schedule(task_schedule)
 
         elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
             self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
-            task.update_finish_time(timestamp.to_datetime())
+            task_schedule = {"start_time": task.start_time,
+                             "finish_time": timestamp.to_datetime()}
+            task.update_schedule(task_schedule)
 
     def _update_task_progress(self, task, task_progress, action_progress, timestamp):
         self.logger.debug("Updating task progress of task %s", task.task_id)
@@ -129,7 +132,7 @@ class TimetableMonitor(SimulatorInterface):
         self._remove_task(task, TaskStatusConst.UNALLOCATED)
         task.assign_robots(list())
         task.plan = list()
-        task.unmark_as_delayed()
+        task.delayed = False
         task.save()
         self.auctioneer.allocated_tasks.pop(task.task_id)
         self.auctioneer.allocate(task)
@@ -189,7 +192,6 @@ class TimetableMonitor(SimulatorInterface):
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
 
             self.send_remove_task(task.task_id, status, robot_id)
-            task.unfreeze()
             task.update_status(status)
             self._re_compute_dispatchable_graph(timetable, next_task)
 
@@ -198,11 +200,9 @@ class TimetableMonitor(SimulatorInterface):
         prev_location = prev_task.request.delivery_location
         path = self.dispatcher.planner.get_path(prev_location, task.request.pickup_location)
         mean, variance = self.dispatcher.planner.get_estimated_duration(path)
-        travel_time = InterTimepointConstraint(name="travel_time", mean=mean, variance=variance)
 
         stn_task = timetable.get_stn_task(task.task_id)
-        task.update_inter_timepoint_constraint(**travel_time.to_dict())
-        stn_task.update_inter_timepoint_constraint(**travel_time.to_dict())
+        stn_task.update_inter_timepoint_constraint("travel_time", mean, variance)
         timetable.add_stn_task(stn_task)
         timetable.update_task(stn_task)
 

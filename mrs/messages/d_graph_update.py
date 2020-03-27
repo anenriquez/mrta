@@ -1,6 +1,6 @@
 from ropod.structs.status import TaskStatus as TaskStatusConst
 
-from mrs.db.models.task import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.utils.as_dict import AsDictMixin
 
 

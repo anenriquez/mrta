@@ -6,7 +6,7 @@ from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.db.models.task import Task
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
@@ -50,7 +50,6 @@ class Robot:
         if self.robot_id in task.assigned_robots:
             self.logger.debug("Received task %s", task.task_id)
             task.update_status(TaskStatusConst.DISPATCHED)
-            task.freeze()
 
     def schedule(self, task):
         try:
@@ -108,6 +107,6 @@ if __name__ == '__main__':
 
     for name, c in components.items():
         if hasattr(c, 'configure'):
-            c.configure(planner=Planner(**config_params.get("planner")))
+            c.configure(planner=Planner(**config_params.get("executor")))
 
     robot.run()

@@ -57,7 +57,7 @@ class ScheduleExecutionMonitor:
 
         if self.task_is_delayed(task, assigned_time, node_type):
             self.logger.warning("Task %s is delayed", task.task_id)
-            task.mark_as_delayed()
+            task.delayed = True
 
         return is_consistent
 
@@ -137,7 +137,9 @@ class ScheduleExecutionMonitor:
 
     def complete_execution(self):
         self.logger.debug("Task %s is completing execution", self.current_task.task_id)
-        self.current_task.update_finish_time(self.task_progress.timestamp.to_datetime())
+        task_schedule = {"start_time": self.current_task.start_time,
+                         "finish_time": self.task_progress.timestamp.to_datetime()}
+        self.current_task.update_schedule(task_schedule)
         self.current_task.update_status(TaskStatusConst.COMPLETED)
         self.executor.send_task_status(self.current_task, self.task_progress)
         self.current_task = None

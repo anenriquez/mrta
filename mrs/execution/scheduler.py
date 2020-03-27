@@ -34,7 +34,11 @@ class Scheduler(object):
             try:
                 self.timetable.assign_timepoint(start_time, task.task_id, "start")
                 start_time = (self.timetable.ztp + timedelta(seconds=start_time)).to_datetime()
-                task.update_start_time(start_time)
+
+                task_schedule = {"start_time": start_time,
+                                 "finish_time": task.finish_time}
+
+                task.update_schedule(task_schedule)
                 task.update_status(TaskStatusConst.SCHEDULED)
                 return
 
