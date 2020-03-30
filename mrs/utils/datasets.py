@@ -27,6 +27,7 @@ def load_tasks_to_db(dataset_module, dataset_name, **kwargs):
                                         earliest_pickup_time=earliest_pickup_time,
                                         latest_pickup_time=latest_pickup_time,
                                         hard_constraints=task_info.get('hard_constraints'))
+        request.save()
 
         duration = InterTimepointConstraint()
 
@@ -37,7 +38,7 @@ def load_tasks_to_db(dataset_module, dataset_name, **kwargs):
 
         constraints = TransportationTaskConstraints(hard=request.hard_constraints, temporal=temporal)
 
-        task = TransportationTask.create_new(task_id=task_id, request=request, constraints=constraints)
+        task = TransportationTask.create_new(task_id=task_id, request=request.request_id, constraints=constraints)
 
         tasks.append(task)
 

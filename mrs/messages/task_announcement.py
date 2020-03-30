@@ -31,7 +31,8 @@ class TaskAnnouncement(AsDictMixin):
         dict_repr = super().to_dict()
         tasks_dict = dict()
         for task in self.tasks:
-            tasks_dict[str(task.task_id)] = task.to_dict(constraints=True, request=True)
+            tasks_dict[str(task.task_id)] = task.to_dict()
+            tasks_dict[str(task.task_id)].update(request=task.request.to_dict())
         dict_repr.update(tasks=tasks_dict)
         return dict_repr
 
