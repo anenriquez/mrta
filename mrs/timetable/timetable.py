@@ -3,6 +3,8 @@ import logging
 from datetime import timedelta
 
 from fmlib.models.tasks import TransportationTask as Task, TimepointConstraint
+from stn.stp import STP
+
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import TaskNotFound
@@ -272,7 +274,7 @@ class Timetable(STNInterface):
         return timetable_dict
 
     @staticmethod
-    def from_dict(timetable_dict, stp_solver):
+    def from_dict(timetable_dict):
         robot_id = timetable_dict['robot_id']
         stp_solver = STP(timetable_dict['solver_name'])
         timetable = Timetable(robot_id, stp_solver)
