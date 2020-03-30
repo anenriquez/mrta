@@ -2,7 +2,9 @@ import copy
 import logging
 from datetime import timedelta
 
-from fmlib.models.tasks import TransportationTask as Task
+from fmlib.models.tasks import TransportationTask as Task, TimepointConstraint
+from stn.stp import STP
+
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import TaskNotFound
@@ -15,6 +17,8 @@ from ropod.structs.status import ActionStatus
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
+
+from mrs.utils.time import to_timestamp
 
 
 class Timetable(STNInterface):
@@ -209,6 +213,12 @@ class Timetable(STNInterface):
         delivery_time = self.ztp + timedelta(seconds=r_delivery_time)
         return delivery_time
 
+    def check_is_task_delayed(self, task, assigned_time, node_type):
+        latest_time = self.dispatchable_graph.get_time(task.task_id, node_type, False)
+        if assigned_time > latest_time:
+            self.logger.warning("Task %s is delayed", task.task_id)
+            task.delayed = True
+
     def remove_task(self, task_id):
         self.remove_task_from_stn(task_id)
         self.remove_task_from_dispatchable_graph(task_id)
@@ -240,6 +250,14 @@ class Timetable(STNInterface):
         self.dispatchable_graph.remove_node_ids(task_node_ids)
         self.store()
 
+    def get_timepoint_constraint(self, task_id, constraint_name):
+        earliest_time = to_timestamp(self.ztp,
+                                     self.get_r_time(task_id, constraint_name, lower_bound=True)).to_datetime()
+        latest_time = to_timestamp(self.ztp,
+                                   self.get_r_time(task_id, constraint_name, lower_bound=False)).to_datetime()
+        constraint = TimepointConstraint(earliest_time, latest_time)
+        return constraint
+
     def get_d_graph_update(self, n_tasks):
         sub_stn = self.stn.get_subgraph(n_tasks)
         sub_dispatchable_graph = self.dispatchable_graph.get_subgraph(n_tasks)
@@ -248,6 +266,7 @@ class Timetable(STNInterface):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
+        timetable_dict['solver_name'] = self.stp_solver.solver_name
         timetable_dict['ztp'] = self.ztp.to_str()
         timetable_dict['stn'] = self.stn.to_dict()
         timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
@@ -255,8 +274,9 @@ class Timetable(STNInterface):
         return timetable_dict
 
     @staticmethod
-    def from_dict(timetable_dict, stp_solver):
+    def from_dict(timetable_dict):
         robot_id = timetable_dict['robot_id']
+        stp_solver = STP(timetable_dict['solver_name'])
         timetable = Timetable(robot_id, stp_solver)
         stn_cls = timetable.stp_solver.get_stn()
 
@@ -267,12 +287,16 @@ class Timetable(STNInterface):
 
         return timetable
 
-    def store(self):
+    def to_model(self):
+        timetable_model = TimetableMongo(self.robot_id,
+                                         self.stp_solver.solver_name,
+                                         self.ztp.to_datetime(),
+                                         self.stn.to_dict(),
+                                         self.dispatchable_graph.to_dict())
+        return timetable_model
 
-        timetable = TimetableMongo(self.robot_id,
-                                   self.ztp.to_datetime(),
-                                   self.stn.to_dict(),
-                                   self.dispatchable_graph.to_dict())
+    def store(self):
+        timetable = self.to_model()
         timetable.save()
 
     def fetch(self):

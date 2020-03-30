@@ -6,9 +6,9 @@ non_intentional_delays:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
-    - overlapping_loose_1
-    - overlapping_random_1
+    - overlapping_tight_25_5_1
+    - overlapping_loose_25_5_1
+    - overlapping_random_25_5_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -29,7 +29,9 @@ intentional_delays:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_tight_25_5_1
+    - overlapping_loose_25_5_1
+    - overlapping_random_25_5_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -50,7 +52,17 @@ task_scalability:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_5_5_1
+    - overlapping_random_10_5_1
+    - overlapping_random_15_5_1
+    - overlapping_random_20_5_1
+    - overlapping_random_25_5_1
+    - overlapping_random_30_5_1
+    - overlapping_random_35_5_1
+    - overlapping_random_40_5_1
+    - overlapping_random_45_5_1
+    - overlapping_random_50_5_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -71,7 +83,8 @@ robot_scalability_1:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_50_10_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -88,7 +101,8 @@ robot_scalability_2:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_50_10_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -106,7 +120,8 @@ robot_scalability_3:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_50_10_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -125,7 +140,8 @@ robot_scalability_4:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_50_10_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
@@ -145,7 +161,8 @@ robot_scalability_5:
     - tessi-dsc-corrective-re-allocate
   dataset_module: dataset_lib.datasets
   datasets:
-    - overlapping_tight_1
+    - overlapping_random_50_10_1
+    - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
   executor:
