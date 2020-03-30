@@ -1,5 +1,6 @@
 import logging
 
+import dateutil.parser
 from fmlib.utils.messages import Document
 from pymodm import fields, MongoModel
 from pymodm.manager import Manager
@@ -19,6 +20,7 @@ TimetableManager = Manager.from_queryset(TimetableQuerySet)
 
 class Timetable(MongoModel):
     robot_id = fields.CharField(primary_key=True)
+    solver_name = fields.CharField()
     ztp = fields.DateTimeField()
     stn = fields.DictField()
     dispatchable_graph = fields.DictField(default=dict())
@@ -39,6 +41,7 @@ class Timetable(MongoModel):
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
         document['_id'] = document.pop('robot_id')
+        document["ztp"] = dateutil.parser.parse(document.pop("ztp"))
         timetable = Timetable.from_document(document)
         return timetable
 
@@ -46,4 +49,5 @@ class Timetable(MongoModel):
         dict_repr = self.to_son().to_dict()
         dict_repr.pop('_cls')
         dict_repr["robot_id"] = str(dict_repr.pop('_id'))
+        dict_repr["ztp"] = self.ztp.isoformat()
         return dict_repr

@@ -248,6 +248,7 @@ class Timetable(STNInterface):
     def to_dict(self):
         timetable_dict = dict()
         timetable_dict['robot_id'] = self.robot_id
+        timetable_dict['solver_name'] = self.stp_solver.solver_name
         timetable_dict['ztp'] = self.ztp.to_str()
         timetable_dict['stn'] = self.stn.to_dict()
         timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
@@ -257,6 +258,7 @@ class Timetable(STNInterface):
     @staticmethod
     def from_dict(timetable_dict, stp_solver):
         robot_id = timetable_dict['robot_id']
+        stp_solver = STP(timetable_dict['solver_name'])
         timetable = Timetable(robot_id, stp_solver)
         stn_cls = timetable.stp_solver.get_stn()
 
@@ -267,12 +269,16 @@ class Timetable(STNInterface):
 
         return timetable
 
-    def store(self):
+    def to_model(self):
+        timetable_model = TimetableMongo(self.robot_id,
+                                         self.stp_solver.solver_name,
+                                         self.ztp.to_datetime(),
+                                         self.stn.to_dict(),
+                                         self.dispatchable_graph.to_dict())
+        return timetable_model
 
-        timetable = TimetableMongo(self.robot_id,
-                                   self.ztp.to_datetime(),
-                                   self.stn.to_dict(),
-                                   self.dispatchable_graph.to_dict())
+    def store(self):
+        timetable = self.to_model()
         timetable.save()
 
     def fetch(self):
