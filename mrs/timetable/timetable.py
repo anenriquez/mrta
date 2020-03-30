@@ -2,7 +2,7 @@ import copy
 import logging
 from datetime import timedelta
 
-from fmlib.models.tasks import TransportationTask as Task
+from fmlib.models.tasks import TransportationTask as Task, TimepointConstraint
 from mrs.db.models.timetable import Timetable as TimetableMongo
 from mrs.exceptions.allocation import InvalidAllocation
 from mrs.exceptions.allocation import TaskNotFound
@@ -15,6 +15,8 @@ from ropod.structs.status import ActionStatus
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
+
+from mrs.utils.time import to_timestamp
 
 
 class Timetable(STNInterface):
@@ -245,6 +247,14 @@ class Timetable(STNInterface):
         self.stn.remove_node_ids(task_node_ids)
         self.dispatchable_graph.remove_node_ids(task_node_ids)
         self.store()
+
+    def get_timepoint_constraint(self, task_id, constraint_name):
+        earliest_time = to_timestamp(self.ztp,
+                                     self.get_r_time(task_id, constraint_name, lower_bound=True)).to_datetime()
+        latest_time = to_timestamp(self.ztp,
+                                   self.get_r_time(task_id, constraint_name, lower_bound=False)).to_datetime()
+        constraint = TimepointConstraint(earliest_time, latest_time)
+        return constraint
 
     def get_d_graph_update(self, n_tasks):
         sub_stn = self.stn.get_subgraph(n_tasks)
