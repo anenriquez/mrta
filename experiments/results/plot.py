@@ -139,7 +139,8 @@ def get_images(dir):
         if os.path.isfile(os.path.join(dir, item)) and item.endswith('.png'):
             file_names.append(dir + os.path.join(item))
 
-    file_names.sort()
+    file_names.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+
     images = [imageio.imread(file_name) for file_name in file_names]
     return images
 
@@ -160,7 +161,7 @@ if __name__ == '__main__':
 
     for robot_performance in robots_performance:
         if robot_performance.allocated_tasks:
-            get_gantt_robots_d_graphs('d_graph', robot_performance,
+            get_gantt_robots_d_graphs('dgraph', robot_performance,
                                       dir='./robot_d_graphs/%s' % robot_performance.robot_id)
 
             get_gif('./robot_d_graphs/%s/' % robot_performance.robot_id)
