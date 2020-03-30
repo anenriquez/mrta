@@ -1,4 +1,4 @@
-from fmlib.models.tasks import TaskManager as TaskPerformanceManager
+from fmlib.models.tasks import TaskManager as TaskPerformanceManager, TimepointConstraint
 from fmlib.utils.messages import Document
 from pymodm import fields, EmbeddedMongoModel, MongoModel
 
@@ -10,20 +10,20 @@ class TaskAllocationPerformance(EmbeddedMongoModel):
 
     n_previously_allocated_tasks (int): Number of task in the robot's STN before allocating this task
 
-    travel_time_boundaries ([float, float]): [min, max]
-                                           Travel time constraint boundaries in the d-graph, i.e.,
-                                           minimum and maximum time to start and complete the
-                                           ROBOT-TO-PICKUP action
+    timepoint constraints of d-graph after allocation:
+        start_time (TimepointConstraint): earliest and latest time for the timepoint 'start'
+        pickup_time (TimepointConstraint): earliest and latest time for the timepoint 'pickup'
+        delivery_time (TimepointConstraint): earliest and latest time for the timepoint 'delivery'
 
-    work_time_boundaries ([float, float]): [min, max]
-                                       Work time constraint boundaries in the d-graph, i.e.,
-                                       minimum and maximum time to start and complete the
-                                       PICKUP-TO-DELIVERY action
+    n_re_allocation_attempts (int): Number of times the system tried to re-allocate the task
+    allocated(boolean): Indicates whether the task was allocated or not
+
     """
     time_to_allocate = fields.ListField()
     n_previously_allocated_tasks = fields.ListField()
-    travel_time_boundaries = fields.ListField()
-    work_time_boundaries = fields.ListField()
+    start_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    pickup_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    delivery_time = fields.EmbeddedDocumentField(TimepointConstraint)
     n_re_allocation_attempts = fields.IntegerField(default=0)
     allocated = fields.BooleanField(default=False)
 
@@ -36,28 +36,62 @@ class TaskAllocationPerformance(EmbeddedMongoModel):
             self.time_to_allocate.append(kwargs['time_to_allocate'])
         if 'n_previously_allocated_tasks' in kwargs:
             self.n_previously_allocated_tasks.append(kwargs['n_previously_allocated_tasks'])
-        if 'travel_time_boundaries' in kwargs:
-            self.travel_time_boundaries = kwargs['travel_time_boundaries']
-        if 'work_time_boundaries' in kwargs:
-            self.work_time_boundaries = kwargs['work_time_boundaries']
+        if 'start_time' in kwargs:
+            self.start_time = kwargs['start_time']
+        if 'pickup_time' in kwargs:
+            self.pickup_time = kwargs['pickup_time']
+        if 'delivery_time' in kwargs:
+            self.delivery_time = kwargs['delivery_time']
+
+
+class TaskSchedulingPerformance(EmbeddedMongoModel):
+    """ Task performance metrics related to scheduling
+    timepoint constraints of d-graph used for scheduling:
+        start_time (TimepointConstraint): earliest and latest time for the timepoint 'start'
+        pickup_time (TimepointConstraint): earliest and latest time for the timepoint 'pickup'
+        delivery_time (TimepointConstraint): earliest and latest time for the timepoint 'delivery'
+    """
+    start_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    pickup_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    delivery_time = fields.EmbeddedDocumentField(TimepointConstraint)
+
+    def update(self, **kwargs):
+        if 'start_time' in kwargs:
+            self.start_time = kwargs['start_time']
+        if 'pickup_time' in kwargs:
+            self.pickup_time = kwargs['pickup_time']
+        if 'delivery_time' in kwargs:
+            self.delivery_time = kwargs['delivery_time']
 
 
 class TaskExecutionPerformance(EmbeddedMongoModel):
     """ Task performance metrics related to execution
 
-    travel_time (float): Time taken to reach the task location, i.e,
-                        Time to go from current position to pickup location
+    Assignments to timepoints:
+        start_time (datetime): time assigned the timepoint 'start'
+        pickup_time (datetime): time assigned to the timepoint 'pickup'
+        delivery_time (datetime): time assigned to the timepoint 'delivery'
 
-    work_time (float):  Time taken to perform the task. i.e,
-                        Time to transport an object from the pickup to the delivery location
+    delay (float): Time (in seconds) between latest admissible time and execution time
+                  (if the execution time is later than the latest admissible time)
+                   for all timepoints in the dispatchable graph
 
+
+    earliness (float): Time (in seconds) between the execution time and earliest admissible
+                       (if the execution time is earlier than the earliest admissible time)
+                       for all timepoints in the dispatchable graph
     """
-    travel_time = fields.FloatField()
-    work_time = fields.FloatField()
 
-    def update(self, travel_time, work_time):
-        self.travel_time = travel_time
-        self.work_time = work_time
+    start_time = fields.DateTimeField()
+    pickup_time = fields.DateTimeField()
+    delivery_time = fields.DateTimeField()
+    delay = fields.FloatField(default=0.0)
+    earliness = fields.FloatField(default=0.0)
+
+    def update(self, start_time, pickup_time, delivery_time):
+        self.start_time = start_time
+        self.pickup_time = pickup_time
+        self.delivery_time = delivery_time
 
 
 class TaskPerformance(MongoModel):
@@ -65,11 +99,13 @@ class TaskPerformance(MongoModel):
 
     task (Task): Reference to Task object
     allocation (TaskAllocationPerformance):  Task performance metrics related to allocation
+    scheduling (TaskSchedulingPerformance):  Task performance metrics related to scheduling
     execution (TaskExecutionPerformance):  Task performance metrics related to execution
 
     """
     task_id = fields.UUIDField(primary_key=True, required=True)
     allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
+    scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance)
     execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
 
     objects = TaskPerformanceManager()
@@ -91,10 +127,28 @@ class TaskPerformance(MongoModel):
         self.allocation.update(**kwargs)
         self.save(cascade=True)
 
-    def update_execution(self, travel_time, work_time):
+    def update_scheduling(self, **kwargs):
+        if not self.scheduling:
+            self.scheduling = TaskSchedulingPerformance()
+        self.scheduling.update(**kwargs)
+        self.save(cascade=True)
+
+    def update_execution(self, start_time, pickup_time, delivery_time):
         if not self.execution:
             self.execution = TaskExecutionPerformance()
-        self.execution.update(travel_time, work_time)
+        self.execution.update(start_time, pickup_time, delivery_time)
+        self.save(cascade=True)
+
+    def update_delay(self, delay):
+        if not self.execution:
+            self.execution = TaskExecutionPerformance()
+        self.execution.delay += delay
+        self.save(cascade=True)
+
+    def update_earliness(self, earliness):
+        if not self.execution:
+            self.execution = TaskExecutionPerformance()
+        self.execution.earliness += earliness
         self.save(cascade=True)
 
     def increase_n_re_allocation_attempts(self):

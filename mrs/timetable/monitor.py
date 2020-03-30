@@ -31,6 +31,11 @@ class TimetableMonitor(SimulatorInterface):
         self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
 
+    def configure(self, **kwargs):
+        for key, value in kwargs.items():
+            self.logger.debug("Adding %s", key)
+            self.__dict__[key] = value
+
     def task_status_cb(self, msg):
         while self.deleting_task:
             time.sleep(0.1)
@@ -42,17 +47,16 @@ class TimetableMonitor(SimulatorInterface):
         task_status = TaskStatus.from_payload(payload)
         task = Task.get_task(task_status.task_id)
         self.logger.debug("Received task status message for task %s by %s", task_status.task_id, task_status.robot_id)
+        self.logger.debug("Task progress: %s", task_status.task_progress)
 
         if not task.status.progress:
             task.update_progress(task_status.task_progress.action_id, task_status.task_progress.action_status.status)
         action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
 
-        if task_status.delayed:
-            task.delayed = True
-
         if task_status.task_status == TaskStatusConst.ONGOING:
-            self._update_timetable(task, task_status, action_progress, timestamp)
-            self._update_task_schedule(task, task_status.task_progress, action_progress, timestamp)
+            timetable = self.timetable_manager.get_timetable(task_status.robot_id)
+            self._update_timetable(task, timetable, task_status, action_progress, timestamp)
+            self._update_task_schedule(task, timetable, task_status.task_progress, action_progress, timestamp)
             self._update_task_progress(task, task_status.task_progress, action_progress, timestamp)
             task.update_status(task_status.task_status)
 
@@ -76,9 +80,8 @@ class TimetableMonitor(SimulatorInterface):
         elif recover.method == "re-schedule":
             self._re_schedule(task)
 
-    def _update_timetable(self, task, task_status, action_progress, timestamp):
+    def _update_timetable(self, task, timetable, task_status, action_progress, timestamp):
         self.logger.debug("Updating timetable of robot %s", task_status.robot_id)
-        timetable = self.timetable_manager.get_timetable(task_status.robot_id)
 
         # Get relative time (referenced to the ztp)
         assigned_time = timestamp.get_difference(timetable.ztp).total_seconds()
@@ -88,19 +91,27 @@ class TimetableMonitor(SimulatorInterface):
 
         if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
                 action_progress.start_time is None:
+            timetable.check_is_task_delayed(task, assigned_time, start_node)
+            self.performance_tracker.update_delay(task.task_id, assigned_time, start_node, timetable)
+            self.performance_tracker.update_earliness(task.task_id, assigned_time, start_node, timetable)
             timetable.update_timetable(assigned_time, task.task_id, start_node)
+            self.performance_tracker.update_timetables(timetable)
 
         elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
                 action_progress.finish_time is None:
+            timetable.check_is_task_delayed(task, assigned_time, finish_node)
+            self.performance_tracker.update_delay(task.task_id, assigned_time, finish_node, timetable)
+            self.performance_tracker.update_earliness(task.task_id, assigned_time, finish_node, timetable)
             timetable.update_timetable(assigned_time, task.task_id, finish_node)
             timetable.execute_edge(task.task_id, start_node, finish_node)
+            self.performance_tracker.update_timetables(timetable)
 
         self.auctioneer.changed_timetable.append(task_status.robot_id)
 
         self.logger.debug("Updated stn: \n %s ", timetable.stn)
         self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
 
-    def _update_task_schedule(self, task, task_progress, action_progress, timestamp):
+    def _update_task_schedule(self, task, timetable, task_progress, action_progress, timestamp):
         first_action = task.plan[0].actions[0]
         last_action = task.plan[0].actions[-1]
 
@@ -109,6 +120,7 @@ class TimetableMonitor(SimulatorInterface):
             task_schedule = {"start_time": timestamp.to_datetime(),
                              "finish_time": task.finish_time}
             task.update_schedule(task_schedule)
+            self.performance_tracker.update_scheduling_metrics(task.task_id, timetable)
 
         elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
             self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
@@ -156,6 +168,7 @@ class TimetableMonitor(SimulatorInterface):
             timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
             self.auctioneer.changed_timetable.append(timetable.robot_id)
+            self.performance_tracker.update_timetables(timetable)
             self.dispatcher.send_d_graph_update(timetable.robot_id)
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")

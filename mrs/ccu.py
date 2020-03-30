@@ -147,9 +147,12 @@ if __name__ == '__main__':
     config = Configurator(config_params, component_modules=_component_modules)
     components_ = config.config_ccu()
 
+    kwargs = {"planner": Planner(**config_params.get("planner")),
+              "performance_tracker": components_.get("performance_tracker")}
+
     for name, c in components_.items():
         if hasattr(c, 'configure'):
-            c.configure(planner=Planner(**config_params.get("planner")))
+            c.configure(**kwargs)
 
     ccu = CCU(components_)
 

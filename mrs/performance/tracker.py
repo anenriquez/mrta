@@ -25,6 +25,19 @@ class PerformanceTracker:
             timetable = self.timetable_manager.get_timetable(robot_id)
             self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, only_constraints)
             self.robot_performance_tracker.update_allocated_tasks(robot_id, task.task_id)
+            self.update_timetables(timetable)
+
+    def update_timetables(self, timetable):
+        self.robot_performance_tracker.update_timetables(timetable)
+
+    def update_scheduling_metrics(self, task_id, timetable):
+        self.task_performance_tracker.update_scheduling_metrics(task_id, timetable)
+
+    def update_delay(self, task_id, assigned_time, node_type, timetable):
+        self.task_performance_tracker.update_delay(task_id, assigned_time, node_type, timetable)
+
+    def update_earliness(self, task_id, assigned_time, node_type, timetable):
+        self.task_performance_tracker.update_earliness(task_id, assigned_time, node_type, timetable)
 
     @staticmethod
     def get_tasks_status(robot_id):

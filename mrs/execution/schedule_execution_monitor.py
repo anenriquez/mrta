@@ -55,17 +55,7 @@ class ScheduleExecutionMonitor:
             self.timetable.stn.assign_timepoint(e.assigned_time, e.task_id, e.node_type, force=True)
             is_consistent = False
 
-        if self.task_is_delayed(task, assigned_time, node_type):
-            self.logger.warning("Task %s is delayed", task.task_id)
-            task.delayed = True
-
         return is_consistent
-
-    def task_is_delayed(self, task, assigned_time, node_type):
-        latest_time = self.timetable.dispatchable_graph.get_time(task.task_id, node_type, False)
-        if assigned_time > latest_time:
-            return True
-        return False
 
     def update_current_task(self, task):
         self.current_task = task
@@ -102,7 +92,7 @@ class ScheduleExecutionMonitor:
         # Get first action
         action = self.current_task.plan[0].actions[0]
         self.task_progress = TaskProgress(action.action_id, action.type)
-
+        self.logger.debug("Starting execution of task %s", self.current_task.task_id)
         self.current_task.update_status(TaskStatusConst.ONGOING)
         self.current_task.update_progress(self.task_progress.action_id, self.task_progress.action_status.status)
 

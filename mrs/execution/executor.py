@@ -35,7 +35,7 @@ class Executor:
             with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
                 task_status = TaskStatus.objects.get({"_id": task.task_id})
 
-        task_status = TaskStatusMsg(task.task_id, self.robot_id, task_status.status, task_progress, task_status.delayed)
+        task_status = TaskStatusMsg(task.task_id, self.robot_id, task_status.status, task_progress)
 
         self.logger.debug("Sending task status for task %s", task.task_id)
         msg = self.api.create_message(task_status)

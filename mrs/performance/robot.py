@@ -47,6 +47,11 @@ class RobotPerformanceTracker:
         robot_performance.update_allocated_tasks(task_id)
         self.logger.debug("Robot %s allocated tasks: %s", robot_id, [task_id for task_id in robot_performance.allocated_tasks])
 
+    def update_timetables(self, timetable):
+        self.logger.debug("Updating timetable of robot %s", timetable.robot_id)
+        robot_performance = RobotPerformance.get_robot_performance(timetable.robot_id)
+        robot_performance.update_timetables(timetable)
+
     @staticmethod
     def update_re_allocations(task):
         for robot_id in task.assigned_robots:

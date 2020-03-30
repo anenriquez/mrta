@@ -22,6 +22,9 @@ class TaskProgress(AsDictMixin):
         # In simulation, we set the timestamp
         self._timestamp = None
 
+    def __str__(self):
+        return "{}:{}".format(self.action_type, self.action_status.status)
+
     @property
     def timestamp(self):
         return self._timestamp
@@ -41,12 +44,11 @@ class TaskProgress(AsDictMixin):
 
 
 class TaskStatus(AsDictMixin):
-    def __init__(self, task_id, robot_id, task_status, task_progress, delayed=False):
+    def __init__(self, task_id, robot_id, task_status, task_progress):
         self.task_id = task_id
         self.robot_id = robot_id
         self.task_status = task_status
         self.task_progress = task_progress
-        self.delayed = delayed
 
     @property
     def meta_model(self):
