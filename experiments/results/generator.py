@@ -9,6 +9,7 @@ from fmlib.db.mongo import MongoStore
 from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from experiments.db.models.experiment import Experiment as ExperimentModel
+from experiments.results.plot import get_gantt_tasks_schedule, get_gantt_robots_d_graphs, get_gif
 from mrs.config.params import get_config_params
 from mrs.utils.as_dict import AsDictMixin
 from mrs.utils.utils import load_yaml_file_from_module
@@ -346,6 +347,27 @@ def get_experiment(name, approach, bidding_rule, robot_ids, dataset_module, data
     return experiment
 
 
+def plot_task_schedules(experiment, file_path):
+    runs_info = experiment.get_runs_info_from_db()
+    for run_info in runs_info:
+        get_gantt_tasks_schedule('task_schedules', run_info.tasks,
+                                 run_info.tasks_performance,
+                                 dir=file_path + '/run_ ' + str(run_info.run_id))
+
+
+def plot_robots_d_graphs(experiment, file_path):
+    runs_info = experiment.get_runs_info_from_db()
+    for run_info in runs_info:
+        for robot_performance in run_info.robots_performance:
+            if robot_performance.allocated_tasks:
+                get_gantt_robots_d_graphs('dgraph',
+                                          robot_performance,
+                                          dir=file_path + '/run_ ' + str(run_info.run_id) +
+                                          '/robot_d_graphs/%s' % robot_performance.robot_id)
+
+                get_gif(file_path + '/run_ ' + str(run_info.run_id) + '/robot_d_graphs/%s/' % robot_performance.robot_id)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('experiment_name', type=str, action='store', help='Experiment_name')
@@ -381,3 +403,5 @@ if __name__ == '__main__':
     for experiment in experiments:
         file_path = experiment.name + "/" + experiment.approach + "/" + experiment.bidding_rule + "/"
         experiment.to_file(file_path)
+        plot_task_schedules(experiment, file_path)
+        plot_robots_d_graphs(experiment, file_path)
