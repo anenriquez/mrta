@@ -36,6 +36,15 @@ class TaskPerformanceTracker:
                 'pickup_time': pickup_time,
                 'delivery_time': delivery_time}
 
+    def update_scheduling_metrics(self, task_id, timetable):
+        self.logger.debug("Updating scheduling metrics of task %s ", task_id)
+        task_performance = TaskPerformance.get_task_performance(task_id)
+        nodes = timetable.dispatchable_graph.get_task_nodes(task_id)
+        for node in nodes:
+            constraint = timetable.get_timepoint_constraint(task_id, node.node_type)
+            kwargs = {node.node_type + '_time': constraint}
+            task_performance.update_scheduling(**kwargs)
+
     def update_delay(self, task_id, assigned_time, node_type, timetable):
         self.logger.debug("Updating delay of task %s ", task_id)
         task_performance = TaskPerformance.get_task_performance(task_id)

@@ -120,6 +120,7 @@ class TimetableMonitor(SimulatorInterface):
             task_schedule = {"start_time": timestamp.to_datetime(),
                              "finish_time": task.finish_time}
             task.update_schedule(task_schedule)
+            self.performance_tracker.update_scheduling_metrics(task.task_id, timetable)
 
         elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
             self.logger.debug("Task %s finish time %s", task.task_id, timestamp)

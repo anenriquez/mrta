@@ -44,6 +44,26 @@ class TaskAllocationPerformance(EmbeddedMongoModel):
             self.delivery_time = kwargs['delivery_time']
 
 
+class TaskSchedulingPerformance(EmbeddedMongoModel):
+    """ Task performance metrics related to scheduling
+    timepoint constraints of d-graph used for scheduling:
+        start_time (TimepointConstraint): earliest and latest time for the timepoint 'start'
+        pickup_time (TimepointConstraint): earliest and latest time for the timepoint 'pickup'
+        delivery_time (TimepointConstraint): earliest and latest time for the timepoint 'delivery'
+    """
+    start_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    pickup_time = fields.EmbeddedDocumentField(TimepointConstraint)
+    delivery_time = fields.EmbeddedDocumentField(TimepointConstraint)
+
+    def update(self, **kwargs):
+        if 'start_time' in kwargs:
+            self.start_time = kwargs['start_time']
+        if 'pickup_time' in kwargs:
+            self.pickup_time = kwargs['pickup_time']
+        if 'delivery_time' in kwargs:
+            self.delivery_time = kwargs['delivery_time']
+
+
 class TaskExecutionPerformance(EmbeddedMongoModel):
     """ Task performance metrics related to execution
 
@@ -79,11 +99,13 @@ class TaskPerformance(MongoModel):
 
     task (Task): Reference to Task object
     allocation (TaskAllocationPerformance):  Task performance metrics related to allocation
+    scheduling (TaskSchedulingPerformance):  Task performance metrics related to scheduling
     execution (TaskExecutionPerformance):  Task performance metrics related to execution
 
     """
     task_id = fields.UUIDField(primary_key=True, required=True)
     allocation = fields.EmbeddedDocumentField(TaskAllocationPerformance)
+    scheduling = fields.EmbeddedDocumentField(TaskSchedulingPerformance)
     execution = fields.EmbeddedDocumentField(TaskExecutionPerformance)
 
     objects = TaskPerformanceManager()
@@ -103,6 +125,12 @@ class TaskPerformance(MongoModel):
             self.allocation = TaskAllocationPerformance()
             self.allocation.initialize()
         self.allocation.update(**kwargs)
+        self.save(cascade=True)
+
+    def update_scheduling(self, **kwargs):
+        if not self.scheduling:
+            self.scheduling = TaskSchedulingPerformance()
+        self.scheduling.update(**kwargs)
         self.save(cascade=True)
 
     def update_execution(self, start_time, pickup_time, delivery_time):
