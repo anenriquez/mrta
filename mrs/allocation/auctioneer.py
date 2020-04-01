@@ -39,6 +39,7 @@ class Auctioneer(SimulatorInterface):
         self.tasks_to_allocate = dict()
         self.allocated_tasks = dict()
         self.allocations = list()
+        self.rounds = list()
         self.winning_bid = None
         self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
@@ -119,6 +120,8 @@ class Auctioneer(SimulatorInterface):
             task.update_status(TaskStatusConst.ALLOCATED)
 
             self.allocations.append(allocation)
+            self.rounds.append(self.round)
+            self.finish_round()
 
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."

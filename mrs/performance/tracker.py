@@ -15,15 +15,15 @@ class PerformanceTracker:
         self.timetable_manager = auctioneer.timetable_manager
         self.timetable_monitor = timetable_monitor
 
-        self.task_performance_tracker = TaskPerformanceTracker(auctioneer)
+        self.task_performance_tracker = TaskPerformanceTracker()
         self.robot_performance_tracker = RobotPerformanceTracker()
 
         self.logger = logging.getLogger("mrs.performance.tracker")
 
-    def update_allocation_metrics(self, task, only_constraints=False):
+    def update_allocation_metrics(self, task, allocation_round=None, only_constraints=False):
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, only_constraints)
+            self.task_performance_tracker.update_allocation_metrics(task.task_id, timetable, allocation_round, only_constraints)
             self.robot_performance_tracker.update_allocated_tasks(robot_id, task.task_id)
             self.update_timetables(timetable)
 
