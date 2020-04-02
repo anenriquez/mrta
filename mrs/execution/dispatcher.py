@@ -2,11 +2,10 @@ import copy
 import logging
 from datetime import timedelta
 
-from mrs.db.models.actions import GoTo
+from fmlib.models.actions import GoTo
 from mrs.simulation.simulator import SimulatorInterface
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
-from ropod.utils.uuid import generate_uuid
 
 
 class Dispatcher(SimulatorInterface):
@@ -84,15 +83,16 @@ class Dispatcher(SimulatorInterface):
             variance = 0.1
         return mean, variance
 
-    def add_pre_task_action(self, task, robot_id):
-        self.logger.debug("Adding pre_task_action to task %s", task.task_id)
+    def get_pre_task_action(self, task, robot_id):
         pose = self.fleet_monitor.get_robot_pose(robot_id)
         robot_location = self.get_robot_location(pose)
         path = self.get_path(robot_location, task.request.pickup_location)
-        pre_task_action = GoTo(action_id=generate_uuid(),
-                               type="ROBOT-TO-PICKUP",
-                               locations=path)
+        action = GoTo.create_new(type="ROBOT-TO-PICKUP", locations=path)
+        return action
 
+    def add_pre_task_action(self, task, robot_id):
+        self.logger.critical("Adding pre_task_action to plan for task %s", task.task_id)
+        pre_task_action = self.get_pre_task_action(task, robot_id)
         task.plan[0].actions.insert(0, pre_task_action)
         task.save()
 
@@ -101,10 +101,11 @@ class Dispatcher(SimulatorInterface):
             timetable = self.timetable_manager.get_timetable(robot_id)
             try:
                 task = timetable.get_earliest_task()
-                if task and task.status.status == TaskStatusConst.PLANNED:
+                if task and task.status.status == TaskStatusConst.ALLOCATED:
                     start_time = timetable.get_start_time(task.task_id)
                     if self.is_schedulable(start_time):
                         self.add_pre_task_action(task, robot_id)
+                        self.send_d_graph_update(robot_id)
                         self.dispatch_task(task, robot_id)
             except DoesNotExist:
                 pass
@@ -119,8 +120,7 @@ class Dispatcher(SimulatorInterface):
         """
         self.logger.debug("Dispatching task %s to robot %s", task.task_id, robot_id)
         task_msg = self.api.create_message(task)
-        task_msg["payload"].pop("constraints")
-        self.api.publish(task_msg)
+        self.api.publish(task_msg, groups=['TASK-ALLOCATION'])
         task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, robot_id):

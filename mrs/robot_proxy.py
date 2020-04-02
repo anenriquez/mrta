@@ -1,8 +1,8 @@
 import argparse
 import logging.config
 
-from fmlib.models.actions import Action
 from fmlib.models.robot import Robot as RobotModel
+from fmlib.models.tasks import TransportationTask as Task
 from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
@@ -10,12 +10,12 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.tasks import TransportationTask as Task
 from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
+from mrs.utils.time import relative_to_ztp
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -52,21 +52,14 @@ class RobotProxy:
 
     def task_status_cb(self, msg):
         payload = msg['payload']
-        timestamp = TimeStamp.from_str(msg["header"]["timestamp"])
+        timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
         task_status = TaskStatus.from_payload(payload)
 
         if self.robot_id == task_status.robot_id and task_status.task_status == TaskStatusConst.ONGOING:
             self.logger.debug("Received task status message for task %s", task_status.task_id)
-
+            task_progress = task_status.task_progress
             task = Task.get_task(task_status.task_id)
-            if not task.status.progress:
-                task.update_progress(task_status.task_progress.action_id,
-                                     task_status.task_progress.action_status.status)
-            action_progress = task.status.progress.get_action(task_status.task_progress.action_id)
-
-            self._update_timetable(task, task_status, action_progress, timestamp)
-            self._update_task_schedule(task, task_status.task_progress, action_progress, timestamp)
-            self._update_task_progress(task, task_status.task_progress, action_progress, timestamp)
+            self._update_timetable(task, task_progress, timestamp)
             task.update_status(task_status.task_status)
 
     def remove_task_cb(self, msg):
@@ -81,54 +74,47 @@ class RobotProxy:
         if recover.robot_id == self.robot_id and recover.method == "re-schedule":
             self._re_compute_dispatchable_graph()
 
-    def _update_timetable(self, task, task_status, action_progress, timestamp):
+    def _update_timetable(self, task, task_progress, timestamp):
         self.logger.debug("Updating timetable")
 
-        # Get relative time (referenced to the ztp)
-        assigned_time = timestamp.get_difference(self.timetable.ztp).total_seconds()
+        first_action_id = task.plan[0].actions[0].action_id
+        updated = False
 
-        action = Action.get_action(task_status.task_progress.action_id)
-        start_node, finish_node = action.get_node_names()
+        if task_progress.action_id == first_action_id and \
+                task_progress.action_status.status == ActionStatusConst.ONGOING:
+            node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
+            self._update_timepoint(timestamp, node_id)
+            updated = True
+        else:
+            # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
+            nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
 
-        if task_status.task_progress.action_status.status == ActionStatusConst.ONGOING and\
-                action_progress.start_time is None:
-            self.timetable.update_timetable(assigned_time, task.task_id, start_node)
+            for node_id, node in nodes:
+                if (node.node_type == 'pickup' and
+                    task_progress.action_status.status == ActionStatusConst.ONGOING) or \
+                        (node.node_type == 'delivery' and
+                         task_progress.action_status.status == ActionStatusConst.COMPLETED):
+                    self._update_timepoint(timestamp, node_id)
+                    updated = True
 
-        elif task_status.task_progress.action_status.status == ActionStatusConst.COMPLETED and\
-                action_progress.finish_time is None:
-            self.timetable.update_timetable(assigned_time, task.task_id, finish_node)
-            self.timetable.execute_edge(task.task_id, start_node, finish_node)
+        if updated:
+            nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+            self._update_edge('start', 'pickup', nodes)
+            self._update_edge('pickup', 'delivery', nodes)
+            self.bidder.changed_timetable = True
 
-        self.bidder.changed_timetable = True
-        self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
-        self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+            self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
+            self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
 
-    def _update_task_schedule(self, task, task_progress, action_progress, timestamp):
-        first_action = task.plan[0].actions[0]
-        last_action = task.plan[0].actions[-1]
+    def _update_timepoint(self, assigned_time, node_id):
+        r_assigned_time = relative_to_ztp(self.timetable.ztp, assigned_time)
+        self.timetable.update_timepoint(r_assigned_time, node_id)
 
-        if task_progress.action_id == first_action.action_id and action_progress.start_time is None:
-            self.logger.debug("Task %s start time %s", task.task_id, timestamp)
-            task_schedule = {"start_time": timestamp.to_datetime(),
-                             "finish_time": task.finish_time}
-            task.update_schedule(task_schedule)
-
-        elif task_progress.action_id == last_action.action_id and action_progress.finish_time is None:
-            self.logger.debug("Task %s finish time %s", task.task_id, timestamp)
-            task_schedule = {"start_time": task.start_time,
-                             "finish_time": timestamp.to_datetime()}
-            task.update_schedule(task_schedule)
-
-    def _update_task_progress(self, task, task_progress, action_progress, timestamp):
-        self.logger.debug("Updating task progress of task %s", task.task_id)
-
-        kwargs = {}
-        if task_progress.action_status.status == ActionStatusConst.ONGOING and action_progress.start_time is None:
-            kwargs.update(start_time=timestamp.to_datetime())
-        elif task_progress.action_status.status == ActionStatusConst.COMPLETED and action_progress.finish_time is None:
-            kwargs.update(start_time=action_progress.start_time, finish_time=timestamp.to_datetime())
-
-        task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
+    def _update_edge(self, start_node, finish_node, nodes):
+        node_ids = [node_id for node_id, node in nodes if (node.node_type == start_node and node.is_executed) or
+                    (node.node_type == finish_node and node.is_executed)]
+        if len(node_ids) == 2:
+            self.timetable.execute_edge(node_ids[0], node_ids[1])
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
@@ -171,7 +157,7 @@ class RobotProxy:
         travel_duration = self.bidder.get_travel_duration(next_task, prev_location)
 
         stn_task = self.timetable.get_stn_task(next_task.task_id)
-        stn_task.update_inter_timepoint_constraint("travel_time", travel_duration.mean, travel_duration.variance)
+        stn_task.update_edge("travel_time", travel_duration.mean, travel_duration.variance)
         self.timetable.add_stn_task(stn_task)
         self.timetable.update_task(stn_task)
 
