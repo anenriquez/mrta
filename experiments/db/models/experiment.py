@@ -1,7 +1,7 @@
 from fmlib.db.mongo import MongoStore
 from fmlib.models.requests import TransportationRequest
 from fmlib.models.tasks import TaskStatus
-from mrs.db.models.actions import GoTo as Action
+from fmlib.models.actions import GoTo as Action
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
 from fmlib.models.tasks import TransportationTask as Task

@@ -25,14 +25,14 @@ class Scheduler(object):
         return start_times
 
     def schedule(self, task):
-        earliest_start_time = self.timetable.dispatchable_graph.get_time(task.task_id, lower_bound=True)
-        latest_start_time = self.timetable.dispatchable_graph.get_time(task.task_id, lower_bound=False)
+        node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
+        earliest_start_time = self.timetable.dispatchable_graph.get_node_earliest_time(node_id)
+        latest_start_time = self.timetable.dispatchable_graph.get_node_latest_time(node_id)
         start_times = self.get_times(earliest_start_time, latest_start_time)
 
         for start_time in start_times:
-            self.logger.debug("Scheduling task %s to start at %s", task.task_id, start_time)
             try:
-                self.timetable.assign_timepoint(start_time, task.task_id, "start")
+                self.timetable.assign_timepoint(start_time, node_id)
                 start_time = (self.timetable.ztp + timedelta(seconds=start_time)).to_datetime()
 
                 task_schedule = {"start_time": start_time,
@@ -40,6 +40,7 @@ class Scheduler(object):
 
                 task.update_schedule(task_schedule)
                 task.update_status(TaskStatusConst.SCHEDULED)
+                self.logger.debug("Task %s scheduled to start at %s", task.task_id, task.start_time)
                 return
 
             except InconsistentAssignment as e:
