@@ -117,7 +117,6 @@ class Auctioneer(SimulatorInterface):
             self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
 
             self.logger.debug("Updating task status to ALLOCATED")
-            task.update_status(TaskStatusConst.ALLOCATED)
 
             self.allocations.append(allocation)
             self.rounds.append(self.round)

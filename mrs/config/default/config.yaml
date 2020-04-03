@@ -62,6 +62,7 @@ ccu_api:
       interface: null
       groups:
         - TASK-ALLOCATION
+        - ROPOD
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - START-TEST
         - ROBOT-POSE
@@ -124,6 +125,7 @@ robot_proxy_api:
       interface: null
       groups:
         - TASK-ALLOCATION
+        - ROPOD
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK
         - TASK-ANNOUNCEMENT
@@ -181,16 +183,17 @@ robot_api:
       interface: null
       groups:
         - TASK-ALLOCATION
+        - ROPOD
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - D-GRAPH-UPDATE
         - TASK
+        - TASK-STATUS
       debug_msgs: false
     acknowledge: false
     publish:
-      task-status:
-        groups: ['TASK-ALLOCATION']
-        msg_type: 'TASK-STATUS'
-        method: shout
+      task:
+        msg_type: 'TASK'
+        method: whisper
       recover-task:
         groups: ['TASK-ALLOCATION']
         msg_type: 'RECOVER-TASK'
@@ -200,6 +203,8 @@ robot_api:
         component: 'schedule_execution_monitor.d_graph_update_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
+      - msg_type: 'TASK-STATUS'
+        component: 'schedule_execution_monitor.task_status_cb'
 
 logger:
   version: 1

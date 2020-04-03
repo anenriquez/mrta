@@ -69,7 +69,10 @@ class Robot:
 
             # For real-time execution add is_executable condition
             if task_status.status == TaskStatusConst.SCHEDULED:
-                self.schedule_execution_monitor.update_current_task(task)
+                self.logger.debug("Sending task %s to executor", task.task_id)
+                task_msg = self.api.create_message(task)
+                self.api.publish(task_msg, peer='executor')
+                self.schedule_execution_monitor.task = task
 
     def run(self):
         try:
@@ -77,16 +80,16 @@ class Robot:
             while True:
                 try:
                     tasks = Task.get_tasks_by_robot(self.robot_id)
-                    if self.schedule_execution_monitor.current_task is None:
+                    if self.schedule_execution_monitor.task is None:
                         self.process_tasks(tasks)
-                    else:
-                        self.schedule_execution_monitor.run()
+                    self.executor.run()
                 except DoesNotExist:
                     pass
                 self.api.run()
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
             self.api.shutdown()
+            self.executor.shutdown()
             self.logger.info("Exiting...")
 
 

@@ -60,15 +60,16 @@ class Timetable(STNInterface):
         except NoSTPSolution:
             raise NoSTPSolution()
 
-    def assign_timepoint(self, assigned_time, task_id, node_type):
+    def assign_timepoint(self, assigned_time, node_id):
         stn = copy.deepcopy(self.stn)
         minimal_network = get_minimal_network(stn)
         if minimal_network:
-            minimal_network.assign_timepoint(assigned_time, task_id, node_type, force=True)
+            minimal_network.assign_timepoint(assigned_time, node_id, force=True)
             if self.stp_solver.is_consistent(minimal_network):
-                self.stn.assign_timepoint(assigned_time, task_id, node_type, force=True)
+                self.stn.assign_timepoint(assigned_time, node_id, force=True)
                 return
-        raise InconsistentAssignment(assigned_time, task_id, node_type)
+        node = self.stn.get_node(node_id)
+        raise InconsistentAssignment(assigned_time, node.task_id, node.node_type)
 
     def is_next_task_late(self, task, next_task):
         last_completed_action = None
@@ -117,23 +118,16 @@ class Timetable(STNInterface):
             self.dispatchable_graph.assign_earliest_time(finish_current_task, next_task.task_id, "start", force=True)
         return False
 
-    def update_timetable(self, assigned_time, task_id, node_type):
-        self.update_stn(assigned_time, task_id, node_type)
-        self.update_dispatchable_graph(assigned_time, task_id, node_type)
+    def update_timepoint(self, assigned_time, node_id):
+        self.stn.assign_timepoint(assigned_time, node_id, force=True)
+        self.stn.execute_timepoint(node_id)
+        self.dispatchable_graph.assign_timepoint(assigned_time, node_id, force=True)
+        self.dispatchable_graph.execute_timepoint(node_id)
 
-    def update_stn(self, assigned_time, task_id, node_type):
-        self.stn.assign_timepoint(assigned_time, task_id, node_type, force=True)
-        self.stn.execute_timepoint(task_id, node_type)
-
-    def update_dispatchable_graph(self, assigned_time, task_id, node_type):
-        self.dispatchable_graph.assign_timepoint(assigned_time, task_id, node_type, force=True)
-        self.dispatchable_graph.execute_timepoint(task_id, node_type)
-
-    def execute_edge(self, task_id, start_node, finish_node):
-        start_node_idx, finish_node_idx = self.stn.get_edge_nodes_idx(task_id, start_node, finish_node)
-        self.stn.execute_edge(start_node_idx, finish_node_idx)
+    def execute_edge(self, start_node_id, finish_node_id):
+        self.stn.execute_edge(start_node_id, finish_node_id)
         self.stn.remove_old_timepoints()
-        self.dispatchable_graph.execute_edge(start_node_idx, finish_node_idx)
+        self.dispatchable_graph.execute_edge(start_node_id, finish_node_id)
         self.dispatchable_graph.remove_old_timepoints()
 
     def get_tasks(self):
@@ -213,8 +207,8 @@ class Timetable(STNInterface):
         delivery_time = self.ztp + timedelta(seconds=r_delivery_time)
         return delivery_time
 
-    def check_is_task_delayed(self, task, assigned_time, node_type):
-        latest_time = self.dispatchable_graph.get_time(task.task_id, node_type, False)
+    def check_is_task_delayed(self, task, assigned_time, node_id):
+        latest_time = self.dispatchable_graph.get_node_latest_time(node_id)
         if assigned_time > latest_time:
             self.logger.warning("Task %s is delayed", task.task_id)
             task.delayed = True

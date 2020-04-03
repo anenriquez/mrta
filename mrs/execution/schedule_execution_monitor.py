@@ -1,30 +1,28 @@
 import logging
-from datetime import timedelta
 
-from fmlib.models.actions import Action
-from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
-
+from fmlib.models.tasks import TransportationTask as Task
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.messages.recover_task import RecoverTask
-from mrs.messages.task_status import TaskProgress
+from mrs.messages.task_status import TaskStatus
+from mrs.utils.time import relative_to_ztp
+from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
 
 
 class ScheduleExecutionMonitor:
 
-    def __init__(self, robot_id, timetable, delay_recovery, executor, **kwargs):
+    def __init__(self, robot_id, timetable, delay_recovery, **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
         """
         self.robot_id = robot_id
         self.timetable = timetable
         self.timetable.fetch()
         self.recovery_method = delay_recovery.method
-        self.executor = executor
         self.api = kwargs.get("api")
 
         self.d_graph_update_received = False
-        self.current_task = None
-        self.task_progress = None
+        self.task = None
 
         self.logger = logging.getLogger('mrs.schedule.monitor.%s' % self.robot_id)
         self.logger.debug("ScheduleMonitor initialized %s", self.robot_id)
@@ -36,104 +34,70 @@ class ScheduleExecutionMonitor:
 
     def d_graph_update_cb(self, msg):
         payload = msg['payload']
-        self.logger.critical("Received DGraph update")
+        self.logger.debug("Received DGraph update")
         d_graph_update = DGraphUpdate.from_payload(payload)
         d_graph_update.update_timetable(self.timetable)
         self.logger.debug("STN update %s", self.timetable.stn)
         self.logger.debug("Dispatchable graph update %s", self.timetable.dispatchable_graph)
         self.d_graph_update_received = True
 
-    def assign_timepoint(self, assigned_time, task, node_type):
+    def task_status_cb(self, msg):
+        payload = msg['payload']
+        timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
+        task_status = TaskStatus.from_payload(payload)
+        task = Task.get_task(task_status.task_id)
+        self.logger.debug("Received task status message for task %s", task.task_id)
+
+        if task_status.task_status == TaskStatusConst.ONGOING:
+            is_consistent = self.update_timetable(task, task_status.task_progress, timestamp)
+            self.recover(task, is_consistent)
+
+        elif task_status.task_status == TaskStatusConst.COMPLETED:
+            self.logger.debug("Completing execution of task %s", task.task_id)
+            self.task = None
+
+        task.update_status(task_status.task_status)
+
+    def update_timetable(self, task, task_progress, timestamp):
         is_consistent = True
-        self.logger.debug("Assigning time %s to task %s timepoint %s", assigned_time, task.task_id, node_type)
+        first_action_id = task.plan[0].actions[0].action_id
+
+        if task_progress.action_id == first_action_id and \
+                task_progress.action_status.status == ActionStatusConst.ONGOING:
+            node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
+            is_consistent = self.update_timepoint(timestamp, node, node_id)
+        else:
+            # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
+            nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
+
+            for node_id, node in nodes:
+                if (node.node_type == 'pickup' and
+                    task_progress.action_status.status == ActionStatusConst.ONGOING) or\
+                        (node.node_type == 'delivery' and
+                         task_progress.action_status.status == ActionStatusConst.COMPLETED):
+
+                    is_consistent = self.update_timepoint(timestamp, node, node_id)
+
+        self.logger.debug("STN: \n %s",  self.timetable.stn)
+        return is_consistent
+
+    def update_timepoint(self, assigned_time, node, node_id):
+        r_assigned_time = relative_to_ztp(self.timetable.ztp, assigned_time)
+
+        is_consistent = True
+        self.logger.debug("Assigning time %s to task %s timepoint %s", r_assigned_time, node.task_id,
+                          node.node_type)
         try:
-            self.timetable.assign_timepoint(assigned_time, task.task_id, node_type)
+            self.timetable.assign_timepoint(r_assigned_time, node_id)
 
         except InconsistentAssignment as e:
             self.logger.warning("Assignment of time %s to task %s node_type %s is inconsistent "
                                 "Assigning anyway.. ", e.assigned_time, e.task_id, e.node_type)
-            self.timetable.stn.assign_timepoint(e.assigned_time, e.task_id, e.node_type, force=True)
+            self.timetable.stn.assign_timepoint(e.assigned_time, node_id, force=True)
             is_consistent = False
 
+        self.timetable.stn.execute_timepoint(node_id)
         return is_consistent
-
-    def update_current_task(self, task):
-        self.current_task = task
-
-    def run(self):
-        if self.current_task and self.task_progress is None:
-            self.initialize_task_progress()
-
-        elif self.task_progress.action_status.status == ActionStatusConst.COMPLETED:
-            self.complete_execution()
-
-        elif not self.recovery_method.name.startswith("re-schedule") or \
-                self.recovery_method.name.startswith("re-schedule") and self.d_graph_update_received:
-
-            self.d_graph_update_received = False
-
-            action = Action.get_action(self.task_progress.action_id)
-            start_node, finish_node = action.get_node_names()
-            r_start_time = self.timetable.stn.get_time(self.current_task.task_id, start_node)
-            start_time = self.timetable.ztp + timedelta(seconds=r_start_time)
-            self.update_task_progress(ActionStatusConst.ONGOING, start_time, start=True)
-            self.executor.send_task_status(self.current_task, self.task_progress)
-
-            finish_time = self.executor.execute(action, start_time)
-            self.update_task_progress(ActionStatusConst.COMPLETED, finish_time, start=False)
-            is_consistent = self.update_stn(self.current_task, action, self.task_progress.timestamp)
-            self.executor.send_task_status(self.current_task, self.task_progress)
-
-            self.recover(self.current_task, is_consistent)
-
-            self.update_action_progress()
-
-    def initialize_task_progress(self):
-        # Get first action
-        action = self.current_task.plan[0].actions[0]
-        self.task_progress = TaskProgress(action.action_id, action.type)
-        self.logger.debug("Starting execution of task %s", self.current_task.task_id)
-        self.current_task.update_status(TaskStatusConst.ONGOING)
-        self.current_task.update_progress(self.task_progress.action_id, self.task_progress.action_status.status)
-
-    def update_task_progress(self, action_status, time_, start=True):
-        kwargs = {}
-
-        if start:
-            kwargs.update(start_time=time_.to_datetime())
-        else:
-            kwargs.update(start_time=self.task_progress.timestamp.to_datetime(), finish_time=time_.to_datetime())
-
-        self.task_progress.timestamp = time_
-        self.task_progress.update_action_status(action_status)
-        self.current_task.update_progress(self.task_progress.action_id, self.task_progress.action_status.status, **kwargs)
-
-    def update_stn(self, task, action, timestamp):
-        r_finish_time = timestamp.get_difference(self.timetable.ztp).total_seconds()
-        start_node, finish_node = action.get_node_names()
-        is_consistent = self.assign_timepoint(r_finish_time, task, finish_node)
-        self.timetable.stn.execute_timepoint(task.task_id, start_node)
-        self.timetable.stn.execute_timepoint(task.task_id, finish_node)
-        start_node_idx, finish_node_idx = self.timetable.stn.get_edge_nodes_idx(task.task_id, start_node, finish_node)
-        self.timetable.stn.execute_edge(start_node_idx, finish_node_idx)
-        self.logger.debug("STN: \n %s",  self.timetable.stn)
-        return is_consistent
-
-    def update_action_progress(self):
-        # Create task progress for new current action
-        current_action = self.current_task.status.progress.current_action
-        if current_action.action_id != self.task_progress.action_id:
-            self.task_progress = TaskProgress(current_action.action_id, current_action.type)
-
-    def complete_execution(self):
-        self.logger.debug("Task %s is completing execution", self.current_task.task_id)
-        task_schedule = {"start_time": self.current_task.start_time,
-                         "finish_time": self.task_progress.timestamp.to_datetime()}
-        self.current_task.update_schedule(task_schedule)
-        self.current_task.update_status(TaskStatusConst.COMPLETED)
-        self.executor.send_task_status(self.current_task, self.task_progress)
-        self.current_task = None
-        self.task_progress = None
 
     def recover(self, task, is_consistent):
         """ Applies a recovery method (preventive or corrective) if needed.
@@ -150,7 +114,7 @@ class ScheduleExecutionMonitor:
                 self.re_allocate(next_task)
 
             elif self.recovery_method.name.startswith("re-schedule"):
-                self.re_schedule(self.current_task)
+                self.re_schedule(self.task)
 
             elif self.recovery_method.name == "abort":
                 next_task = self.timetable.get_next_task(task)
