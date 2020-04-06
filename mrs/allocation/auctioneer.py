@@ -1,3 +1,4 @@
+import copy
 import logging
 from datetime import timedelta
 
@@ -39,7 +40,7 @@ class Auctioneer(SimulatorInterface):
         self.tasks_to_allocate = dict()
         self.allocated_tasks = dict()
         self.allocations = list()
-        self.rounds = list()
+        self.allocation_times = list()
         self.winning_bid = None
         self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
@@ -119,7 +120,7 @@ class Auctioneer(SimulatorInterface):
             self.logger.debug("Updating task status to ALLOCATED")
 
             self.allocations.append(allocation)
-            self.rounds.append(self.round)
+            self.allocation_times.append(self.round.time_to_allocate)
             self.finish_round()
 
         except InvalidAllocation as e:
