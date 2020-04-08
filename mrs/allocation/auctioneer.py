@@ -1,4 +1,3 @@
-import copy
 import logging
 from datetime import timedelta
 
@@ -105,28 +104,29 @@ class Auctioneer(SimulatorInterface):
         self.send_task_contract(bid.task_id, bid.robot_id)
 
     def process_allocation(self):
+        task = self.tasks_to_allocate.pop(self.winning_bid.task_id)
         try:
-            task = self.tasks_to_allocate.pop(self.winning_bid.task_id)
-            self.allocated_tasks[task.task_id] = task
-
             self.timetable_manager.update_timetable(self.winning_bid.robot_id,
                                                     self.winning_bid.get_allocation_info(),
                                                     task)
-
-            allocation = (self.winning_bid.task_id, [self.winning_bid.robot_id])
-            self.logger.debug("Allocation: %s", allocation)
-            self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
-
-            self.logger.debug("Updating task status to ALLOCATED")
-
-            self.allocations.append(allocation)
-            self.allocation_times.append(self.round.time_to_allocate)
-            self.finish_round()
-
         except InvalidAllocation as e:
             self.logger.warning("The allocation of task %s to robot %s is inconsistent. Aborting allocation."
                                 "Task %s will be included in next allocation round", e.task_id, e.robot_id, e.task_id)
             self.undo_allocation(self.winning_bid.get_allocation_info())
+            self.tasks_to_allocate[task.task_id] = task
+            return
+
+        self.allocated_tasks[task.task_id] = task
+
+        allocation = (self.winning_bid.task_id, [self.winning_bid.robot_id])
+        self.logger.debug("Allocation: %s", allocation)
+        self.logger.debug("Tasks to allocate %s", [task_id for task_id, task in self.tasks_to_allocate.items()])
+
+        self.logger.debug("Updating task status to ALLOCATED")
+
+        self.allocations.append(allocation)
+        self.allocation_times.append(self.round.time_to_allocate)
+        self.finish_round()
 
     def undo_allocation(self, allocation_info):
         self.logger.warning("Undoing allocation of round %s", self.round.id)

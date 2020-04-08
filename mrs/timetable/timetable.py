@@ -118,6 +118,7 @@ class Timetable(STNInterface):
             self.dispatchable_graph.assign_earliest_time(finish_current_task, next_task.task_id, "start", force=True)
         return False
 
+
     def update_timepoint(self, assigned_time, node_id):
         self.stn.assign_timepoint(assigned_time, node_id, force=True)
         self.stn.execute_timepoint(node_id)
@@ -165,7 +166,7 @@ class Timetable(STNInterface):
 
     def get_previous_task(self, task):
         task_first_node = self.stn.get_task_node_ids(task.task_id)[0]
-        if self.stn.has_node(task_first_node - 1):
+        if task_first_node > 1 and self.stn.has_node(task_first_node - 1):
             prev_task_id = self.stn.nodes[task_first_node - 1]['data'].task_id
             prev_task = Task.get_task(prev_task_id)
             return prev_task
@@ -348,22 +349,29 @@ class TimetableManager(dict):
 
     def update_timetable(self, robot_id, allocation_info, task):
         timetable = self.get(robot_id)
-        try:
-            timetable.insert_task(allocation_info.new_task, allocation_info.insertion_point)
-            timetable.add_stn_task(allocation_info.new_task)
-            if allocation_info.next_task:
-                timetable.update_task(allocation_info.next_task)
-                timetable.add_stn_task(allocation_info.next_task)
+        stn = copy.deepcopy(timetable.stn)
 
-            dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
-            timetable.dispatchable_graph = dispatchable_graph
-            self.update({robot_id: timetable})
+        stn.add_task(allocation_info.new_task, allocation_info.insertion_point)
+        if allocation_info.next_task:
+            stn.update_task(allocation_info.next_task)
+
+        try:
+            timetable.dispatchable_graph = timetable.compute_dispatchable_graph(stn)
 
         except NoSTPSolution:
             self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id,
                                 allocation_info.insertion_point)
+            self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+            self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+
             raise InvalidAllocation(task.task_id, robot_id, allocation_info.insertion_point)
 
+        timetable.add_stn_task(allocation_info.new_task)
+        if allocation_info.next_task:
+            timetable.add_stn_task(allocation_info.next_task)
+
+        timetable.stn = stn
+        self.update({robot_id: timetable})
         timetable.store()
 
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
