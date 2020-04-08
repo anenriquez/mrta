@@ -94,8 +94,8 @@ ccu_api:
         msg_type: 'D-GRAPH-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
-      remove-task:
-        msg_type: 'REMOVE-TASK'
+      remove-task-from-schedule:
+        msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
         groups: ['TASK-ALLOCATION']
         method: whisper
     callbacks:
@@ -130,7 +130,7 @@ robot_proxy_api:
         - TASK-CONTRACT-CANCELLATION
         - ROBOT-POSE
         - TASK-STATUS
-        - REMOVE-TASK
+        - REMOVE-TASK-FROM-SCHEDULE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -159,7 +159,7 @@ robot_proxy_api:
         component: 'bidder.task_contract_cancellation_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
-      - msg_type: 'REMOVE-TASK'
+      - msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
         component: '.remove_task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'

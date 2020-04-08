@@ -2,7 +2,7 @@ import logging
 import time
 
 from fmlib.models.tasks import TransportationTask as Task
-from mrs.messages.remove_task import RemoveTask
+from mrs.messages.remove_task import RemoveTaskFromSchedule
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import relative_to_ztp
@@ -240,7 +240,7 @@ class TimetableMonitor(SimulatorInterface):
         return tasks_to_recover
 
     def send_remove_task(self, task_id, status, robot_id):
-        remove_task = RemoveTask(task_id, status)
+        remove_task = RemoveTaskFromSchedule(task_id, status)
         msg = self.api.create_message(remove_task)
         self.api.publish(msg, peer=robot_id + '_proxy')
 

@@ -10,7 +10,7 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.messages.remove_task import RemoveTask
+from mrs.messages.remove_task import RemoveTaskFromSchedule
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
@@ -67,7 +67,7 @@ class RobotProxy:
 
     def remove_task_cb(self, msg):
         payload = msg['payload']
-        remove_task = RemoveTask.from_payload(payload)
+        remove_task = RemoveTaskFromSchedule.from_payload(payload)
         task = Task.get_task(remove_task.task_id)
         self._remove_task(task, remove_task.status)
 
