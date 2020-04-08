@@ -44,7 +44,7 @@ class TaskProgress(AsDictMixin):
 
 
 class TaskStatus(AsDictMixin):
-    def __init__(self, task_id, robot_id, task_status, task_progress):
+    def __init__(self, task_id, robot_id, task_status, task_progress=None):
         self.task_id = task_id
         self.robot_id = robot_id
         self.task_status = task_status
@@ -57,5 +57,7 @@ class TaskStatus(AsDictMixin):
     @classmethod
     def to_attrs(cls, dict_repr):
         attrs = super().to_attrs(dict_repr)
-        attrs.update(task_progress=TaskProgress.from_dict(attrs.get("task_progress")))
+        task_progress = attrs.get("task_progress")
+        if task_progress:
+            attrs.update(task_progress=TaskProgress.from_dict(task_progress))
         return attrs

@@ -10,7 +10,6 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.messages.recover_task import RecoverTask
 from mrs.messages.remove_task import RemoveTask
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
@@ -55,24 +54,22 @@ class RobotProxy:
         timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
         task_status = TaskStatus.from_payload(payload)
 
-        if self.robot_id == task_status.robot_id and task_status.task_status == TaskStatusConst.ONGOING:
-            self.logger.debug("Received task status message for task %s", task_status.task_id)
-            task_progress = task_status.task_progress
+        if self.robot_id == task_status.robot_id:
             task = Task.get_task(task_status.task_id)
-            self._update_timetable(task, task_progress, timestamp)
-            task.update_status(task_status.task_status)
+            self.logger.debug("Received task status message for task %s", task.task_id)
+
+            if task_status.task_status == TaskStatusConst.ONGOING:
+                self._update_timetable(task, task_status.task_progress, timestamp)
+                task.update_status(task_status.task_status)
+
+            elif task_status.task_status == TaskStatusConst.RE_SCHEDULING:
+                self._re_compute_dispatchable_graph()
 
     def remove_task_cb(self, msg):
         payload = msg['payload']
         remove_task = RemoveTask.from_payload(payload)
         task = Task.get_task(remove_task.task_id)
         self._remove_task(task, remove_task.status)
-
-    def recover_task_cb(self, msg):
-        payload = msg['payload']
-        recover = RecoverTask.from_payload(payload)
-        if recover.robot_id == self.robot_id and recover.method == "re-schedule":
-            self._re_compute_dispatchable_graph()
 
     def _update_timetable(self, task, task_progress, timestamp):
         self.logger.debug("Updating timetable")

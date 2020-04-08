@@ -3,7 +3,6 @@ import logging
 from fmlib.models.tasks import TransportationTask as Task
 from mrs.exceptions.execution import InconsistentAssignment
 from mrs.messages.d_graph_update import DGraphUpdate
-from mrs.messages.recover_task import RecoverTask
 from mrs.messages.task_status import TaskStatus
 from mrs.utils.time import relative_to_ztp
 from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
@@ -48,6 +47,9 @@ class ScheduleExecutionMonitor:
         task = Task.get_task(task_status.task_id)
         self.logger.debug("Received task status message for task %s", task.task_id)
 
+        self.logger.debug("Sending task status %s for task %s", task_status.task_status, task.task_id)
+        self.api.publish(msg, groups=["TASK-ALLOCATION"])
+
         if task_status.task_status == TaskStatusConst.ONGOING:
             self.update_timetable(task, task_status.task_progress, timestamp)
 
@@ -55,8 +57,6 @@ class ScheduleExecutionMonitor:
             self.logger.debug("Completing execution of task %s", task.task_id)
             self.task = None
 
-        self.logger.debug("Sending task status %s for task %s", task_status.task_status, task.task_id)
-        self.api.publish(msg, groups=["TASK-ALLOCATION"])
         task.update_status(task_status.task_status)
 
     def update_timetable(self, task, task_progress, timestamp):
@@ -119,25 +119,26 @@ class ScheduleExecutionMonitor:
                 next_task = self.timetable.get_next_task(task)
                 self.abort(next_task)
 
-    def send_recover_msg(self, recover):
-        msg = self.api.create_message(recover)
-        self.api.publish(msg)
-
     def re_allocate(self, task):
         self.logger.debug("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
-        recover = RecoverTask("re-allocate", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
+        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.UNALLOCATED)
+        self.send_task_status(task_status)
 
     def abort(self, task):
         self.logger.debug("Trigger abortion of task %s", task.task_id)
         task.update_status(TaskStatusConst.ABORTED)
         self.timetable.remove_task(task.task_id)
-        recover = RecoverTask("abort", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
+        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.ABORTED)
+        self.send_task_status(task_status)
 
     def re_schedule(self, task):
         self.logger.debug("Trigger rescheduling")
-        recover = RecoverTask("re-schedule", task.task_id, self.robot_id)
-        self.send_recover_msg(recover)
+        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.RE_SCHEDULING)
+        self.send_task_status(task_status)
+
+    def send_task_status(self, task_status):
+        self.logger.debug("Sending task status for task %s", task_status.task_id)
+        msg = self.api.create_message(task_status)
+        self.api.publish(msg, groups=["TASK-ALLOCATION"])
