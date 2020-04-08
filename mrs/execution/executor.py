@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import timedelta
 
 import numpy as np
@@ -18,7 +19,7 @@ class Executor(RopodPyre):
     """
     def __init__(self, robot_id, max_seed, **kwargs):
         self.robot_id = robot_id
-        zyre_config = {'node_name': 'executor',
+        zyre_config = {'node_name': 'executor_' + robot_id,
                        'groups': ['ROPOD'],
                        'message_types': ['TASK', 'TASK-STATUS']}
 
@@ -74,10 +75,10 @@ class Executor(RopodPyre):
 
     def send_task_status(self, task_status):
         task_status = TaskStatusMsg(self.task.task_id, self.robot_id, task_status, self.task_progress)
-        self.logger.debug("Sending task status for task %s", self.task.task_id)
+        self.logger.critical("Sending task status %s for task %s", task_status.task_status, self.task.task_id)
         msg = self._mf.create_message(task_status)
         msg["header"]["timestamp"] = self.task_progress.timestamp.isoformat()
-        self.shout(msg, groups=["ROPOD"])
+        self.whisper(msg, peer=self.robot_id)
 
     def execute(self, action, start_time):
         self.logger.debug("Executing action %s: %s ", action.action_id, action.type)
@@ -89,6 +90,7 @@ class Executor(RopodPyre):
         duration = self.get_action_duration(action)
         finish_time = start_time + timedelta(seconds=duration)
         self.update_task_progress(ActionStatusConst.COMPLETED, finish_time)
+        time.sleep(1)
         self.send_task_status(TaskStatusConst.ONGOING)
 
         self.logger.debug("action finish time: %s", finish_time)

@@ -1,5 +1,7 @@
 import logging
 
+from stn.exceptions.stp import NoSTPSolution
+
 
 class RecoveryMethod:
 
@@ -15,14 +17,21 @@ class RecoveryMethod:
             raise ValueError(name)
         return name
 
-    def recover(self, timetable, task, is_consistent):
-        next_task = timetable.get_next_task(task)
-
-        if next_task and (self.name == "re-allocate" and timetable.is_next_task_late(task, next_task)) \
-                or self.name.startswith("re-schedule") \
-                or next_task and self.name == "abort" and timetable.is_next_task_late(task, next_task):
-            return True
-        return False
+    # def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent=True):
+    #     """ Returns list of tasks to recover """
+    #     tasks_to_recover = list()
+    #
+    #     if self.name == "re-allocate" or self.name == "abort":
+    #         tasks_to_recover = timetable.get_late_tasks(task, task_progress, r_assigned_time)
+    #     elif "re-schedule" in self.name:
+    #         # try:
+    #         #     timetable.compute_dispatchable_graph(timetable.stn)
+    #         #     self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
+    #         # except NoSTPSolution:
+    #         tasks_to_recover = timetable.get_invalid_tasks(task, r_assigned_time)
+    #
+    #
+    #     return tasks_to_recover
 
 
 class Corrective(RecoveryMethod):
@@ -39,13 +48,20 @@ class Corrective(RecoveryMethod):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def recover(self, timetable, task, is_consistent):
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent=False):
         """ React only if the last assignment was inconsistent
         """
-        if is_consistent:
-            return False
-        elif not is_consistent and super().recover(timetable, task, is_consistent):
-            return True
+        tasks_to_recover = list()
+        if not is_consistent:
+            tasks_to_recover = timetable.get_invalid_tasks(task, r_assigned_time)
+        return tasks_to_recover
+
+        # if is_consistent:
+        #     return tasks_to_recover
+        # elif not is_consistent:
+        #    tasks_to_recover = timetable.get_late_tasks(task, task_progress, r_assigned_time)
+
+           # return super().recover(timetable, task, task_progress, r_assigned_time, is_consistent)
 
 
 class Preventive(RecoveryMethod):
@@ -62,10 +78,15 @@ class Preventive(RecoveryMethod):
         if self.name not in self.reactions.get(allocation_method):
             raise ValueError(name)
 
-    def recover(self, timetable, task, is_consistent):
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent=False):
         """ React both, when the last assignment was consistent and when it was inconsistent
         """
-        return super().recover(timetable, task, is_consistent)
+        if not is_consistent:
+            tasks_to_recover = timetable.get_invalid_tasks(task, r_assigned_time)
+        else:
+            tasks_to_recover = timetable.get_late_tasks(task, task_progress, r_assigned_time)
+        return tasks_to_recover
+        # return super().recover(timetable, task, task_progress, r_assigned_time, is_consistent)
 
 
 class RecoveryMethodFactory:

@@ -2,7 +2,7 @@ import copy
 import logging
 from datetime import timedelta
 
-from fmlib.models.actions import GoTo
+from fmlib.models.actions import GoTo, Duration
 from mrs.simulation.simulator import SimulatorInterface
 from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
@@ -87,7 +87,8 @@ class Dispatcher(SimulatorInterface):
         pose = self.fleet_monitor.get_robot_pose(robot_id)
         robot_location = self.get_robot_location(pose)
         path = self.get_path(robot_location, task.request.pickup_location)
-        action = GoTo.create_new(type="ROBOT-TO-PICKUP", locations=path)
+        mean, variance = self.get_path_estimated_duration(path)
+        action = GoTo.create_new(type="ROBOT-TO-PICKUP", locations=path, duration=Duration(mean, variance))
         return action
 
     def add_pre_task_action(self, task, robot_id):
@@ -103,9 +104,9 @@ class Dispatcher(SimulatorInterface):
                 task = timetable.get_earliest_task()
                 if task and task.status.status == TaskStatusConst.ALLOCATED:
                     start_time = timetable.get_start_time(task.task_id)
-                    if self.is_schedulable(start_time):
+                    if self.is_schedulable(start_time): # and timetable_monitor.processing_task = False
                         self.add_pre_task_action(task, robot_id)
-                        self.send_d_graph_update(robot_id)
+                        # self.send_d_graph_update(robot_id)
                         self.dispatch_task(task, robot_id)
             except DoesNotExist:
                 pass
@@ -129,7 +130,7 @@ class Dispatcher(SimulatorInterface):
         d_graph_update = timetable.get_d_graph_update(self.n_queued_tasks)
 
         if prev_d_graph_update != d_graph_update:
-            self.logger.debug("Sending DGraphUpdate to %s", robot_id)
+            self.logger.critical("Sending DGraphUpdate to %s", robot_id)
             msg = self.api.create_message(d_graph_update)
             self.api.publish(msg, peer=robot_id)
             self.d_graph_updates[robot_id] = copy.deepcopy(d_graph_update)

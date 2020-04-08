@@ -18,10 +18,12 @@ class Scheduler(object):
 
     def get_times(self, earliest_time, latest_time):
         start_times = list(np.arange(earliest_time, latest_time + self.time_resolution, self.time_resolution))
-        if start_times[-1] > latest_time:
+        # if len(start_times) < 2:
+        #     start_times = [earliest_time, latest_time]
+        if len(start_times) < 1:
+            start_times = [earliest_time]
+        elif start_times[-1] > latest_time:
             start_times.pop()
-        if len(start_times) < 2:
-            start_times = [earliest_time, latest_time]
         return start_times
 
     def schedule(self, task):

@@ -71,8 +71,8 @@ class Robot:
             if task_status.status == TaskStatusConst.SCHEDULED:
                 self.logger.debug("Sending task %s to executor", task.task_id)
                 task_msg = self.api.create_message(task)
-                self.api.publish(task_msg, peer='executor')
-                self.schedule_execution_monitor.task = task
+                self.api.publish(task_msg, peer='executor_' + self.robot_id)
+                self.schedule_execution_monitor.current_task = task
 
     def run(self):
         try:
@@ -80,7 +80,7 @@ class Robot:
             while True:
                 try:
                     tasks = Task.get_tasks_by_robot(self.robot_id)
-                    if self.schedule_execution_monitor.task is None:
+                    if self.schedule_execution_monitor.current_task is None:
                         self.process_tasks(tasks)
                     self.executor.run()
                 except DoesNotExist:

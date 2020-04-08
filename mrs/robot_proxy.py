@@ -10,12 +10,12 @@ from stn.exceptions.stp import NoSTPSolution
 from mrs.allocation.bidder import Bidder
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from mrs.messages.recover_task import RecoverTask
-from mrs.messages.remove_task import RemoveTask
+from mrs.messages.remove_task import RemoveTaskFromSchedule
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
-from mrs.utils.time import relative_to_ztp
+from mrs.utils.time import relative_to_ztp, to_timestamp
+import uuid
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -55,36 +55,37 @@ class RobotProxy:
         timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
         task_status = TaskStatus.from_payload(payload)
 
-        if self.robot_id == task_status.robot_id and task_status.task_status == TaskStatusConst.ONGOING:
-            self.logger.debug("Received task status message for task %s", task_status.task_id)
-            task_progress = task_status.task_progress
+        if self.robot_id == task_status.robot_id:
             task = Task.get_task(task_status.task_id)
-            self._update_timetable(task, task_progress, timestamp)
-            task.update_status(task_status.task_status)
+            self.logger.debug("Received task status message with status %s for task %s", task_status.task_status,
+                              task_status.task_id)
+
+            if task_status.task_status == TaskStatusConst.ONGOING:
+                self._update_timetable(task, task_status.task_progress, timestamp)
+                task.update_status(task_status.task_status)
+
+            # elif task_status.task_status in [TaskStatusConst.UNALLOCATED, TaskStatusConst.ABORTED]:
+            #     self.applying_recovery = True
+            #     self._remove_task(task, task_status.task_status)
+
+            elif task_status.task_status == TaskStatusConst.RE_SCHEDULING:
+                self._re_compute_dispatchable_graph()
 
     def remove_task_cb(self, msg):
         payload = msg['payload']
-        remove_task = RemoveTask.from_payload(payload)
+        remove_task = RemoveTaskFromSchedule.from_payload(payload)
         task = Task.get_task(remove_task.task_id)
         self._remove_task(task, remove_task.status)
-
-    def recover_task_cb(self, msg):
-        payload = msg['payload']
-        recover = RecoverTask.from_payload(payload)
-        if recover.robot_id == self.robot_id and recover.method == "re-schedule":
-            self._re_compute_dispatchable_graph()
 
     def _update_timetable(self, task, task_progress, timestamp):
         self.logger.debug("Updating timetable")
 
         first_action_id = task.plan[0].actions[0].action_id
-        updated = False
 
         if task_progress.action_id == first_action_id and \
                 task_progress.action_status.status == ActionStatusConst.ONGOING:
             node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
-            self._update_timepoint(timestamp, node_id)
-            updated = True
+            self._update_timepoint(task, timestamp, node_id)
         else:
             # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
             nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
@@ -94,21 +95,23 @@ class RobotProxy:
                     task_progress.action_status.status == ActionStatusConst.ONGOING) or \
                         (node.node_type == 'delivery' and
                          task_progress.action_status.status == ActionStatusConst.COMPLETED):
-                    self._update_timepoint(timestamp, node_id)
-                    updated = True
 
-        if updated:
-            nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
-            self._update_edge('start', 'pickup', nodes)
-            self._update_edge('pickup', 'delivery', nodes)
-            self.bidder.changed_timetable = True
+                    if task.task_id == uuid.UUID("45b34703-eaaf-4063-b3cc-15acb7e850ca") and node.node_type == 'delivery':
+                        timestamp = to_timestamp(self.timetable.ztp, 29615).to_datetime()
 
-            self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
-            self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+                    self._update_timepoint(task, timestamp, node_id)
 
-    def _update_timepoint(self, assigned_time, node_id):
+    def _update_timepoint(self, task, assigned_time, node_id):
         r_assigned_time = relative_to_ztp(self.timetable.ztp, assigned_time)
         self.timetable.update_timepoint(r_assigned_time, node_id)
+
+        nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+        self._update_edge('start', 'pickup', nodes)
+        self._update_edge('pickup', 'delivery', nodes)
+        self.bidder.changed_timetable = True
+
+        self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
+        self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
 
     def _update_edge(self, start_node, finish_node, nodes):
         node_ids = [node_id for node_id, node in nodes if (node.node_type == start_node and node.is_executed) or
@@ -118,27 +121,60 @@ class RobotProxy:
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+
+        if not self.timetable.has_task(task.task_id):
+            self.logger.warning("Robot %s does not have task %s in its timetable: ", self.robot_id, task.task_id)
+            return
+
+        prev_task = self.timetable.get_previous_task(task)
         next_task = self.timetable.get_next_task(task)
 
-        if status == TaskStatusConst.COMPLETED:
-            if next_task:
-                finish_current_task = self.timetable.stn.get_time(task.task_id, 'delivery', False)
-                self.timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
-            self.update_robot_pose(task)
-            self.timetable.remove_task(task.task_id)
+        earliest_task = self.timetable.get_earliest_task()
+        print("Earliest task: ", earliest_task.task_id)
 
+        # if status == TaskStatusConst.COMPLETED:
+        #     if next_task:
+        #         finish_current_task = self.timetable.stn.get_time(task.task_id, 'delivery', False)
+        #         self.timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
+        #     self.update_robot_pose(task)
+        #
+        # self.timetable.remove_task(task.task_id)
+
+        if task.task_id == self.timetable.get_earliest_task().task_id and next_task:
+            self._remove_first_task(task, next_task, status)
         else:
-            prev_task = self.timetable.get_previous_task(task)
             self.timetable.remove_task(task.task_id)
-            if prev_task and next_task:
-                self.update_pre_task_constraint(next_task)
 
-        task.update_status(status)
+        if status == TaskStatusConst.COMPLETED:
+            self.update_robot_pose(task)
+
+        if prev_task and next_task:
+            self.update_pre_task_constraint(next_task)
+
         self.logger.debug("STN: %s", self.timetable.stn)
-        self._re_compute_dispatchable_graph()
+        self.logger.debug("DGraph: %s", self.timetable.dispatchable_graph)
+        task.update_status(status)
+        self.timetable.store()
+
+    def _remove_first_task(self, task, next_task, status):
+        if status == TaskStatusConst.COMPLETED:
+            earliest_time = self.timetable.stn.get_time(task.task_id, 'delivery', False)
+            self.timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+        else:
+            nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+            node_id, node = nodes[0]
+            earliest_time = self.timetable.stn.get_node_earliest_time(node_id)
+            self.timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+
+        start_next_task = self.timetable.dispatchable_graph.get_time(next_task.task_id, 'start')
+        if start_next_task < earliest_time:
+            self.timetable.dispatchable_graph.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+
+        self.timetable.remove_task(task.task_id)
 
     def _re_compute_dispatchable_graph(self):
         self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
+        print("Current version of STN: ", self.timetable.stn)
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
