@@ -94,16 +94,16 @@ class CCU:
             task_schedule = self.auctioneer.get_task_schedule(task_id, robot_ids[0])
             task.update_schedule(task_schedule)
 
-            allocation_round = self.auctioneer.rounds.pop(0)
-            self.update_allocation_metrics(allocation_round)
+            allocation_time = self.auctioneer.allocation_times.pop(0)
+            self.update_allocation_metrics(allocation_time)
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
-    def update_allocation_metrics(self, allocation_round):
+    def update_allocation_metrics(self, allocation_time):
         allocation_info = self.auctioneer.winning_bid.get_allocation_info()
         task = Task.get_task(allocation_info.new_task.task_id)
-        self.performance_tracker.update_allocation_metrics(task, allocation_round)
+        self.performance_tracker.update_allocation_metrics(task, allocation_time)
         if allocation_info.next_task:
             task = Task.get_task(allocation_info.next_task.task_id)
             self.performance_tracker.update_allocation_metrics(task, only_constraints=True)

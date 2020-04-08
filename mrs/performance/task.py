@@ -10,9 +10,9 @@ class TaskPerformanceTracker:
     def __init__(self):
         self.logger = logging.getLogger("mrs.performance.task.tracker")
 
-    def update_allocation_metrics(self, task_id, timetable, allocation_round, only_constraints=False):
+    def update_allocation_metrics(self, task_id, timetable, allocation_time, only_constraints=False):
         task_performance = TaskPerformance.get_task_performance(task_id)
-        metrics = self.get_allocation_metrics(task_id, timetable, allocation_round)
+        metrics = self.get_allocation_metrics(task_id, timetable, allocation_time)
         if only_constraints:
             task_performance.update_allocation(start_time=metrics.get("start_time"),
                                                pickup_time=metrics.get("pickup_time"),
@@ -21,8 +21,8 @@ class TaskPerformanceTracker:
             task_performance.update_allocation(**metrics)
             task_performance.allocated()
 
-    def get_allocation_metrics(self, task_id, timetable, allocation_round):
-        time_to_allocate = allocation_round.get_time_to_allocate()
+    def get_allocation_metrics(self, task_id, timetable, allocation_time):
+        time_to_allocate = allocation_time
         n_previously_allocated_tasks = len(timetable.get_tasks()) - 1
 
         start_time = timetable.get_timepoint_constraint(task_id, "start")
