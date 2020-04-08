@@ -194,6 +194,10 @@ robot_api:
       task:
         msg_type: 'TASK'
         method: whisper
+      task-status:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-STATUS'
+        method: shout
       recover-task:
         groups: ['TASK-ALLOCATION']
         msg_type: 'RECOVER-TASK'

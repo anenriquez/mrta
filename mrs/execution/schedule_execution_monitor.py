@@ -49,23 +49,25 @@ class ScheduleExecutionMonitor:
         self.logger.debug("Received task status message for task %s", task.task_id)
 
         if task_status.task_status == TaskStatusConst.ONGOING:
-            is_consistent = self.update_timetable(task, task_status.task_progress, timestamp)
-            self.recover(task, is_consistent)
+            self.update_timetable(task, task_status.task_progress, timestamp)
 
         elif task_status.task_status == TaskStatusConst.COMPLETED:
             self.logger.debug("Completing execution of task %s", task.task_id)
             self.task = None
 
+        self.logger.debug("Sending task status %s for task %s", task_status.task_status, task.task_id)
+        self.api.publish(msg, groups=["TASK-ALLOCATION"])
         task.update_status(task_status.task_status)
 
     def update_timetable(self, task, task_progress, timestamp):
-        is_consistent = True
+        r_assigned_time = relative_to_ztp(self.timetable.ztp, timestamp)
         first_action_id = task.plan[0].actions[0].action_id
 
         if task_progress.action_id == first_action_id and \
                 task_progress.action_status.status == ActionStatusConst.ONGOING:
             node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
-            is_consistent = self.update_timepoint(timestamp, node, node_id)
+            is_consistent = self.update_timepoint(r_assigned_time, node, node_id)
+            self.recover(task, is_consistent)
         else:
             # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
             nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
@@ -76,14 +78,10 @@ class ScheduleExecutionMonitor:
                         (node.node_type == 'delivery' and
                          task_progress.action_status.status == ActionStatusConst.COMPLETED):
 
-                    is_consistent = self.update_timepoint(timestamp, node, node_id)
+                    is_consistent = self.update_timepoint(r_assigned_time, node, node_id)
+                    self.recover(task, is_consistent)
 
-        self.logger.debug("STN: \n %s",  self.timetable.stn)
-        return is_consistent
-
-    def update_timepoint(self, assigned_time, node, node_id):
-        r_assigned_time = relative_to_ztp(self.timetable.ztp, assigned_time)
-
+    def update_timepoint(self, r_assigned_time, node, node_id):
         is_consistent = True
         self.logger.debug("Assigning time %s to task %s timepoint %s", r_assigned_time, node.task_id,
                           node.node_type)
@@ -97,6 +95,7 @@ class ScheduleExecutionMonitor:
             is_consistent = False
 
         self.timetable.stn.execute_timepoint(node_id)
+        self.logger.debug("STN: \n %s",  self.timetable.stn)
         return is_consistent
 
     def recover(self, task, is_consistent):
