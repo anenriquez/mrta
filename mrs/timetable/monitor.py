@@ -73,10 +73,14 @@ class TimetableMonitor(SimulatorInterface):
         self.processing_task = False
 
     def _update_progress(self, task, task_progress, timestamp):
-        self.logger.debug("Updating progress of task %s", task.task_id)
+        self.logger.debug("Updating progress of task %s action %s status %s", task.task_id, task_progress.action_id,
+                          task_progress.action_status.status)
         if not task.status.progress:
             task.update_progress(task_progress.action_id, task_progress.action_status.status)
         action_progress = task.status.progress.get_action(task_progress.action_id)
+
+        self.logger.debug("Current action progress: status %s, start time %s, finish time %s", action_progress.status,
+                          action_progress.start_time, action_progress.finish_time)
 
         kwargs = {}
         if task_progress.action_status.status == ActionStatusConst.ONGOING:
@@ -85,7 +89,10 @@ class TimetableMonitor(SimulatorInterface):
             kwargs.update(start_time=action_progress.start_time, finish_time=timestamp)
 
         task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
-        return task.status.progress.get_action(task_progress.action_id)
+        action_progress = task.status.progress.get_action(task_progress.action_id)
+
+        self.logger.debug("Updated action progress: status %s, start time %s, finish time %s", action_progress.status,
+                          action_progress.start_time, action_progress.finish_time)
 
     def _update_timetable(self, task, robot_id, task_progress, timestamp):
         timetable = self.timetable_manager.get_timetable(robot_id)
@@ -167,8 +174,8 @@ class TimetableMonitor(SimulatorInterface):
         self.tasks_to_reallocate.append(task)
 
     def _re_compute_dispatchable_graph(self, timetable, next_task=None):
-        if timetable.stn.is_empty:
-            self.logger.warning("Timetable of robot %s is empty", timetable.robot_id)
+        if timetable.stn.is_empty():
+            self.logger.warning("Timetable of %s is empty", timetable.robot_id)
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", timetable.robot_id)
         try:

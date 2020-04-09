@@ -133,7 +133,7 @@ class RobotProxy:
         self._re_compute_dispatchable_graph()
 
     def _re_compute_dispatchable_graph(self):
-        if self.timetable.stn.is_empty:
+        if self.timetable.stn.is_empty():
             self.logger.warning("Timetable of robot %s is empty", self.robot_id)
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
