@@ -18,7 +18,7 @@ class Executor(RopodPyre):
     """
     def __init__(self, robot_id, max_seed, **kwargs):
         self.robot_id = robot_id
-        zyre_config = {'node_name': 'executor',
+        zyre_config = {'node_name': 'executor_' + robot_id,
                        'groups': ['ROPOD'],
                        'message_types': ['TASK', 'TASK-STATUS']}
 
@@ -77,7 +77,7 @@ class Executor(RopodPyre):
         self.logger.debug("Sending task status for task %s", self.task.task_id)
         msg = self._mf.create_message(task_status)
         msg["header"]["timestamp"] = self.task_progress.timestamp.isoformat()
-        self.shout(msg, groups=["ROPOD"])
+        self.whisper(msg, peer=self.robot_id)
 
     def execute(self, action, start_time):
         self.logger.debug("Executing action %s: %s ", action.action_id, action.type)

@@ -82,19 +82,20 @@ class MRTABuilder:
             raise ValueError(allocation_method)
         return STP(solver_name)
 
-    def configure_component(self, component_name, config):
+    def configure_component(self, component_name, config, **kwargs):
         self.logger.debug("Creating %s", component_name)
         component = self._component_modules.get(component_name)
 
         if component and isinstance(config, dict):
             self.register_component(component_name, component)
-            _component = component(**config, **self._components)
+            _component = component(**config, **self._components, **kwargs)
             return _component
 
     def __call__(self, **kwargs):
+        d_graph_watchdog = kwargs.get("d_graph_watchdog", False)
         for component_name in self.config_order:
             if component_name in self._component_modules:
                 component_config = kwargs.get(component_name, dict())
-                component = self.configure_component(component_name, component_config)
+                component = self.configure_component(component_name, component_config, d_graph_watchdog=d_graph_watchdog)
                 self._components[component_name] = component
         return self._components

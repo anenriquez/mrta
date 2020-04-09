@@ -192,6 +192,8 @@ class Bidder:
             return True
         except TaskNotFound as e:
             return True
+        except DoesNotExist:
+            return False
 
     def get_previous_location(self, insertion_point):
         if insertion_point == 1:

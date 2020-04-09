@@ -13,7 +13,6 @@ from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
@@ -71,41 +70,6 @@ class Timetable(STNInterface):
         node = self.stn.get_node(node_id)
         raise InconsistentAssignment(assigned_time, node.task_id, node.node_type)
 
-    def is_next_task_late(self, task, next_task):
-        last_completed_action = None
-        mean = 0
-        variance = 0
-
-        for action_progress in task.status.progress.actions:
-            if action_progress.status == ActionStatus.COMPLETED:
-                last_completed_action = action_progress.action
-
-            elif action_progress.status == ActionStatus.ONGOING or action_progress.status == ActionStatus.PLANNED:
-                mean += action_progress.action.estimated_duration.mean
-                variance += action_progress.action.estimated_duration.variance
-
-        estimated_duration = mean + 2*round(variance ** 0.5, 3)
-        self.logger.debug("Remaining estimated task duration: %s ", estimated_duration)
-
-        if last_completed_action:
-            start_node, finish_node = last_completed_action.get_node_names()
-            last_time = self.stn.get_time(task.task_id, finish_node)
-        else:
-            last_time = self.stn.get_time(task.task_id, 'start')
-
-        estimated_start_time = last_time + estimated_duration
-        self.logger.debug("Estimated start time of next task: %s ", estimated_start_time)
-
-        latest_start_time = self.dispatchable_graph.get_time(next_task.task_id, 'start', False)
-        self.logger.debug("Latest permitted start time of next task: %s ", latest_start_time)
-
-        if latest_start_time < estimated_start_time:
-            self.logger.debug("Next task is at risk")
-            return True
-        else:
-            self.logger.debug("Next task is NOT at risk")
-            return False
-
     def is_next_task_invalid(self, task, next_task):
         finish_current_task = self.dispatchable_graph.get_time(task.task_id, 'delivery', False)
         earliest_start_next_task = self.dispatchable_graph.get_time(next_task.task_id, 'start')
@@ -145,7 +109,11 @@ class Timetable(STNInterface):
         """
         task_id = self.stn.get_task_id(position)
         if task_id:
-            return Task.get_task(task_id)
+            try:
+                return Task.get_task(task_id)
+            except DoesNotExist:
+                self.logger.warning("Task %s is not in db", task_id)
+                raise DoesNotExist
         else:
             raise TaskNotFound(position)
 
@@ -165,7 +133,7 @@ class Timetable(STNInterface):
 
     def get_previous_task(self, task):
         task_first_node = self.stn.get_task_node_ids(task.task_id)[0]
-        if self.stn.has_node(task_first_node - 1):
+        if task_first_node > 1 and self.stn.has_node(task_first_node - 1):
             prev_task_id = self.stn.nodes[task_first_node - 1]['data'].task_id
             prev_task = Task.get_task(prev_task_id)
             return prev_task
@@ -180,7 +148,7 @@ class Timetable(STNInterface):
         return False
 
     def get_earliest_task(self):
-        task_id = self.stn.get_task_id(position=1)
+        task_id = self.stn.get_earliest_task_id()
         if task_id:
             try:
                 task = Task.get_task(task_id)
@@ -348,22 +316,29 @@ class TimetableManager(dict):
 
     def update_timetable(self, robot_id, allocation_info, task):
         timetable = self.get(robot_id)
-        try:
-            timetable.insert_task(allocation_info.new_task, allocation_info.insertion_point)
-            timetable.add_stn_task(allocation_info.new_task)
-            if allocation_info.next_task:
-                timetable.update_task(allocation_info.next_task)
-                timetable.add_stn_task(allocation_info.next_task)
+        stn = copy.deepcopy(timetable.stn)
 
-            dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
-            timetable.dispatchable_graph = dispatchable_graph
-            self.update({robot_id: timetable})
+        stn.add_task(allocation_info.new_task, allocation_info.insertion_point)
+        if allocation_info.next_task:
+            stn.update_task(allocation_info.next_task)
+
+        try:
+            timetable.dispatchable_graph = timetable.compute_dispatchable_graph(stn)
 
         except NoSTPSolution:
             self.logger.warning("The STN is inconsistent with task %s in insertion point %s", task.task_id,
                                 allocation_info.insertion_point)
+            self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
+            self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+
             raise InvalidAllocation(task.task_id, robot_id, allocation_info.insertion_point)
 
+        timetable.add_stn_task(allocation_info.new_task)
+        if allocation_info.next_task:
+            timetable.add_stn_task(allocation_info.next_task)
+
+        timetable.stn = stn
+        self.update({robot_id: timetable})
         timetable.store()
 
         self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)

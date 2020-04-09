@@ -24,7 +24,6 @@ fleet:
   - robot_005
 
 allocation_method: tessi-srea
-approach: tessi-srea-corrective-re-allocate
 
 planner:
   map_name: brsu
@@ -32,6 +31,8 @@ planner:
 delay_recovery:
   type_: corrective
   method: re-allocate
+
+d_graph_watchdog: False
 
 auctioneer:
   closure_window: 1 # minutes
@@ -62,7 +63,6 @@ ccu_api:
       interface: null
       groups:
         - TASK-ALLOCATION
-        - ROPOD
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - START-TEST
         - ROBOT-POSE
@@ -70,7 +70,6 @@ ccu_api:
         - NO-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - TASK-STATUS
-        - RECOVER-TASK
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -95,8 +94,8 @@ ccu_api:
         msg_type: 'D-GRAPH-UPDATE'
         groups: ['TASK-ALLOCATION']
         method: whisper
-      remove-task:
-        msg_type: 'REMOVE-TASK'
+      remove-task-from-schedule:
+        msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
         groups: ['TASK-ALLOCATION']
         method: whisper
     callbacks:
@@ -110,8 +109,6 @@ ccu_api:
         component: 'auctioneer.task_contract_acknowledgement_cb'
       - msg_type: 'TASK-STATUS'
         component: 'timetable_monitor.task_status_cb'
-      - msg_type: 'RECOVER-TASK'
-        component: 'timetable_monitor.recover_task_cb'
       - msg_type: 'ROBOT-POSE'
         component: 'fleet_monitor.robot_pose_cb'
 
@@ -125,7 +122,6 @@ robot_proxy_api:
       interface: null
       groups:
         - TASK-ALLOCATION
-        - ROPOD
       message_types: # Types of messages the node will listen to. Messages not listed will be ignored
         - TASK
         - TASK-ANNOUNCEMENT
@@ -133,8 +129,7 @@ robot_proxy_api:
         - TASK-CONTRACT-CANCELLATION
         - ROBOT-POSE
         - TASK-STATUS
-        - RECOVER-TASK
-        - REMOVE-TASK
+        - REMOVE-TASK-FROM-SCHEDULE
       debug_msgs: false
     acknowledge: false
     publish:
@@ -163,14 +158,12 @@ robot_proxy_api:
         component: 'bidder.task_contract_cancellation_cb'
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
-      - msg_type: 'REMOVE-TASK'
+      - msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
         component: '.remove_task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
       - msg_type: 'TASK-STATUS'
         component: '.task_status_cb'
-      - msg_type: 'RECOVER-TASK'
-        component: '.recover_task_cb'
 
 
 robot_api:
@@ -194,9 +187,9 @@ robot_api:
       task:
         msg_type: 'TASK'
         method: whisper
-      recover-task:
+      task-status:
         groups: ['TASK-ALLOCATION']
-        msg_type: 'RECOVER-TASK'
+        msg_type: 'TASK-STATUS'
         method: shout
     callbacks:
       - msg_type: 'D-GRAPH-UPDATE'
