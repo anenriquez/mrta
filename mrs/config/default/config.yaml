@@ -24,7 +24,6 @@ fleet:
   - robot_005
 
 allocation_method: tessi-srea
-approach: tessi-srea-corrective-re-allocate
 
 planner:
   map_name: brsu
@@ -32,6 +31,8 @@ planner:
 delay_recovery:
   type_: corrective
   method: re-allocate
+
+d_graph_watchdog: False
 
 auctioneer:
   closure_window: 1 # minutes

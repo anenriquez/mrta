@@ -1,14 +1,15 @@
 import argparse
 import logging.config
+import time
 
-from fmlib.models.tasks import TransportationTask as Task
+from fmlib.models.actions import GoTo
 from fmlib.models.tasks import TaskPlan
+from fmlib.models.tasks import TransportationTask as Task
 from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.actions import GoTo
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
 from mrs.execution.delay_recovery import DelayRecovery
@@ -76,6 +77,7 @@ class CCU:
         task.update_duration(mean, variance)
 
         action = GoTo.create_new(type="PICKUP-TO-DELIVERY", locations=path)
+        action.update_duration(mean, variance)
         task_plan = TaskPlan(actions=[action])
         task.update_plan(task_plan)
         self.logger.debug('Task plan of task %s updated', task.task_id)
@@ -118,6 +120,7 @@ class CCU:
                 self.process_allocation()
                 self.performance_tracker.run()
                 self.api.run()
+                time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()
             self.simulator_interface.stop()

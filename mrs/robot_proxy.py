@@ -31,6 +31,7 @@ class RobotProxy:
         self.robot_proxy_store = robot_proxy_store
         self.bidder = bidder
         self.timetable = timetable
+        self.d_graph_watchdog = kwargs.get("d_graph_watchdog", False)
         self.robot_model = RobotModel.create_new(robot_id)
 
         self.api.register_callbacks(self)
@@ -56,14 +57,11 @@ class RobotProxy:
 
         if self.robot_id == task_status.robot_id:
             task = Task.get_task(task_status.task_id)
-            self.logger.debug("Received task status message for task %s", task.task_id)
+            self.logger.debug("Received task status %s for task %s", task_status.task_status, task.task_id)
 
             if task_status.task_status == TaskStatusConst.ONGOING:
                 self._update_timetable(task, task_status.task_progress, timestamp)
                 task.update_status(task_status.task_status)
-
-            elif task_status.task_status == TaskStatusConst.RE_SCHEDULING:
-                self._re_compute_dispatchable_graph()
 
     def remove_task_cb(self, msg):
         payload = msg['payload']
@@ -74,14 +72,13 @@ class RobotProxy:
     def _update_timetable(self, task, task_progress, timestamp):
         self.logger.debug("Updating timetable")
 
+        r_assigned_time = relative_to_ztp(self.timetable.ztp, timestamp)
         first_action_id = task.plan[0].actions[0].action_id
-        updated = False
 
         if task_progress.action_id == first_action_id and \
                 task_progress.action_status.status == ActionStatusConst.ONGOING:
             node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
-            self._update_timepoint(timestamp, node_id)
-            updated = True
+            self._update_timepoint(task, r_assigned_time, node_id)
         else:
             # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
             nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
@@ -91,21 +88,21 @@ class RobotProxy:
                     task_progress.action_status.status == ActionStatusConst.ONGOING) or \
                         (node.node_type == 'delivery' and
                          task_progress.action_status.status == ActionStatusConst.COMPLETED):
-                    self._update_timepoint(timestamp, node_id)
-                    updated = True
+                    self._update_timepoint(task, r_assigned_time, node_id)
 
-        if updated:
-            nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
-            self._update_edge('start', 'pickup', nodes)
-            self._update_edge('pickup', 'delivery', nodes)
-            self.bidder.changed_timetable = True
-
-            self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
-            self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
-
-    def _update_timepoint(self, assigned_time, node_id):
-        r_assigned_time = relative_to_ztp(self.timetable.ztp, assigned_time)
+    def _update_timepoint(self, task, r_assigned_time, node_id):
         self.timetable.update_timepoint(r_assigned_time, node_id)
+
+        nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+        self._update_edge('start', 'pickup', nodes)
+        self._update_edge('pickup', 'delivery', nodes)
+        self.bidder.changed_timetable = True
+
+        self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
+        self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+
+        if self.d_graph_watchdog:
+            self._re_compute_dispatchable_graph()
 
     def _update_edge(self, start_node, finish_node, nodes):
         node_ids = [node_id for node_id, node in nodes if (node.node_type == start_node and node.is_executed) or
@@ -132,9 +129,13 @@ class RobotProxy:
 
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
+        self.logger.debug("Dispatchable Graph: %s", self.timetable.dispatchable_graph)
         self._re_compute_dispatchable_graph()
 
     def _re_compute_dispatchable_graph(self):
+        if self.timetable.stn.is_empty:
+            self.logger.warning("Timetable of robot %s is empty", self.robot_id)
+            return
         self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
@@ -188,5 +189,5 @@ if __name__ == '__main__':
         if hasattr(c, 'configure'):
             c.configure(planner=Planner(**config_params.get("planner")))
 
-    robot = RobotProxy(**components)
+    robot = RobotProxy(**components, d_graph_watchdog=config_params.get("d_graph_watchdog"))
     robot.run()

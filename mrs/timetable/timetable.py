@@ -13,7 +13,6 @@ from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.timetable.stn_interface import STNInterface
 from pymodm.errors import DoesNotExist
-from ropod.structs.status import ActionStatus
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
@@ -70,41 +69,6 @@ class Timetable(STNInterface):
                 return
         node = self.stn.get_node(node_id)
         raise InconsistentAssignment(assigned_time, node.task_id, node.node_type)
-
-    def is_next_task_late(self, task, next_task):
-        last_completed_action = None
-        mean = 0
-        variance = 0
-
-        for action_progress in task.status.progress.actions:
-            if action_progress.status == ActionStatus.COMPLETED:
-                last_completed_action = action_progress.action
-
-            elif action_progress.status == ActionStatus.ONGOING or action_progress.status == ActionStatus.PLANNED:
-                mean += action_progress.action.estimated_duration.mean
-                variance += action_progress.action.estimated_duration.variance
-
-        estimated_duration = mean + 2*round(variance ** 0.5, 3)
-        self.logger.debug("Remaining estimated task duration: %s ", estimated_duration)
-
-        if last_completed_action:
-            start_node, finish_node = last_completed_action.get_node_names()
-            last_time = self.stn.get_time(task.task_id, finish_node)
-        else:
-            last_time = self.stn.get_time(task.task_id, 'start')
-
-        estimated_start_time = last_time + estimated_duration
-        self.logger.debug("Estimated start time of next task: %s ", estimated_start_time)
-
-        latest_start_time = self.dispatchable_graph.get_time(next_task.task_id, 'start', False)
-        self.logger.debug("Latest permitted start time of next task: %s ", latest_start_time)
-
-        if latest_start_time < estimated_start_time:
-            self.logger.debug("Next task is at risk")
-            return True
-        else:
-            self.logger.debug("Next task is NOT at risk")
-            return False
 
     def is_next_task_invalid(self, task, next_task):
         finish_current_task = self.dispatchable_graph.get_time(task.task_id, 'delivery', False)
@@ -180,7 +144,7 @@ class Timetable(STNInterface):
         return False
 
     def get_earliest_task(self):
-        task_id = self.stn.get_task_id(position=1)
+        task_id = self.stn.get_earliest_task_id()
         if task_id:
             try:
                 task = Task.get_task(task_id)

@@ -17,7 +17,8 @@ class ScheduleExecutionMonitor:
         self.robot_id = robot_id
         self.timetable = timetable
         self.timetable.fetch()
-        self.recovery_method = delay_recovery.method
+        self.recovery_method = delay_recovery
+        self.d_graph_watchdog = kwargs.get("d_graph_watchdog", False)
         self.api = kwargs.get("api")
 
         self.d_graph_update_received = False
@@ -44,20 +45,23 @@ class ScheduleExecutionMonitor:
         payload = msg['payload']
         timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
         task_status = TaskStatus.from_payload(payload)
-        task = Task.get_task(task_status.task_id)
-        self.logger.debug("Received task status message for task %s", task.task_id)
 
-        self.logger.debug("Sending task status %s for task %s", task_status.task_status, task.task_id)
-        self.api.publish(msg, groups=["TASK-ALLOCATION"])
+        if self.robot_id == task_status.robot_id:
 
-        if task_status.task_status == TaskStatusConst.ONGOING:
-            self.update_timetable(task, task_status.task_progress, timestamp)
+            task = Task.get_task(task_status.task_id)
+            self.logger.debug("Received task status %s for task %s", task_status.task_status, task.task_id)
 
-        elif task_status.task_status == TaskStatusConst.COMPLETED:
-            self.logger.debug("Completing execution of task %s", task.task_id)
-            self.task = None
+            self.logger.debug("Sending task status %s for task %s", task_status.task_status, task.task_id)
+            self.api.publish(msg, groups=["TASK-ALLOCATION"])
 
-        task.update_status(task_status.task_status)
+            if task_status.task_status == TaskStatusConst.ONGOING:
+                self.update_timetable(task, task_status.task_progress, timestamp)
+
+            elif task_status.task_status == TaskStatusConst.COMPLETED:
+                self.logger.debug("Completing execution of task %s", task.task_id)
+                self.task = None
+
+            task.update_status(task_status.task_status)
 
     def update_timetable(self, task, task_progress, timestamp):
         r_assigned_time = relative_to_ztp(self.timetable.ztp, timestamp)
@@ -66,8 +70,7 @@ class ScheduleExecutionMonitor:
         if task_progress.action_id == first_action_id and \
                 task_progress.action_status.status == ActionStatusConst.ONGOING:
             node_id, node = self.timetable.stn.get_node_by_type(task.task_id, 'start')
-            is_consistent = self.update_timepoint(r_assigned_time, node, node_id)
-            self.recover(task, is_consistent)
+            self.update_timepoint(task, task_progress, r_assigned_time, node, node_id)
         else:
             # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
             nodes = self.timetable.stn.get_nodes_by_action(task_progress.action_id)
@@ -78,10 +81,9 @@ class ScheduleExecutionMonitor:
                         (node.node_type == 'delivery' and
                          task_progress.action_status.status == ActionStatusConst.COMPLETED):
 
-                    is_consistent = self.update_timepoint(r_assigned_time, node, node_id)
-                    self.recover(task, is_consistent)
+                    self.update_timepoint(task, task_progress, r_assigned_time, node, node_id)
 
-    def update_timepoint(self, r_assigned_time, node, node_id):
+    def update_timepoint(self, task, task_progress, r_assigned_time, node, node_id):
         is_consistent = True
         self.logger.debug("Assigning time %s to task %s timepoint %s", r_assigned_time, node.task_id,
                           node.node_type)
@@ -95,10 +97,21 @@ class ScheduleExecutionMonitor:
             is_consistent = False
 
         self.timetable.stn.execute_timepoint(node_id)
+        nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+        self._update_edge('start', 'pickup', nodes)
+        self._update_edge('pickup', 'delivery', nodes)
         self.logger.debug("STN: \n %s",  self.timetable.stn)
-        return is_consistent
 
-    def recover(self, task, is_consistent):
+        if not self.d_graph_watchdog:
+            self.recover(task, task_progress, r_assigned_time, is_consistent)
+
+    def _update_edge(self, start_node, finish_node, nodes):
+        node_ids = [node_id for node_id, node in nodes if (node.node_type == start_node and node.is_executed) or
+                    (node.node_type == finish_node and node.is_executed)]
+        if len(node_ids) == 2:
+            self.timetable.execute_edge(node_ids[0], node_ids[1])
+
+    def recover(self, task, task_progress, r_assigned_time, is_consistent):
         """ Applies a recovery method (preventive or corrective) if needed.
         A preventive recovery prevents delay of next_task. Applied BEFORE current task becomes inconsistent
         A corrective recovery prevents delay of next task. Applied AFTER current task becomes inconsistent
@@ -107,35 +120,26 @@ class ScheduleExecutionMonitor:
         is_consistent (boolean): True if the last assignment was consistent, false otherwise
         """
 
-        if self.recovery_method.recover(self.timetable, task, is_consistent):
-            if self.recovery_method.name == "re-allocate":
-                next_task = self.timetable.get_next_task(task)
-                self.re_allocate(next_task)
+        task_to_recover = self.recovery_method.recover(self.timetable, task, task_progress, r_assigned_time, is_consistent)
 
-            elif self.recovery_method.name.startswith("re-schedule"):
-                self.re_schedule(self.task)
+        if task_to_recover and self.recovery_method.name == "re-allocate":
+            self.re_allocate(task_to_recover)
 
-            elif self.recovery_method.name == "abort":
-                next_task = self.timetable.get_next_task(task)
-                self.abort(next_task)
+        elif task_to_recover and self.recovery_method.name == "abort":
+            self.abort(task_to_recover)
 
     def re_allocate(self, task):
-        self.logger.debug("Trigger re-allocation of task %s", task.task_id)
+        self.logger.critical("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
         task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.UNALLOCATED)
         self.send_task_status(task_status)
 
     def abort(self, task):
-        self.logger.debug("Trigger abortion of task %s", task.task_id)
+        self.logger.critical("Trigger abortion of task %s", task.task_id)
         task.update_status(TaskStatusConst.ABORTED)
         self.timetable.remove_task(task.task_id)
         task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.ABORTED)
-        self.send_task_status(task_status)
-
-    def re_schedule(self, task):
-        self.logger.debug("Trigger rescheduling")
-        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.RE_SCHEDULING)
         self.send_task_status(task_status)
 
     def send_task_status(self, task_status):
