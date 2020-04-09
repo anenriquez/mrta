@@ -109,7 +109,11 @@ class Timetable(STNInterface):
         """
         task_id = self.stn.get_task_id(position)
         if task_id:
-            return Task.get_task(task_id)
+            try:
+                return Task.get_task(task_id)
+            except DoesNotExist:
+                self.logger.warning("Task %s is not in db", task_id)
+                raise DoesNotExist
         else:
             raise TaskNotFound(position)
 
