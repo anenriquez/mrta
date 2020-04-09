@@ -4,7 +4,6 @@ from datetime import timedelta
 
 from fmlib.models.actions import GoTo
 from mrs.simulation.simulator import SimulatorInterface
-from pymodm.errors import DoesNotExist
 from ropod.structs.task import TaskStatus as TaskStatusConst
 
 
@@ -87,7 +86,9 @@ class Dispatcher(SimulatorInterface):
         pose = self.fleet_monitor.get_robot_pose(robot_id)
         robot_location = self.get_robot_location(pose)
         path = self.get_path(robot_location, task.request.pickup_location)
+        mean, variance = self.get_path_estimated_duration(path)
         action = GoTo.create_new(type="ROBOT-TO-PICKUP", locations=path)
+        action.update_duration(mean, variance)
         return action
 
     def add_pre_task_action(self, task, robot_id):
@@ -99,16 +100,13 @@ class Dispatcher(SimulatorInterface):
     def dispatch_tasks(self):
         for robot_id in self.robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            try:
-                task = timetable.get_earliest_task()
-                if task and task.status.status == TaskStatusConst.ALLOCATED:
-                    start_time = timetable.get_start_time(task.task_id)
-                    if self.is_schedulable(start_time):
-                        self.add_pre_task_action(task, robot_id)
-                        self.send_d_graph_update(robot_id)
-                        self.dispatch_task(task, robot_id)
-            except DoesNotExist:
-                pass
+            task = timetable.get_earliest_task()
+            if task and task.status.status == TaskStatusConst.ALLOCATED:
+                start_time = timetable.get_start_time(task.task_id)
+                if self.is_schedulable(start_time):
+                    self.add_pre_task_action(task, robot_id)
+                    self.send_d_graph_update(robot_id)
+                    self.dispatch_task(task, robot_id)
 
     def dispatch_task(self, task, robot_id):
         """

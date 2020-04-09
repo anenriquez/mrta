@@ -1,14 +1,15 @@
 import argparse
 import logging.config
+import time
 
-from fmlib.models.tasks import TransportationTask as Task
+from fmlib.models.actions import GoTo
 from fmlib.models.tasks import TaskPlan
+from fmlib.models.tasks import TransportationTask as Task
 from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from mrs.allocation.auctioneer import Auctioneer
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.actions import GoTo
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
 from mrs.execution.delay_recovery import DelayRecovery
@@ -76,6 +77,7 @@ class CCU:
         task.update_duration(mean, variance)
 
         action = GoTo.create_new(type="PICKUP-TO-DELIVERY", locations=path)
+        action.update_duration(mean, variance)
         task_plan = TaskPlan(actions=[action])
         task.update_plan(task_plan)
         self.logger.debug('Task plan of task %s updated', task.task_id)
@@ -94,16 +96,16 @@ class CCU:
             task_schedule = self.auctioneer.get_task_schedule(task_id, robot_ids[0])
             task.update_schedule(task_schedule)
 
-            allocation_round = self.auctioneer.rounds.pop(0)
-            self.update_allocation_metrics(allocation_round)
+            allocation_time = self.auctioneer.allocation_times.pop(0)
+            self.update_allocation_metrics(allocation_time)
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
-    def update_allocation_metrics(self, allocation_round):
+    def update_allocation_metrics(self, allocation_time):
         allocation_info = self.auctioneer.winning_bid.get_allocation_info()
         task = Task.get_task(allocation_info.new_task.task_id)
-        self.performance_tracker.update_allocation_metrics(task, allocation_round)
+        self.performance_tracker.update_allocation_metrics(task, allocation_time)
         if allocation_info.next_task:
             task = Task.get_task(allocation_info.next_task.task_id)
             self.performance_tracker.update_allocation_metrics(task, only_constraints=True)
@@ -118,6 +120,7 @@ class CCU:
                 self.process_allocation()
                 self.performance_tracker.run()
                 self.api.run()
+                time.sleep(0.5)
         except (KeyboardInterrupt, SystemExit):
             self.api.shutdown()
             self.simulator_interface.stop()

@@ -1,9 +1,10 @@
 import logging
+from ropod.structs.status import ActionStatus as ActionStatusConst
 
 
 class RecoveryMethod:
 
-    options = ["re-allocate", "re-schedule-re-allocate", "re-schedule-abort", "abort"]
+    options = ["re-allocate", "abort"]
 
     def __init__(self, name):
         self.logger = logging.getLogger('mrs.recovery.method')
@@ -15,57 +16,85 @@ class RecoveryMethod:
             raise ValueError(name)
         return name
 
-    def recover(self, timetable, task, is_consistent):
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent):
         next_task = timetable.get_next_task(task)
 
-        if next_task and (self.name == "re-allocate" and timetable.is_next_task_late(task, next_task)) \
-                or self.name.startswith("re-schedule") \
-                or next_task and self.name == "abort" and timetable.is_next_task_late(task, next_task):
+        if next_task and self.is_next_task_late(timetable, task, next_task, task_progress, r_assigned_time):
+            return next_task
+
+    def is_next_task_late(self, timetable, task, next_task, task_progress, r_assigned_time):
+        self.logger.debug("Checking if task %s is at risk", next_task.task_id)
+        mean = 0
+        variance = 0
+
+        action_idx = None
+        for i, action in enumerate(task.plan[0].actions):
+            if action.action_id == task_progress.action_id:
+                action_idx = i
+
+        if task_progress.action_status.status == ActionStatusConst.COMPLETED:
+            # The remaining actions do not include the current action
+            try:
+                remaining_actions = task.plan[0].actions[action_idx + 1:]
+            except IndentationError:
+                # No remaining actions left
+                remaining_actions = []
+        else:
+            # The remaining actions include the current action
+            remaining_actions = task.plan[0].actions[action_idx:]
+
+        print("Remaining actions")
+        for action in remaining_actions:
+            if action.duration:
+                mean += action.duration.mean
+                variance += action.duration.variance
+
+        estimated_duration = mean + 2 * round(variance ** 0.5, 3)
+        self.logger.debug("Remaining estimated task duration: %s ", estimated_duration)
+
+        node_id, node = timetable.dispatchable_graph.get_node_by_type(next_task.task_id, 'start')
+        latest_start_time_next_task = timetable.dispatchable_graph.get_node_latest_time(node_id)
+        self.logger.debug("Latest permitted start time of next task: %s ", latest_start_time_next_task)
+
+        estimated_start_time_of_next_task = r_assigned_time + estimated_duration
+        self.logger.debug("Estimated start time of next task: %s ", estimated_start_time_of_next_task)
+
+        if estimated_start_time_of_next_task > latest_start_time_next_task:
+            self.logger.warning("Task %s is at risk", next_task.task_id)
             return True
-        return False
+        else:
+            self.logger.debug("Task %s is not at risk", next_task.task_id)
+            return False
 
 
 class Corrective(RecoveryMethod):
 
     """ Maps allocation methods with their available corrective measures """
 
-    reactions = {'tessi': ["re-allocate", "abort"],
-                 'tessi-srea': ["re-allocate", "abort"],
-                 'tessi-dsc': ["re-allocate", "abort"],
-                 }
-
-    def __init__(self, name, allocation_method):
+    def __init__(self, name):
         super().__init__(name)
-        if self.name not in self.reactions.get(allocation_method):
-            raise ValueError(name)
 
-    def recover(self, timetable, task, is_consistent):
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent):
         """ React only if the last assignment was inconsistent
         """
         if is_consistent:
-            return False
-        elif not is_consistent and super().recover(timetable, task, is_consistent):
-            return True
+            return None
+        elif not is_consistent:
+            return super().recover(timetable, task, task_progress, r_assigned_time, is_consistent)
 
 
 class Preventive(RecoveryMethod):
 
     """ Maps allocation methods with their available preventive measures """
 
-    reactions = {'tessi': ["re-allocate", "abort"],
-                 'tessi-srea': ["re-allocate", "re-schedule-re-allocate", "re-schedule-abort", "abort"],
-                 'tessi-dsc': ["re-allocate", "abort"],
-                 }
-
-    def __init__(self, name, allocation_method):
+    def __init__(self, name):
         super().__init__(name)
-        if self.name not in self.reactions.get(allocation_method):
-            raise ValueError(name)
 
-    def recover(self, timetable, task, is_consistent):
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent):
         """ React both, when the last assignment was consistent and when it was inconsistent
         """
-        return super().recover(timetable, task, is_consistent)
+
+        return super().recover(timetable, task, task_progress, r_assigned_time, is_consistent)
 
 
 class RecoveryMethodFactory:
@@ -89,6 +118,13 @@ recovery_method_factory.register_recovery_method('preventive', Preventive)
 
 
 class DelayRecovery:
-    def __init__(self, allocation_method, type_, method, **kwargs):
+    def __init__(self, type_, method, **kwargs):
         cls_ = recovery_method_factory.get_recovery_method(type_)
-        self.method = cls_(method, allocation_method)
+        self.method = cls_(method)
+
+    @property
+    def name(self):
+        return self.method.name
+
+    def recover(self, timetable, task, task_progress, r_assigned_time, is_consistent):
+        return self.method.recover(timetable, task, task_progress, r_assigned_time, is_consistent)

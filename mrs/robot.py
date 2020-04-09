@@ -71,7 +71,7 @@ class Robot:
             if task_status.status == TaskStatusConst.SCHEDULED:
                 self.logger.debug("Sending task %s to executor", task.task_id)
                 task_msg = self.api.create_message(task)
-                self.api.publish(task_msg, peer='executor')
+                self.api.publish(task_msg, peer='executor_' + self.robot_id)
                 self.schedule_execution_monitor.task = task
 
     def run(self):
