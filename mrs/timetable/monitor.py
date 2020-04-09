@@ -2,14 +2,15 @@ import logging
 import time
 
 from fmlib.models.tasks import TransportationTask as Task
-from mrs.exceptions.allocation import TaskNotFound
-from mrs.messages.remove_task import RemoveTaskFromSchedule
-from mrs.messages.task_status import TaskStatus
-from mrs.simulation.simulator import SimulatorInterface
-from mrs.utils.time import relative_to_ztp
 from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
+
+from mrs.exceptions.allocation import TaskNotFound
+from mrs.messages.remove_task import RemoveTaskFromSchedule
+from mrs.messages.task_status import TaskStatus, TaskProgress
+from mrs.simulation.simulator import SimulatorInterface
+from mrs.utils.time import relative_to_ztp
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -30,7 +31,6 @@ class TimetableMonitor(SimulatorInterface):
         self.deleting_task = False
         self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
-        self.logger.critical("watchdog: %s", self.d_graph_watchdog)
 
     def configure(self, **kwargs):
         for key, value in kwargs.items():
@@ -53,7 +53,7 @@ class TimetableMonitor(SimulatorInterface):
 
         if task_status.task_status == TaskStatusConst.ONGOING:
             self._update_progress(task, task_progress, timestamp)
-            self._update_timetable(task, task_status.robot_id, task_progress, timestamp)
+            self.update_timetable(task, task_status.robot_id, task_progress, timestamp)
             self._update_task_schedule(task, task_progress, timestamp)
             task.update_status(task_status.task_status)
 
@@ -62,11 +62,11 @@ class TimetableMonitor(SimulatorInterface):
             self.tasks_to_remove.append((task, task_status.task_status))
 
         elif task_status.task_status == TaskStatusConst.UNALLOCATED:
-            self._re_allocate(task)
+            self.re_allocate(task)
 
         elif task_status.task_status in [TaskStatusConst.ABORTED, TaskStatusConst.CANCELED]:
             try:
-                self._remove_task(task, task_status.task_status)
+                self.remove_task_from_timetable(task, task_status.task_status)
             except TaskNotFound:
                 return
 
@@ -94,7 +94,10 @@ class TimetableMonitor(SimulatorInterface):
         self.logger.debug("Updated action progress: status %s, start time %s, finish time %s", action_progress.status,
                           action_progress.start_time, action_progress.finish_time)
 
-    def _update_timetable(self, task, robot_id, task_progress, timestamp):
+    def update_timetable(self, task, robot_id, task_progress, timestamp):
+        if isinstance(task_progress, dict):
+            task_progress = TaskProgress.from_dict(task_progress)
+
         timetable = self.timetable_manager.get_timetable(robot_id)
         self.logger.debug("Updating timetable of robot: %s", robot_id)
 
@@ -104,12 +107,17 @@ class TimetableMonitor(SimulatorInterface):
                 task_progress.action_status.status == ActionStatusConst.ONGOING:
             node_id, node = timetable.stn.get_node_by_type(task.task_id, 'start')
             self._update_timepoint(task, timetable, timestamp, node_id)
-            self.performance_tracker.update_scheduling_metrics(task.task_id, timetable)
+            try:
+                self.performance_tracker.update_scheduling_metrics(task.task_id, timetable)
+            except AttributeError:
+                pass
         else:
+            print("Else")
             # An action could be associated to two nodes, e.g., between pickup and delivery there is only one action
             nodes = timetable.stn.get_nodes_by_action(task_progress.action_id)
 
             for node_id, node in nodes:
+                print("node_id: ", node_id)
                 if (node.node_type == 'pickup' and
                     task_progress.action_status.status == ActionStatusConst.ONGOING) or \
                         (node.node_type == 'delivery' and
@@ -119,18 +127,25 @@ class TimetableMonitor(SimulatorInterface):
     def _update_timepoint(self, task, timetable, assigned_time, node_id):
         r_assigned_time = relative_to_ztp(timetable.ztp, assigned_time)
         timetable.check_is_task_delayed(task, r_assigned_time, node_id)
-        self.performance_tracker.update_delay(task.task_id, r_assigned_time, node_id, timetable)
-        self.performance_tracker.update_earliness(task.task_id, r_assigned_time, node_id, timetable)
+        try:
+            self.performance_tracker.update_delay(task.task_id, r_assigned_time, node_id, timetable)
+            self.performance_tracker.update_earliness(task.task_id, r_assigned_time, node_id, timetable)
+        except AttributeError:
+            pass
         timetable.update_timepoint(r_assigned_time, node_id)
 
         nodes = timetable.stn.get_nodes_by_task(task.task_id)
         self._update_edge(timetable, 'start', 'pickup', nodes)
         self._update_edge(timetable, 'pickup', 'delivery', nodes)
-        self.performance_tracker.update_timetables(timetable)
+        try:
+            self.performance_tracker.update_timetables(timetable)
+        except AttributeError:
+            pass
         self.auctioneer.changed_timetable.append(timetable.robot_id)
 
         self.logger.debug("Updated stn: \n %s ", timetable.stn)
         self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
+        timetable.store()
 
         if self.d_graph_watchdog:
             next_task = timetable.get_next_task(task)
@@ -162,10 +177,10 @@ class TimetableMonitor(SimulatorInterface):
                              "finish_time": timestamp}
             task.update_schedule(task_schedule)
 
-    def _re_allocate(self, task):
+    def re_allocate(self, task):
         self.logger.critical("Re-allocating task %s", task.task_id)
         try:
-            self._remove_task(task, TaskStatusConst.UNALLOCATED)
+            self.remove_task_from_timetable(task, TaskStatusConst.UNALLOCATED)
         except TaskNotFound:
             return
         task.unassign_robots()
@@ -182,8 +197,12 @@ class TimetableMonitor(SimulatorInterface):
             timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
             self.auctioneer.changed_timetable.append(timetable.robot_id)
-            self.performance_tracker.update_timetables(timetable)
+            try:
+                self.performance_tracker.update_timetables(timetable)
+            except AttributeError:
+                pass
             self.dispatcher.send_d_graph_update(timetable.robot_id)
+            timetable.store()
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")
             self.logger.debug("STN robot %s: %s", timetable.robot_id, timetable.stn)
@@ -193,11 +212,11 @@ class TimetableMonitor(SimulatorInterface):
 
     def recover(self, task):
         if self.recovery_method.name == "abort":
-            self._remove_task(task, TaskStatusConst.ABORTED)
+            self.remove_task_from_timetable(task, TaskStatusConst.ABORTED)
         elif self.recovery_method.name == "re-allocate":
-            self._re_allocate(task)
+            self.re_allocate(task)
 
-    def _remove_task(self, task, status):
+    def remove_task_from_timetable(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
@@ -222,6 +241,7 @@ class TimetableMonitor(SimulatorInterface):
 
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+            timetable.store()
 
             task.update_status(status)
             self.send_remove_task(task.task_id, status, robot_id)
@@ -279,7 +299,7 @@ class TimetableMonitor(SimulatorInterface):
                 self.tasks_to_remove.remove((task, status))
                 if status == TaskStatusConst.COMPLETED:
                     self.completed_tasks.append(task)
-                self._remove_task(task, status)
+                self.remove_task_from_timetable(task, status)
 
         if self.deleting_task and not self.completed_tasks:
             self.deleting_task = False
