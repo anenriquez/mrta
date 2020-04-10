@@ -149,7 +149,7 @@ class Round(SimulatorInterface):
             if task_id not in self.received_bids:
                 task = self.tasks_to_allocate.get(task_id)
                 if task.constraints.hard and self.alternative_timeslots:
-                    task.set_soft_constraints()
+                    task.hard_constraints = False
                     self.tasks_to_allocate[task.task_id] = task
                     self.logger.debug("Setting soft constraints for task %s", task_id)
 
