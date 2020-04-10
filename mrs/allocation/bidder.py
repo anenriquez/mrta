@@ -136,6 +136,11 @@ class Bidder:
 
             prev_location = self.get_previous_location(insertion_point)
             travel_duration = self.get_travel_duration(task, prev_location)
+            if travel_duration is None:
+                self.logger.warning("There was a problem computing the estimated duration between %s and %s "
+                                    "Not computing bid for insertion point %s",
+                                    prev_location, task.request.pickup_location, insertion_point)
+                continue
 
             new_stn_task = self.timetable.to_stn_task(task, travel_duration, insertion_point, earliest_admissible_time)
 
@@ -147,8 +152,15 @@ class Bidder:
                 next_task = self.timetable.get_task(insertion_point+1)
                 prev_version_next_stn_task = self.timetable.get_stn_task(next_task.task_id)
 
-                prev_location = task.request.delivery_location
+                prev_location = self.get_task_delivery_location(task)
                 travel_duration = self.get_travel_duration(next_task, prev_location)
+
+                if travel_duration is None:
+                    self.logger.warning("There was a problem computing the estimated duration between %s and %s "
+                                        "Not computing bid for insertion point %s",
+                                        prev_location, next_task.request.pickup_location, insertion_point)
+                    continue
+
                 next_stn_task = self.timetable.update_stn_task(copy.deepcopy(prev_version_next_stn_task),
                                                                travel_duration,
                                                                insertion_point+1,
@@ -181,6 +193,9 @@ class Bidder:
                 self.timetable.stn.update_task(prev_version_next_stn_task)
 
         return best_bid
+
+    def get_task_delivery_location(self, task):
+        return task.request.delivery_location
 
     def insert_in(self, insertion_point):
         try:
