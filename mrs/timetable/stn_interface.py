@@ -1,9 +1,12 @@
+import uuid
+
 from fmlib.models.tasks import TransportationTask as Task
-from mrs.utils.time import relative_to_ztp, to_timestamp
 from ropod.structs.status import TaskStatus as TaskStatusConst
-from stn.task import Timepoint
-from stn.task import Task as STNTask
 from stn.task import Edge
+from stn.task import Task as STNTask
+from stn.task import Timepoint
+
+from mrs.utils.time import relative_to_ztp, to_timestamp
 
 
 class STNInterface:
@@ -14,10 +17,12 @@ class STNInterface:
         self.stn_tasks = dict()
 
     def get_stn_task(self, task_id):
+        if isinstance(task_id, uuid.UUID):
+            task_id = str(task_id)
         return self.stn_tasks.get(task_id)
 
     def add_stn_task(self, stn_task):
-        self.stn_tasks[stn_task.task_id] = stn_task
+        self.stn_tasks[str(stn_task.task_id)] = stn_task
 
     def insert_task(self, stn_task, insertion_point):
         self.stn.add_task(stn_task, insertion_point)
