@@ -24,6 +24,7 @@ class Timetable(MongoModel):
     ztp = fields.DateTimeField()
     stn = fields.DictField()
     dispatchable_graph = fields.DictField(default=dict())
+    stn_tasks = fields.DictField(blank=True)
 
     objects = TimetableManager()
 

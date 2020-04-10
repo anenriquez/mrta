@@ -16,6 +16,7 @@ from pymodm.errors import DoesNotExist
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from stn.methods.fpc import get_minimal_network
+from stn.task import Task as STNTask
 
 from mrs.utils.time import to_timestamp
 
@@ -184,6 +185,7 @@ class Timetable(STNInterface):
     def remove_task(self, task_id):
         self.remove_task_from_stn(task_id)
         self.remove_task_from_dispatchable_graph(task_id)
+        self.stn_tasks.pop(str(task_id))
 
     def remove_task_from_stn(self, task_id):
         task_node_ids = self.stn.get_task_node_ids(task_id)
@@ -232,6 +234,7 @@ class Timetable(STNInterface):
         timetable_dict['ztp'] = self.ztp.to_str()
         timetable_dict['stn'] = self.stn.to_dict()
         timetable_dict['dispatchable_graph'] = self.dispatchable_graph.to_dict()
+        timetable_dict['stn_tasks'] = self.stn_tasks
 
         return timetable_dict
 
@@ -246,15 +249,19 @@ class Timetable(STNInterface):
         timetable.ztp = TimeStamp.from_str(ztp)
         timetable.stn = stn_cls.from_dict(timetable_dict['stn'])
         timetable.dispatchable_graph = stn_cls.from_dict(timetable_dict['dispatchable_graph'])
+        timetable.stn_tasks = timetable_dict['stn_tasks']
 
         return timetable
 
     def to_model(self):
+        stn_tasks = {task_id: task.to_dict() for (task_id, task) in self.stn_tasks.items()}
+
         timetable_model = TimetableMongo(self.robot_id,
                                          self.stp_solver.solver_name,
                                          self.ztp.to_datetime(),
                                          self.stn.to_dict(),
-                                         self.dispatchable_graph.to_dict())
+                                         self.dispatchable_graph.to_dict(),
+                                         stn_tasks)
         return timetable_model
 
     def store(self):
@@ -268,6 +275,8 @@ class Timetable(STNInterface):
             self.stn = self.stn.from_dict(timetable_mongo.stn)
             self.dispatchable_graph = self.stn.from_dict(timetable_mongo.dispatchable_graph)
             self.ztp = TimeStamp.from_datetime(timetable_mongo.ztp)
+            self.stn_tasks = {task_id: STNTask.from_dict(task) for (task_id, task) in timetable_mongo.stn_tasks.items()}
+
         except DoesNotExist:
             self.logger.debug("The timetable of robot %s is empty", self.robot_id)
             # Resetting values
