@@ -131,6 +131,7 @@ class TimetableMonitor(SimulatorInterface):
 
         self.logger.debug("Updated stn: \n %s ", timetable.stn)
         self.logger.debug("Updated dispatchable graph: \n %s", timetable.dispatchable_graph)
+        timetable.store()
 
         if self.d_graph_watchdog:
             next_task = timetable.get_next_task(task)
@@ -164,6 +165,9 @@ class TimetableMonitor(SimulatorInterface):
 
     def _re_allocate(self, task):
         self.logger.critical("Re-allocating task %s", task.task_id)
+        if task.status.status == TaskStatusConst.UNALLOCATED:
+            self.logger.warning("Task %s is already unallocated", task.task_id)
+            return
         try:
             self._remove_task(task, TaskStatusConst.UNALLOCATED)
         except TaskNotFound:
@@ -176,6 +180,7 @@ class TimetableMonitor(SimulatorInterface):
     def _re_compute_dispatchable_graph(self, timetable, next_task=None):
         if timetable.stn.is_empty():
             self.logger.warning("Timetable of %s is empty", timetable.robot_id)
+            self.auctioneer.changed_timetable.append(timetable.robot_id)
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", timetable.robot_id)
         try:
@@ -184,6 +189,7 @@ class TimetableMonitor(SimulatorInterface):
             self.auctioneer.changed_timetable.append(timetable.robot_id)
             self.performance_tracker.update_timetables(timetable)
             self.dispatcher.send_d_graph_update(timetable.robot_id)
+            timetable.store()
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")
             self.logger.debug("STN robot %s: %s", timetable.robot_id, timetable.stn)
@@ -201,31 +207,51 @@ class TimetableMonitor(SimulatorInterface):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
-            next_task = timetable.get_next_task(task)
 
             if not timetable.has_task(task.task_id):
                 self.logger.warning("Robot %s does not have task %s in its timetable: ", robot_id, task.task_id)
                 raise TaskNotFound
 
-            if status == TaskStatusConst.COMPLETED:
-                if next_task:
-                    finish_current_task = timetable.stn.get_time(task.task_id, 'delivery', False)
-                    timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
-                self.update_robot_poses(task)
+            prev_task = timetable.get_previous_task(task)
+            next_task = timetable.get_next_task(task)
+
+            earliest_task = timetable.get_task(position=1)
+
+            if earliest_task and task.task_id == earliest_task.task_id and next_task:
+                self._remove_first_task(task, next_task, status, timetable)
+            else:
                 timetable.remove_task(task.task_id)
 
-            else:
-                prev_task = timetable.get_previous_task(task)
-                timetable.remove_task(task.task_id)
-                if prev_task and next_task:
-                    self.update_pre_task_constraint(prev_task, next_task, timetable)
+            if status == TaskStatusConst.COMPLETED:
+                self.update_robot_poses(task)
+
+            if prev_task and next_task:
+                self.update_pre_task_constraint(prev_task, next_task, timetable)
 
             self.logger.debug("STN robot %s: %s", robot_id, timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", robot_id, timetable.dispatchable_graph)
+            timetable.store()
 
             task.update_status(status)
             self.send_remove_task(task.task_id, status, robot_id)
             self._re_compute_dispatchable_graph(timetable, next_task)
+
+    @staticmethod
+    def _remove_first_task(task, next_task, status, timetable):
+        if status == TaskStatusConst.COMPLETED:
+            earliest_time = timetable.stn.get_time(task.task_id, 'delivery', False)
+            timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+        else:
+            nodes = timetable.stn.get_nodes_by_task(task.task_id)
+            node_id, node = nodes[0]
+            earliest_time = timetable.stn.get_node_earliest_time(node_id)
+            timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+
+        start_next_task = timetable.dispatchable_graph.get_time(next_task.task_id, 'start')
+        if start_next_task < earliest_time:
+            timetable.dispatchable_graph.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+
+        timetable.remove_task(task.task_id)
 
     def update_pre_task_constraint(self, prev_task, task, timetable):
         self.logger.critical("Update pre_task constraint of task %s", task.task_id)
