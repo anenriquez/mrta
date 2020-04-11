@@ -1,9 +1,13 @@
 non_intentional_delays:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_tight_25_5_1
@@ -24,9 +28,13 @@ non_intentional_delays:
 intentional_delays:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_tight_25_5_1
@@ -47,9 +55,13 @@ intentional_delays:
 task_scalability:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_5_5_1
@@ -78,27 +90,37 @@ task_scalability:
 robot_scalability_1:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_50_10_1
     - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
+  planner:
+    map_name: brsu_obstacles
   executor:
     max_seed: 2147483647
-    map_name: brsu
+    map_name: brsu_obstacles
   fleet:
     - robot_001
 
 robot_scalability_2:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_50_10_1
@@ -115,15 +137,21 @@ robot_scalability_2:
 robot_scalability_3:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_50_10_1
     - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
+  planner:
+    map_name: brsu_obstacles
   executor:
     max_seed: 2147483647
     map_name: brsu
@@ -135,15 +163,21 @@ robot_scalability_3:
 robot_scalability_4:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_50_10_1
     - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
+  planner:
+    map_name: brsu_obstacles
   executor:
     max_seed: 2147483647
     map_name: brsu
@@ -156,15 +190,21 @@ robot_scalability_4:
 robot_scalability_5:
   approaches:
     - tessi-corrective-re-allocate
+    - tessi-corrective-abort
     - tessi-srea-preventive-re-schedule-re-allocate
+    - tessi-srea-preventive-re-schedule-abort
     - tessi-srea-corrective-re-allocate
+    - tessi-srea-corrective-abort
     - tessi-dsc-corrective-re-allocate
+    - tessi-dsc-corrective-abort
   dataset_module: dataset_lib.datasets
   datasets:
     - overlapping_random_50_10_1
     - nonoverlapping_random_50_1
   robot_poses_module: experiments.config.poses
   robot_poses: robot_init_poses
+  planner:
+    map_name: brsu_obstacles
   executor:
     max_seed: 2147483647
     map_name: brsu
