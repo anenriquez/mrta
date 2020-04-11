@@ -38,13 +38,15 @@ tessi-srea-preventive-re-schedule-abort:
   allocation_method: tessi-srea
   delay_recovery:
     type_: preventive
-    method: re-schedule-abort
+    method: abort
+  d_graph_watchdog: True
 
 tessi-srea-preventive-re-schedule-re-allocate:
   allocation_method: tessi-srea
   delay_recovery:
     type_: preventive
-    method: re-schedule-re-allocate
+    method: re-allocate
+  d_graph_watchdog: True
 
 tessi-srea-corrective-abort:
   allocation_method: tessi-srea
