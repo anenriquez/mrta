@@ -195,7 +195,7 @@ robot_api:
       - msg_type: 'D-GRAPH-UPDATE'
         component: 'schedule_execution_monitor.d_graph_update_cb'
       - msg_type: 'TASK'
-        component: '.task_cb'
+        component: 'schedule_execution_monitor.task_cb'
       - msg_type: 'TASK-STATUS'
         component: 'schedule_execution_monitor.task_status_cb'
 
