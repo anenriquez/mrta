@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('approach', type=str, action='store', help='Approach name')
     args = parser.parse_args()
 
-    docker_compose_file_ = "docker_files/exp-" + experiment_number.get(args.experiment) + \
+    docker_compose_file_ = "../docker_files/exp-" + experiment_number.get(args.experiment) + \
                            "-approach-" + approach_number.get(args.approach) + ".yaml"
 
     config_params = get_config_params(experiment=args.experiment)
