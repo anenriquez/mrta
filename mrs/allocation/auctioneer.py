@@ -44,6 +44,8 @@ class Auctioneer(SimulatorInterface):
         self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids, self.tasks_to_allocate)
+        self.allocating_task = False
+        self.timetable_monitor = kwargs.get("timetable_monitor")
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -126,7 +128,7 @@ class Auctioneer(SimulatorInterface):
 
         self.allocations.append(allocation)
         self.allocation_times.append(self.round.time_to_allocate)
-        self.finish_round()
+        # self.finish_round()
 
     def undo_allocation(self, allocation_info):
         self.logger.warning("Undoing allocation of round %s", self.round.id)
@@ -211,6 +213,7 @@ class Auctioneer(SimulatorInterface):
         ack = TaskContractAcknowledgment.from_payload(payload)
 
         if ack.accept and ack.robot_id not in self.changed_timetable:
+            self.allocating_task = True
             self.logger.debug("Concluding allocation of task %s", ack.task_id)
             self.winning_bid.set_allocation_info(ack.allocation_info)
             self.process_allocation()

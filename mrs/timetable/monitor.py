@@ -7,9 +7,11 @@ from mrs.messages.remove_task import RemoveTaskFromSchedule
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import relative_to_ztp
+from pymodm.errors import DoesNotExist
 from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
+from mrs.messages.task_status import ActionProgress
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -31,6 +33,7 @@ class TimetableMonitor(SimulatorInterface):
         self.processing_task = False
         self.logger = logging.getLogger("mrs.timetable.monitor")
         self.logger.critical("watchdog: %s", self.d_graph_watchdog)
+        self.action_progress = dict()
 
     def configure(self, **kwargs):
         for key, value in kwargs.items():
@@ -38,7 +41,7 @@ class TimetableMonitor(SimulatorInterface):
             self.__dict__[key] = value
 
     def task_status_cb(self, msg):
-        while self.deleting_task:
+        while self.deleting_task and not self.auctioneer.allocating_task:
             time.sleep(0.1)
 
         self.processing_task = True
@@ -47,7 +50,16 @@ class TimetableMonitor(SimulatorInterface):
         timestamp = TimeStamp.from_str(msg["header"]["timestamp"]).to_datetime()
         task_status = TaskStatus.from_payload(payload)
         task_progress = task_status.task_progress
-        task = Task.get_task(task_status.task_id)
+
+        does_not_exist = True
+
+        while does_not_exist:
+            try:
+                task = Task.get_task(task_status.task_id)
+                does_not_exist = False
+            except DoesNotExist:
+                pass
+
         self.logger.debug("Received task status %s for task %s by %s", task_status.task_status, task_status.task_id,
                           task_status.robot_id)
 
@@ -75,12 +87,15 @@ class TimetableMonitor(SimulatorInterface):
     def _update_progress(self, task, task_progress, timestamp):
         self.logger.debug("Updating progress of task %s action %s status %s", task.task_id, task_progress.action_id,
                           task_progress.action_status.status)
-        if not task.status.progress:
-            task.update_progress(task_progress.action_id, task_progress.action_status.status)
-        action_progress = task.status.progress.get_action(task_progress.action_id)
 
-        self.logger.debug("Current action progress: status %s, start time %s, finish time %s", action_progress.status,
-                          action_progress.start_time, action_progress.finish_time)
+        if task_progress.action_id not in self.action_progress:
+            action_progress = ActionProgress(task_progress.action_id, timestamp)
+            self.action_progress[task_progress.action_id] = action_progress
+        else:
+            action_progress = self.action_progress.get(task_progress.action_id)
+
+        self.logger.debug("Current action progress: start time %s, finish time %s", action_progress.start_time,
+                          action_progress.finish_time)
 
         kwargs = {}
         if task_progress.action_status.status == ActionStatusConst.ONGOING:
@@ -88,11 +103,18 @@ class TimetableMonitor(SimulatorInterface):
         elif task_progress.action_status.status == ActionStatusConst.COMPLETED:
             kwargs.update(start_time=action_progress.start_time, finish_time=timestamp)
 
-        task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
-        action_progress = task.status.progress.get_action(task_progress.action_id)
+        self.logger.debug("Updating action progress with %s: ", kwargs)
 
-        self.logger.debug("Updated action progress: status %s, start time %s, finish time %s", action_progress.status,
-                          action_progress.start_time, action_progress.finish_time)
+        task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
+        updated_action_progress = task.status.progress.get_action(task_progress.action_id)
+
+        if updated_action_progress.start_time is None:
+            self.logger.warning("Action progress was not updated. Trying again..")
+            task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
+            updated_action_progress = task.status.progress.get_action(task_progress.action_id)
+
+        self.logger.debug("Updated action progress: status %s, start time %s, finish time %s", updated_action_progress.status,
+                          updated_action_progress.start_time, updated_action_progress.finish_time)
 
     def _update_timetable(self, task, robot_id, task_progress, timestamp):
         timetable = self.timetable_manager.get_timetable(robot_id)
@@ -180,13 +202,13 @@ class TimetableMonitor(SimulatorInterface):
     def _re_compute_dispatchable_graph(self, timetable, next_task=None):
         if timetable.stn.is_empty():
             self.logger.warning("Timetable of %s is empty", timetable.robot_id)
-            self.auctioneer.changed_timetable.append(timetable.robot_id)
+            # self.auctioneer.changed_timetable.append(timetable.robot_id)
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", timetable.robot_id)
         try:
             timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
-            self.auctioneer.changed_timetable.append(timetable.robot_id)
+            # self.auctioneer.changed_timetable.append(timetable.robot_id)
             self.performance_tracker.update_timetables(timetable)
             self.dispatcher.send_d_graph_update(timetable.robot_id)
             timetable.store()
@@ -207,6 +229,7 @@ class TimetableMonitor(SimulatorInterface):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
+            self.auctioneer.changed_timetable.append(timetable.robot_id)
 
             if not timetable.has_task(task.task_id):
                 self.logger.warning("Robot %s does not have task %s in its timetable: ", robot_id, task.task_id)
@@ -294,7 +317,7 @@ class TimetableMonitor(SimulatorInterface):
     def run(self):
         # TODO: Check how this works outside simulation
         ready_to_be_removed = list()
-        if not self.processing_task:
+        if not self.processing_task and not self.auctioneer.allocating_task:
 
             for task, status in self.tasks_to_remove:
                 if task.finish_time < self.get_current_time():

@@ -70,6 +70,7 @@ ccu_api:
         - NO-BID
         - TASK-CONTRACT-ACKNOWLEDGEMENT
         - TASK-STATUS
+        - FINISH-TEST
     acknowledge: false
     debug_messages:
       - 'TASK-REQUEST'
@@ -101,6 +102,8 @@ ccu_api:
     callbacks:
       - msg_type: 'START-TEST'
         component: '.start_test_cb'
+      - msg_type: 'FINISH-TEST'
+        component: '.finish_test_cb'
       - msg_type: 'BID'
         component: 'auctioneer.bid_cb'
       - msg_type: 'NO-BID'

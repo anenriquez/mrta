@@ -21,7 +21,8 @@ class Allocate(RopodPyre):
         zyre_config = {'node_name': 'allocation_test',
                        'groups': ['TASK-ALLOCATION'],
                        'message_types': ['START-TEST',
-                                         'ALLOCATION']}
+                                         'ALLOCATION'],
+                       'acknowledge': True}
 
         super().__init__(zyre_config, acknowledge=False)
 
@@ -130,6 +131,9 @@ class Allocate(RopodPyre):
 
     def terminate(self):
         print("Exiting test...")
+        msg = get_msg_fixture('finish_test.json')
+        self.shout(msg)
+        self.logger.info("Terminating test")
         self.simulator_interface.stop()
         self.shutdown()
         print("Test terminated")

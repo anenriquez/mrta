@@ -70,6 +70,11 @@ class CCU:
 
         self.auctioneer.allocate(tasks)
 
+    def finish_test_cb(self, msg):
+        self.logger.critical("Received finished test")
+        self.dispatcher.dispatched_tasks = list()
+        self.timetable_monitor.action_progress = dict()
+
     def add_task_plan(self, task):
         path = self.dispatcher.get_path(task.request.pickup_location, task.request.delivery_location)
 
@@ -101,6 +106,9 @@ class CCU:
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
+
+            self.auctioneer.allocating_task = False
+            self.auctioneer.finish_round()
 
     def update_allocation_metrics(self, allocation_time):
         allocation_info = self.auctioneer.winning_bid.get_allocation_info()

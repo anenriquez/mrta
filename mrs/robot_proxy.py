@@ -118,6 +118,8 @@ class RobotProxy:
             self.logger.warning("Robot %s does not have task %s in its timetable: ", self.robot_id, task.task_id)
             return
 
+        self.bidder.changed_timetable = True
+
         prev_task = self.timetable.get_previous_task(task)
         next_task = self.timetable.get_next_task(task)
 
@@ -160,13 +162,13 @@ class RobotProxy:
     def _re_compute_dispatchable_graph(self):
         if self.timetable.stn.is_empty():
             self.logger.warning("Timetable of robot %s is empty", self.robot_id)
-            self.bidder.changed_timetable = True
+            # self.bidder.changed_timetable = True
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
-            self.bidder.changed_timetable = True
+            # self.bidder.changed_timetable = True
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")
 
