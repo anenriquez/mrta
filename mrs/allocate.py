@@ -134,6 +134,7 @@ class Allocate(RopodPyre):
         msg = get_msg_fixture('finish_test.json')
         self.shout(msg)
         self.logger.info("Terminating test")
+        time.sleep(5)
         self.simulator_interface.stop()
         self.shutdown()
         print("Test terminated")
