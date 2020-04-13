@@ -1,13 +1,11 @@
 import argparse
 import logging.config
 
+from fmlib.models.tasks import TransportationTask as Task
 from pymodm.errors import DoesNotExist
-from ropod.structs.status import TaskStatus as TaskStatusConst
 
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
-from fmlib.models.tasks import TransportationTask as Task
-from mrs.exceptions.execution import InconsistentSchedule
 from mrs.execution.delay_recovery import DelayRecovery
 from mrs.execution.executor import Executor
 from mrs.execution.schedule_execution_monitor import ScheduleExecutionMonitor
@@ -24,55 +22,16 @@ _component_modules = {'simulator': Simulator,
 
 
 class Robot:
-    def __init__(self, robot_id, api, executor, scheduler, schedule_execution_monitor, **kwargs):
+    def __init__(self, robot_id, api, executor, schedule_execution_monitor, **kwargs):
 
         self.robot_id = robot_id
         self.api = api
         self.executor = executor
-        self.scheduler = scheduler
         self.schedule_execution_monitor = schedule_execution_monitor
-        self.timetable = schedule_execution_monitor.timetable
-        self.timetable.fetch()
-
-        self.d_graph_update_received = False
 
         self.api.register_callbacks(self)
         self.logger = logging.getLogger('mrs.robot.%s' % robot_id)
         self.logger.info("Initialized Robot %s", robot_id)
-
-    @property
-    def recovery_method(self):
-        return self.schedule_execution_monitor.recovery_method.name
-
-    def task_cb(self, msg):
-        payload = msg['payload']
-        task = Task.from_payload(payload)
-        if self.robot_id in task.assigned_robots:
-            self.logger.debug("Received task %s", task.task_id)
-            task.update_status(TaskStatusConst.DISPATCHED)
-
-    def schedule(self, task):
-        try:
-            self.scheduler.schedule(task)
-        except InconsistentSchedule:
-            if "re-allocate" in self.recovery_method:
-                self.schedule_execution_monitor.re_allocate(task)
-            else:
-                self.schedule_execution_monitor.abort(task)
-
-    def process_tasks(self, tasks):
-        for task in tasks:
-            task_status = task.get_task_status(task.task_id)
-
-            if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
-                self.schedule(task)
-
-            # For real-time execution add is_executable condition
-            if task_status.status == TaskStatusConst.SCHEDULED:
-                self.logger.debug("Sending task %s to executor", task.task_id)
-                task_msg = self.api.create_message(task)
-                self.api.publish(task_msg, peer='executor_' + self.robot_id)
-                self.schedule_execution_monitor.task = task
 
     def run(self):
         try:
@@ -81,7 +40,7 @@ class Robot:
                 try:
                     tasks = Task.get_tasks_by_robot(self.robot_id)
                     if self.schedule_execution_monitor.task is None:
-                        self.process_tasks(tasks)
+                        self.schedule_execution_monitor.process_tasks(tasks)
                     self.executor.run()
                 except DoesNotExist:
                     pass

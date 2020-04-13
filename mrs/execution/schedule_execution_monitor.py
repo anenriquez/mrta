@@ -7,16 +7,18 @@ from mrs.messages.task_status import TaskStatus
 from mrs.utils.time import relative_to_ztp
 from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
+from mrs.exceptions.execution import InconsistentSchedule
 
 
 class ScheduleExecutionMonitor:
 
-    def __init__(self, robot_id, timetable, delay_recovery, **kwargs):
+    def __init__(self, robot_id, timetable, scheduler, delay_recovery, **kwargs):
         """ Includes methods to monitor the schedule of a robot's allocated tasks
         """
         self.robot_id = robot_id
         self.timetable = timetable
         self.timetable.fetch()
+        self.scheduler = scheduler
         self.recovery_method = delay_recovery
         self.d_graph_watchdog = kwargs.get("d_graph_watchdog", False)
         self.api = kwargs.get("api")
@@ -31,6 +33,13 @@ class ScheduleExecutionMonitor:
         api = kwargs.get('api')
         if api:
             self.api = api
+
+    def task_cb(self, msg):
+        payload = msg['payload']
+        task = Task.from_payload(payload)
+        if self.robot_id in task.assigned_robots:
+            self.logger.debug("Received task %s", task.task_id)
+            task.update_status(TaskStatusConst.DISPATCHED)
 
     def d_graph_update_cb(self, msg):
         payload = msg['payload']
@@ -62,6 +71,15 @@ class ScheduleExecutionMonitor:
                 self.task = None
 
             task.update_status(task_status.task_status)
+
+    def schedule(self, task):
+        try:
+            self.scheduler.schedule(task)
+        except InconsistentSchedule:
+            if "re-allocate" in self.recovery_method:
+                self.re_allocate(task)
+            else:
+                self.abort(task)
 
     def update_timetable(self, task, task_progress, timestamp):
         r_assigned_time = relative_to_ztp(self.timetable.ztp, timestamp)
@@ -146,3 +164,20 @@ class ScheduleExecutionMonitor:
         self.logger.debug("Sending task status for task %s", task_status.task_id)
         msg = self.api.create_message(task_status)
         self.api.publish(msg, groups=["TASK-ALLOCATION"])
+
+    def send_task(self, task):
+        self.logger.debug("Sending task %s to executor", task.task_id)
+        task_msg = self.api.create_message(task)
+        self.api.publish(task_msg, peer='executor_' + self.robot_id)
+
+    def process_tasks(self, tasks):
+        for task in tasks:
+            task_status = task.get_task_status(task.task_id)
+
+            if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
+                self.schedule(task)
+
+            # For real-time execution add is_executable condition
+            if task_status.status == TaskStatusConst.SCHEDULED:
+                self.send_task(task)
+                self.task = task
