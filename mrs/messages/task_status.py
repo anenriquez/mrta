@@ -44,7 +44,7 @@ class TaskProgress(AsDictMixin):
 
 
 class TaskStatus(AsDictMixin):
-    def __init__(self, task_id, robot_id, task_status, task_progress=None):
+    def __init__(self, task_id, robot_id, task_status, task_progress=None, **kwargs):
         self.task_id = task_id
         self.robot_id = robot_id
         self.task_status = task_status
