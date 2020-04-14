@@ -29,6 +29,7 @@ class RobotPerformance(MongoModel):
     work_time = fields.FloatField(default=0.0)
     idle_time = fields.FloatField(default=0.0)
     timetables = fields.EmbeddedDocumentListField(Timetable)
+    dgraph_recomputation_time = fields.ListField()
 
     objects = RobotPerformanceManager()
 
@@ -77,6 +78,12 @@ class RobotPerformance(MongoModel):
 
     def update_makespan(self, makespan):
         self.makespan = makespan
+        self.save()
+
+    def update_dgraph_recomputation_time(self, time_):
+        if not self.dgraph_recomputation_time:
+            self.dgraph_recomputation_time = list()
+        self.dgraph_recomputation_time.append(time_)
         self.save()
 
     @classmethod

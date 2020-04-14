@@ -52,6 +52,12 @@ class RobotPerformanceTracker:
         robot_performance = RobotPerformance.get_robot_performance(timetable.robot_id)
         robot_performance.update_timetables(timetable)
 
+    def update_dgraph_recomputation_time(self, robot_id, time_):
+        self.logger.debug("Updating dgraph recomputation time of robot %s", robot_id)
+        robot_performance = RobotPerformance.get_robot_performance(robot_id)
+        robot_performance.update_dgraph_recomputation_time(time_)
+
+
     @staticmethod
     def update_re_allocations(task):
         for robot_id in task.assigned_robots:

@@ -202,14 +202,15 @@ class TimetableMonitor(SimulatorInterface):
     def _re_compute_dispatchable_graph(self, timetable, next_task=None):
         if timetable.stn.is_empty():
             self.logger.warning("Timetable of %s is empty", timetable.robot_id)
-            # self.auctioneer.changed_timetable.append(timetable.robot_id)
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", timetable.robot_id)
         try:
+            start = time.time()
             timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
+            end = time.time()
             self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
-            # self.auctioneer.changed_timetable.append(timetable.robot_id)
             self.performance_tracker.update_timetables(timetable)
+            self.performance_tracker.update_dgraph_recomputation_time(timetable.robot_id, end-start)
             self.dispatcher.send_d_graph_update(timetable.robot_id)
             timetable.store()
         except NoSTPSolution:

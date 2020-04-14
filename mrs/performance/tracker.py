@@ -30,6 +30,9 @@ class PerformanceTracker:
     def update_timetables(self, timetable):
         self.robot_performance_tracker.update_timetables(timetable)
 
+    def update_dgraph_recomputation_time(self, robot_id, time_):
+        self.robot_performance_tracker.update_dgraph_recomputation_time(robot_id, time_)
+
     def update_scheduling_metrics(self, task_id, timetable):
         self.task_performance_tracker.update_scheduling_metrics(task_id, timetable)
 
