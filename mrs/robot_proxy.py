@@ -15,6 +15,9 @@ from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.utils.time import relative_to_ztp
+from pymodm.context_managers import switch_collection
+from pymodm.errors import DoesNotExist
+
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -56,7 +59,12 @@ class RobotProxy:
         task_status = TaskStatus.from_payload(payload)
 
         if self.robot_id == task_status.robot_id:
-            task = Task.get_task(task_status.task_id)
+            try:
+                task = Task.get_task(task_status.task_id)
+            except DoesNotExist:
+                with switch_collection(Task, Task.Meta.archive_collection):
+                    task = Task.get_task(task_status.task_id)
+
             self.logger.debug("Received task status %s for task %s", task_status.task_status, task.task_id)
 
             if task_status.task_status == TaskStatusConst.ONGOING:
@@ -162,13 +170,11 @@ class RobotProxy:
     def _re_compute_dispatchable_graph(self):
         if self.timetable.stn.is_empty():
             self.logger.warning("Timetable of robot %s is empty", self.robot_id)
-            # self.bidder.changed_timetable = True
             return
         self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
-            # self.bidder.changed_timetable = True
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")
 

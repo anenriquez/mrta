@@ -12,6 +12,7 @@ from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as 
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from mrs.messages.task_status import ActionProgress
+from pymodm.context_managers import switch_collection
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -51,14 +52,11 @@ class TimetableMonitor(SimulatorInterface):
         task_status = TaskStatus.from_payload(payload)
         task_progress = task_status.task_progress
 
-        does_not_exist = True
-
-        while does_not_exist:
-            try:
+        try:
+            task = Task.get_task(task_status.task_id)
+        except DoesNotExist:
+            with switch_collection(Task, Task.Meta.archive_collection):
                 task = Task.get_task(task_status.task_id)
-                does_not_exist = False
-            except DoesNotExist:
-                pass
 
         self.logger.debug("Received task status %s for task %s by %s", task_status.task_status, task_status.task_id,
                           task_status.robot_id)
@@ -78,6 +76,11 @@ class TimetableMonitor(SimulatorInterface):
 
         elif task_status.task_status in [TaskStatusConst.ABORTED, TaskStatusConst.CANCELED]:
             try:
+                status = Task.get_task_status(task_status.task_id)
+            except DoesNotExist:
+                self.logger.warning("Task %s is already aborted", task_status.task_id)
+                return
+            try:
                 self._remove_task(task, task_status.task_status)
             except TaskNotFound:
                 return
@@ -88,11 +91,15 @@ class TimetableMonitor(SimulatorInterface):
         self.logger.debug("Updating progress of task %s action %s status %s", task.task_id, task_progress.action_id,
                           task_progress.action_status.status)
 
+        updating_finish_time = False
+
         if task_progress.action_id not in self.action_progress:
             action_progress = ActionProgress(task_progress.action_id, timestamp)
             self.action_progress[task_progress.action_id] = action_progress
         else:
+            updating_finish_time = True
             action_progress = self.action_progress.get(task_progress.action_id)
+            action_progress.finish_time = timestamp
 
         self.logger.debug("Current action progress: start time %s, finish time %s", action_progress.start_time,
                           action_progress.finish_time)
@@ -108,7 +115,7 @@ class TimetableMonitor(SimulatorInterface):
         task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
         updated_action_progress = task.status.progress.get_action(task_progress.action_id)
 
-        if updated_action_progress.start_time is None:
+        if updated_action_progress.start_time is None or (updating_finish_time and action_progress.finish_time is None):
             self.logger.warning("Action progress was not updated. Trying again..")
             task.update_progress(task_progress.action_id, task_progress.action_status.status, **kwargs)
             updated_action_progress = task.status.progress.get_action(task_progress.action_id)
