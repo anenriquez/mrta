@@ -125,7 +125,7 @@ class Experiment(MongoModel):
 
     @staticmethod
     def get_tasks_performance():
-        return [task_performance for task_performance in TaskPerformance.objects.all() if task_performance.allocation]
+        return [task_performance for task_performance in TaskPerformance.objects.all()]
 
     @staticmethod
     def get_robots_performance():
