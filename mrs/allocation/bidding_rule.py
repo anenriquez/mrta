@@ -27,7 +27,7 @@ class BiddingRuleBase:
 
     def compute_metrics(self, dispatchable_graph, **kwargs):
         temporal_metric = dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
-        return Metrics(temporal_metric, dispatchable_graph.risk_metric)
+        return Metrics(temporal_metric)
 
     def compute_bid(self, stn, robot_id, round_id, task, allocation_info):
         try:
@@ -99,6 +99,15 @@ class Duration(BiddingRuleBase):
         return Metrics(objective, dispatchable_graph.risk_metric)
 
 
+class CompletionTimeRisk(BiddingRuleBase):
+    def __init__(self, timetable):
+        super().__init__("completion_time", timetable)
+
+    def compute_metrics(self, dispatchable_graph, **kwargs):
+        temporal_metric = dispatchable_graph.compute_temporal_metric(self.temporal_criterion)
+        return Metrics(temporal_metric, dispatchable_graph.risk_metric)
+
+
 class CompletionTime(BiddingRuleBase):
     def __init__(self, timetable):
         super().__init__("completion_time", timetable)
@@ -124,5 +133,6 @@ class MakespanDuration(Duration):
 bidding_rule_factory = BiddingRuleFactory()
 bidding_rule_factory.register_bidding_rule('makespan', Makespan)
 bidding_rule_factory.register_bidding_rule('completion_time', CompletionTime)
+bidding_rule_factory.register_bidding_rule('completion_time_risk', CompletionTimeRisk)
 bidding_rule_factory.register_bidding_rule('completion_time_duration', CompletionDuration)
 bidding_rule_factory.register_bidding_rule('makespan_duration', MakespanDuration)

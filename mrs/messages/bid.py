@@ -5,7 +5,7 @@ from mrs.utils.as_dict import AsDictMixin
 
 class Metrics(AsDictMixin):
 
-    def __init__(self, objective, risk):
+    def __init__(self, objective, risk=1):
         self.objective = objective
         self.risk = risk
 
