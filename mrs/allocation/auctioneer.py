@@ -163,7 +163,7 @@ class Auctioneer(SimulatorInterface):
         elif not self.is_valid_time(closure_time) and not self.alternative_timeslots:
             self.logger.warning("Task %s cannot not be allocated at its given temporal constraints",
                                 earliest_task.task_id)
-            earliest_task.update_status(TaskStatusConst.ABORTED)
+            earliest_task.update_status(TaskStatusConst.PREEMPTED)
             self.tasks_to_allocate.pop(earliest_task.task_id)
             return
 

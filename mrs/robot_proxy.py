@@ -15,8 +15,6 @@ from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.utils.time import relative_to_ztp
-from pymodm.context_managers import switch_collection
-from pymodm.errors import DoesNotExist
 
 
 _component_modules = {'simulator': Simulator,
@@ -59,11 +57,7 @@ class RobotProxy:
         task_status = TaskStatus.from_payload(payload)
 
         if self.robot_id == task_status.robot_id:
-            try:
-                task = Task.get_task(task_status.task_id)
-            except DoesNotExist:
-                with switch_collection(Task, Task.Meta.archive_collection):
-                    task = Task.get_task(task_status.task_id)
+            task = Task.get_task(task_status.task_id)
 
             self.logger.debug("Received task status %s for task %s", task_status.task_status, task.task_id)
 

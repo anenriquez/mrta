@@ -4,7 +4,7 @@ services:
     - python3
     - ccu.py
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     - --experiment
     - robot_scalability_1
     container_name: ccu
@@ -31,7 +31,7 @@ services:
     - python3
     - experiment.py
     - robot_scalability_1
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: mrta
     image: ropod-mrs
     network_mode: host
@@ -44,7 +44,7 @@ services:
     - robot.py
     - robot_001
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     - --experiment
     - robot_scalability_1
     container_name: robot_001
@@ -61,7 +61,7 @@ services:
     - robot_proxy.py
     - robot_001
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     - --experiment
     - robot_scalability_1
     container_name: robot_proxy_001

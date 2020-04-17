@@ -58,7 +58,7 @@ class Robot:
             if "re-allocate" in self.recovery_method:
                 self.schedule_execution_monitor.re_allocate(task)
             else:
-                self.schedule_execution_monitor.abort(task)
+                self.schedule_execution_monitor.preempt(task)
 
     def process_tasks(self, tasks):
         for task in tasks:

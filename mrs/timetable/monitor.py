@@ -7,12 +7,10 @@ from mrs.messages.remove_task import RemoveTaskFromSchedule
 from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import relative_to_ztp
-from pymodm.errors import DoesNotExist
 from ropod.structs.status import TaskStatus as TaskStatusConst, ActionStatus as ActionStatusConst
 from ropod.utils.timestamp import TimeStamp
 from stn.exceptions.stp import NoSTPSolution
 from mrs.messages.task_status import ActionProgress
-from pymodm.context_managers import switch_collection
 
 
 class TimetableMonitor(SimulatorInterface):
@@ -52,11 +50,7 @@ class TimetableMonitor(SimulatorInterface):
         task_status = TaskStatus.from_payload(payload)
         task_progress = task_status.task_progress
 
-        try:
-            task = Task.get_task(task_status.task_id)
-        except DoesNotExist:
-            with switch_collection(Task, Task.Meta.archive_collection):
-                task = Task.get_task(task_status.task_id)
+        task = Task.get_task(task_status.task_id)
 
         self.logger.debug("Received task status %s for task %s by %s", task_status.task_status, task_status.task_id,
                           task_status.robot_id)
@@ -74,11 +68,9 @@ class TimetableMonitor(SimulatorInterface):
         elif task_status.task_status == TaskStatusConst.UNALLOCATED:
             self._re_allocate(task)
 
-        elif task_status.task_status in [TaskStatusConst.ABORTED, TaskStatusConst.CANCELED]:
-            try:
-                status = Task.get_task_status(task_status.task_id)
-            except DoesNotExist:
-                self.logger.warning("Task %s is already aborted", task_status.task_id)
+        elif task_status.task_status == TaskStatusConst.PREEMPTED:
+            if task.status.status == TaskStatusConst.PREEMPTED:
+                self.logger.warning("Task %s is already preempted", task_status.task_id)
                 return
             try:
                 self._remove_task(task, task_status.task_status)
@@ -228,8 +220,8 @@ class TimetableMonitor(SimulatorInterface):
                 self.recover(next_task)
 
     def recover(self, task):
-        if self.recovery_method.name == "abort":
-            self._remove_task(task, TaskStatusConst.ABORTED)
+        if self.recovery_method.name == "preempt":
+            self._remove_task(task, TaskStatusConst.PREEMPTED)
         elif self.recovery_method.name == "re-allocate":
             self._re_allocate(task)
 

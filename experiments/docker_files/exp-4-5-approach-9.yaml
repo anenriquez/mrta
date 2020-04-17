@@ -4,7 +4,7 @@ services:
     - python3
     - ccu.py
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: ccu
@@ -31,7 +31,7 @@ services:
     - python3
     - experiment.py
     - robot_scalability_5
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     container_name: mrta
     image: ropod-mrs
     network_mode: host
@@ -44,7 +44,7 @@ services:
     - robot.py
     - robot_001
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_001
@@ -61,7 +61,7 @@ services:
     - robot.py
     - robot_002
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_002
@@ -78,7 +78,7 @@ services:
     - robot.py
     - robot_003
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_003
@@ -95,7 +95,7 @@ services:
     - robot.py
     - robot_004
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_004
@@ -112,7 +112,7 @@ services:
     - robot.py
     - robot_005
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_005
@@ -129,7 +129,7 @@ services:
     - robot_proxy.py
     - robot_001
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_proxy_001
@@ -146,7 +146,7 @@ services:
     - robot_proxy.py
     - robot_002
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_proxy_002
@@ -163,7 +163,7 @@ services:
     - robot_proxy.py
     - robot_003
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_proxy_003
@@ -180,7 +180,7 @@ services:
     - robot_proxy.py
     - robot_004
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_proxy_004
@@ -197,7 +197,7 @@ services:
     - robot_proxy.py
     - robot_005
     - --approach
-    - tessi-srea-corrective-abort
+    - tessi-srea-corrective-preempt
     - --experiment
     - robot_scalability_5
     container_name: robot_proxy_005

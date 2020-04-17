@@ -1,8 +1,8 @@
-tessi-preventive-abort:
+tessi-preventive-preempt:
   allocation_method: tessi
   delay_recovery:
     type_: preventive
-    method: abort
+    method: preempt
 
 tessi-preventive-re-allocate:
   allocation_method: tessi
@@ -10,11 +10,11 @@ tessi-preventive-re-allocate:
     type_: preventive
     method: re-allocate
 
-tessi-corrective-abort:
+tessi-corrective-preempt:
   allocation_method: tessi
   delay_recovery:
     type_: corrective
-    method: abort
+    method: preempt
 
 tessi-corrective-re-allocate:
   allocation_method: tessi
@@ -22,11 +22,11 @@ tessi-corrective-re-allocate:
     type_: corrective
     method: re-allocate
 
-tessi-srea-preventive-abort:
+tessi-srea-preventive-preempt:
   allocation_method: tessi-srea
   delay_recovery:
     type_: preventive
-    method: abort
+    method: preempt
 
 tessi-srea-preventive-re-allocate:
   allocation_method: tessi-srea
@@ -34,11 +34,11 @@ tessi-srea-preventive-re-allocate:
     type_: preventive
     method: re-allocate
 
-tessi-srea-preventive-re-schedule-abort:
+tessi-srea-preventive-re-schedule-preempt:
   allocation_method: tessi-srea
   delay_recovery:
     type_: preventive
-    method: abort
+    method: preempt
   d_graph_watchdog: True
 
 tessi-srea-preventive-re-schedule-re-allocate:
@@ -48,11 +48,11 @@ tessi-srea-preventive-re-schedule-re-allocate:
     method: re-allocate
   d_graph_watchdog: True
 
-tessi-srea-corrective-abort:
+tessi-srea-corrective-preempt:
   allocation_method: tessi-srea
   delay_recovery:
     type_: corrective
-    method: abort
+    method: preempt
 
 tessi-srea-corrective-re-allocate:
   allocation_method: tessi-srea
@@ -60,11 +60,11 @@ tessi-srea-corrective-re-allocate:
     type_: corrective
     method: re-allocate
 
-tessi-dsc-preventive-abort:
+tessi-dsc-preventive-preempt:
   allocation_method: tessi-dsc
   delay_recovery:
     type_: preventive
-    method: abort
+    method: preempt
 
 tessi-dsc-preventive-re-allocate:
   allocation_method: tessi-dsc
@@ -72,11 +72,11 @@ tessi-dsc-preventive-re-allocate:
     type_: preventive
     method: re-allocate
 
-tessi-dsc-corrective-abort:
+tessi-dsc-corrective-preempt:
   allocation_method: tessi-dsc
   delay_recovery:
     type_: corrective
-    method: abort
+    method: preempt
 
 tessi-dsc-corrective-re-allocate:
   allocation_method: tessi-dsc
