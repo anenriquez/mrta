@@ -103,6 +103,7 @@ class Allocate(RopodPyre):
     def check_termination_test(self):
         unallocated_tasks = Task.get_tasks_by_status(TaskStatusConst.UNALLOCATED)
         allocated_tasks = Task.get_tasks_by_status(TaskStatusConst.ALLOCATED)
+        preempted_tasks = Task.get_tasks_by_status(TaskStatusConst.PREEMPTED)
         planned_tasks = Task.get_tasks_by_status(TaskStatusConst.PLANNED)
         dispatched_tasks = Task.get_tasks_by_status(TaskStatusConst.DISPATCHED)
         ongoing_tasks = Task.get_tasks_by_status(TaskStatusConst.ONGOING)
@@ -118,10 +119,11 @@ class Allocate(RopodPyre):
         self.logger.info("Dispatched: %s", len(dispatched_tasks))
         self.logger.info("Ongoing: %s", len(ongoing_tasks))
         self.logger.info("Completed: %s ", len(completed_tasks))
+        self.logger.info("Preempted: %s ", len(preempted_tasks))
         self.logger.info("Canceled: %s", len(canceled_tasks))
         self.logger.info("Aborted: %s", len(aborted_tasks))
 
-        tasks = completed_tasks + canceled_tasks + aborted_tasks
+        tasks = completed_tasks + preempted_tasks
 
         if len(tasks) == len(self.tasks):
             self.logger.info("Terminating test")

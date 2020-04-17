@@ -5,6 +5,8 @@ services:
     - ccu.py
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: ccu
     depends_on:
     - mongo
@@ -23,19 +25,19 @@ services:
     - /data/db:/data/db
   mrta:
     build:
-      context: ../../..
+      context: ../../
       dockerfile: Dockerfile
     command:
     - python3
-    - test.py
-    - --approach
+    - experiment.py
+    - robot_scalability_5
     - tessi-srea-preventive-re-schedule-preempt
     container_name: mrta
     image: ropod-mrs
     network_mode: host
     stdin_open: 'true'
     tty: 'true'
-    working_dir: /mrta/mrs/tests/
+    working_dir: /mrta/experiments/
   robot_001:
     command:
     - python3
@@ -43,6 +45,8 @@ services:
     - robot_001
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_001
     depends_on:
     - mongo
@@ -58,6 +62,8 @@ services:
     - robot_002
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_002
     depends_on:
     - mongo
@@ -73,6 +79,8 @@ services:
     - robot_003
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_003
     depends_on:
     - mongo
@@ -88,6 +96,8 @@ services:
     - robot_004
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_004
     depends_on:
     - mongo
@@ -103,6 +113,8 @@ services:
     - robot_005
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_005
     depends_on:
     - mongo
@@ -118,6 +130,8 @@ services:
     - robot_001
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_proxy_001
     depends_on:
     - mongo
@@ -133,6 +147,8 @@ services:
     - robot_002
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_proxy_002
     depends_on:
     - mongo
@@ -148,6 +164,8 @@ services:
     - robot_003
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_proxy_003
     depends_on:
     - mongo
@@ -163,6 +181,8 @@ services:
     - robot_004
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_proxy_004
     depends_on:
     - mongo
@@ -178,6 +198,8 @@ services:
     - robot_005
     - --approach
     - tessi-srea-preventive-re-schedule-preempt
+    - --experiment
+    - robot_scalability_5
     container_name: robot_proxy_005
     depends_on:
     - mongo

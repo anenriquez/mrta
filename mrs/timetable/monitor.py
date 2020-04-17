@@ -64,9 +64,12 @@ class TimetableMonitor(SimulatorInterface):
         elif task_status.task_status == TaskStatusConst.UNALLOCATED:
             self.re_allocate(task)
 
-        elif task_status.task_status in [TaskStatusConst.ABORTED, TaskStatusConst.CANCELED]:
+        elif task_status.task_status == TaskStatusConst.PREEMPTED:
+            if task.status.status == TaskStatusConst.PREEMPTED:
+                self.logger.warning("Task %s is already preempted", task_status.task_id)
+                return
             try:
-                self.remove_task_from_timetable(task, task_status.task_status)
+                self._remove_task(task, task_status.task_status)
             except TaskNotFound:
                 return
 
@@ -211,8 +214,8 @@ class TimetableMonitor(SimulatorInterface):
                 self.recover(next_task)
 
     def recover(self, task):
-        if self.recovery_method.name == "abort":
-            self.remove_task_from_timetable(task, TaskStatusConst.ABORTED)
+        if self.recovery_method.name == "preempt":
+            self._remove_task(task, TaskStatusConst.PREEMPTED)
         elif self.recovery_method.name == "re-allocate":
             self.re_allocate(task)
 

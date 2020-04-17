@@ -4,7 +4,7 @@ from ropod.structs.status import ActionStatus as ActionStatusConst
 
 class RecoveryMethod:
 
-    options = ["re-allocate", "abort"]
+    options = ["re-allocate", "preempt"]
 
     def __init__(self, name):
         self.logger = logging.getLogger('mrs.recovery.method')
