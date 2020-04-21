@@ -2,6 +2,8 @@ from fmlib.db.mongo import MongoStore
 from fmlib.models.requests import TransportationRequest
 from fmlib.models.tasks import TaskStatus
 from fmlib.models.actions import GoTo as Action
+from pymodm.errors import DoesNotExist
+
 from mrs.db.models.performance.robot import RobotPerformance
 from mrs.db.models.performance.task import TaskPerformance
 from fmlib.models.tasks import TransportationTask as Task
@@ -9,6 +11,8 @@ from pymodm import fields, MongoModel
 from pymodm.context_managers import switch_collection
 from pymodm.manager import Manager
 from pymodm.queryset import QuerySet
+
+from mrs.db.models.round import Round
 
 
 class ExperimentQuerySet(QuerySet):
@@ -38,6 +42,7 @@ class Experiment(MongoModel):
     tasks_status = fields.EmbeddedDocumentListField(TaskStatus)
     tasks_performance = fields.EmbeddedDocumentListField(TaskPerformance)
     robots_performance = fields.EmbeddedDocumentListField(RobotPerformance)
+    rounds = fields.EmbeddedDocumentListField(Round)
 
     objects = ExperimentManager()
 
@@ -52,13 +57,15 @@ class Experiment(MongoModel):
         tasks_status = cls.get_tasks_status(tasks)
         tasks_performance = cls.get_tasks_performance()
         robots_performance = cls.get_robots_performance()
+        rounds = cls.get_rounds()
 
         kwargs = {'requests': requests,
                   'tasks': tasks,
                   'actions': actions,
                   'tasks_status': tasks_status,
                   'tasks_performance': tasks_performance,
-                  'robots_performance': robots_performance}
+                  'robots_performance': robots_performance,
+                  'rounds': rounds}
 
         MongoStore(db_name=name)
         cls._mongometa.connection_name = name
@@ -104,9 +111,10 @@ class Experiment(MongoModel):
 
     @staticmethod
     def get_tasks():
+        tasks = [task for task in Task.objects.all()]
         with switch_collection(Task, Task.Meta.archive_collection):
-            tasks = [task for task in Task.objects.all()]
-        return tasks
+            archived_tasks = [task for task in Task.objects.all()]
+        return tasks + archived_tasks
 
     @staticmethod
     def get_actions():
@@ -115,12 +123,25 @@ class Experiment(MongoModel):
     @staticmethod
     def get_tasks_status(tasks):
         tasks_status = list()
-        with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
-            for task in tasks:
+        for task in tasks:
+            try:
                 task_status = TaskStatus.objects.get({"_id": task.task_id})
                 task_status.task = task
                 task_status.save()
                 tasks_status.append(task_status)
+            except DoesNotExist:
+                pass
+
+        with switch_collection(TaskStatus, TaskStatus.Meta.archive_collection):
+            for task in tasks:
+                try:
+                    task_status = TaskStatus.objects.get({"_id": task.task_id})
+                    task_status.task = task
+                    task_status.save()
+                    tasks_status.append(task_status)
+                except DoesNotExist:
+                    pass
+
         return tasks_status
 
     @staticmethod
@@ -130,6 +151,10 @@ class Experiment(MongoModel):
     @staticmethod
     def get_robots_performance():
         return [robot_performance for robot_performance in RobotPerformance.objects.all()]
+
+    @staticmethod
+    def get_rounds():
+        return [round_ for round_ in Round.objects.all()]
 
     @classmethod
     def get_experiments(cls, approach, bidding_rule, dataset):
