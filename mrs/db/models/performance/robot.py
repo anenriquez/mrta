@@ -24,7 +24,7 @@ class RobotPerformance(MongoModel):
     robot_id = fields.CharField(primary_key=True)
     allocated_tasks = fields.ListField()
     total_time = fields.FloatField(default=0.0)
-    makespan = fields.DateTimeField()
+    makespan = fields.DateTimeField(blank=True)
     travel_time = fields.FloatField(default=0.0)
     work_time = fields.FloatField(default=0.0)
     idle_time = fields.FloatField(default=0.0)

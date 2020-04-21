@@ -13,6 +13,8 @@ from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import to_timestamp
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
+from mrs.db.models.round import Round as RoundModel
+
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -149,6 +151,14 @@ class Auctioneer(SimulatorInterface):
 
     def finish_round(self):
         self.logger.debug("Finishing round %s", self.round.id)
+        kwargs = {'round_id': self.round.id,
+                  'tasks_to_allocate': [str(task.task_id) for task in self.round.tasks_to_allocate.values()],
+                  'time_to_allocate': self.round.time_to_allocate,
+                  'n_received_bids': len(self.round.received_bids),
+                  'n_received_no_bids': len(self.round.received_no_bids)}
+        if self.winning_bid and self.winning_bid.round_id == self.round.id:
+            kwargs.update(allocated_task=self.winning_bid.task_id)
+        RoundModel.create_new(**kwargs)
         self.round.finish()
 
     def announce_tasks(self):
