@@ -59,13 +59,14 @@ class PerformanceTracker:
             task = self.timetable_monitor.completed_tasks[0]
             self.task_performance_tracker.update_execution_metrics(task)
 
-            for robot_id in task.assigned_robots:
-                tasks_status = self.get_tasks_status(robot_id)
-                self.robot_performance_tracker.update_metrics(robot_id, tasks_status)
+            # for robot_id in task.assigned_robots:
+            #     tasks_status = self.get_tasks_status(robot_id)
+            #     self.robot_performance_tracker.update_metrics(robot_id, tasks_status)
 
             self.timetable_monitor.completed_tasks.pop(0)
 
         while self.timetable_monitor.tasks_to_reallocate:
             task = self.timetable_monitor.tasks_to_reallocate.pop(0)
             self.task_performance_tracker.update_re_allocations(task)
-            self.robot_performance_tracker.update_re_allocations(task)
+            # robot is not longer in task.assigned_robots
+            # self.robot_performance_tracker.update_re_allocations(task)
