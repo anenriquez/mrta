@@ -147,14 +147,14 @@ class ScheduleExecutionMonitor:
             self.preempt(task_to_recover)
 
     def re_allocate(self, task):
-        self.logger.critical("Trigger re-allocation of task %s", task.task_id)
+        self.logger.info("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
         task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.UNALLOCATED)
         self.send_task_status(task_status)
 
     def preempt(self, task):
-        self.logger.critical("Trigger preemption of task %s", task.task_id)
+        self.logger.info("Trigger preemption of task %s", task.task_id)
         task.update_status(TaskStatusConst.PREEMPTED)
         self.timetable.remove_task(task.task_id)
         task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.PREEMPTED)

@@ -92,7 +92,7 @@ class Dispatcher(SimulatorInterface):
         return action
 
     def add_pre_task_action(self, task, robot_id):
-        self.logger.critical("Adding pre_task_action to plan for task %s", task.task_id)
+        self.logger.debug("Adding pre_task_action to plan for task %s", task.task_id)
         pre_task_action = self.get_pre_task_action(task, robot_id)
         task.plan[0].actions.insert(0, pre_task_action)
         task.save()

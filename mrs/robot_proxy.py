@@ -111,7 +111,7 @@ class RobotProxy:
             self.timetable.execute_edge(node_ids[0], node_ids[1])
 
     def _remove_task(self, task, status):
-        self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+        self.logger.debug("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         next_task = self.timetable.get_next_task(task)
 
         if status == TaskStatusConst.COMPLETED:
@@ -136,7 +136,7 @@ class RobotProxy:
         if self.timetable.stn.is_empty():
             self.logger.warning("Timetable of robot %s is empty", self.robot_id)
             return
-        self.logger.critical("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
+        self.logger.debug("Recomputing dispatchable graph of robot %s", self.timetable.robot_id)
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
@@ -149,7 +149,7 @@ class RobotProxy:
         self.robot_model.update_position(x=x, y=y, theta=theta)
 
     def update_pre_task_constraint(self, next_task):
-        self.logger.critical("Update pre_task constraint of task %s", next_task.task_id)
+        self.logger.debug("Update pre_task constraint of task %s", next_task.task_id)
         position = self.timetable.get_task_position(next_task.task_id)
         prev_location = self.bidder.get_previous_location(position)
         travel_duration = self.bidder.get_travel_duration(next_task, prev_location)

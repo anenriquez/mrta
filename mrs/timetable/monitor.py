@@ -181,7 +181,7 @@ class TimetableMonitor(SimulatorInterface):
             task.update_schedule(task_schedule)
 
     def re_allocate(self, task):
-        self.logger.critical("Re-allocating task %s", task.task_id)
+        self.logger.info("Re-allocating task %s", task.task_id)
         try:
             self.remove_task_from_timetable(task, TaskStatusConst.UNALLOCATED)
         except TaskNotFound:
@@ -195,7 +195,7 @@ class TimetableMonitor(SimulatorInterface):
         if timetable.stn.is_empty():
             self.logger.warning("Timetable of %s is empty", timetable.robot_id)
             return
-        self.logger.critical("Recomputing dispatchable graph of robot %s", timetable.robot_id)
+        self.logger.debug("Recomputing dispatchable graph of robot %s", timetable.robot_id)
         try:
             timetable.dispatchable_graph = timetable.compute_dispatchable_graph(timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", timetable.robot_id, timetable.dispatchable_graph)
@@ -220,7 +220,7 @@ class TimetableMonitor(SimulatorInterface):
             self.re_allocate(task)
 
     def remove_task_from_timetable(self, task, status):
-        self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+        self.logger.debug("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
         for robot_id in task.assigned_robots:
             timetable = self.timetable_manager.get_timetable(robot_id)
             next_task = timetable.get_next_task(task)
@@ -251,7 +251,7 @@ class TimetableMonitor(SimulatorInterface):
             self._re_compute_dispatchable_graph(timetable, next_task)
 
     def update_pre_task_constraint(self, prev_task, task, timetable):
-        self.logger.critical("Update pre_task constraint of task %s", task.task_id)
+        self.logger.debug("Update pre_task constraint of task %s", task.task_id)
         prev_location = prev_task.request.delivery_location
         path = self.dispatcher.planner.get_path(prev_location, task.request.pickup_location)
         mean, variance = self.dispatcher.planner.get_estimated_duration(path)
