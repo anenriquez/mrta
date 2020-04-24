@@ -143,21 +143,21 @@ class ScheduleExecutionMonitor:
         if task_to_recover and self.recovery_method.name == "re-allocate":
             self.re_allocate(task_to_recover)
 
-        elif task_to_recover and self.recovery_method.name == "abort":
-            self.abort(task_to_recover)
+        elif task_to_recover and self.recovery_method.name == "preempt":
+            self.preempt(task_to_recover)
 
     def re_allocate(self, task):
-        self.logger.critical("Trigger re-allocation of task %s", task.task_id)
+        self.logger.info("Trigger re-allocation of task %s", task.task_id)
         task.update_status(TaskStatusConst.UNALLOCATED)
         self.timetable.remove_task(task.task_id)
         task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.UNALLOCATED)
         self.send_task_status(task_status)
 
-    def abort(self, task):
-        self.logger.critical("Trigger abortion of task %s", task.task_id)
-        task.update_status(TaskStatusConst.ABORTED)
+    def preempt(self, task):
+        self.logger.info("Trigger preemption of task %s", task.task_id)
+        task.update_status(TaskStatusConst.PREEMPTED)
         self.timetable.remove_task(task.task_id)
-        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.ABORTED)
+        task_status = TaskStatus(task.task_id, self.robot_id, TaskStatusConst.PREEMPTED)
         self.send_task_status(task_status)
 
     def send_task_status(self, task_status):

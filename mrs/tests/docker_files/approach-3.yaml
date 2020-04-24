@@ -4,7 +4,7 @@ services:
     - python3
     - ccu.py
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: ccu
     depends_on:
     - mongo
@@ -29,7 +29,7 @@ services:
     - python3
     - test.py
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: mrta
     image: ropod-mrs
     network_mode: host
@@ -42,7 +42,7 @@ services:
     - robot.py
     - robot_001
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_001
     depends_on:
     - mongo
@@ -57,7 +57,7 @@ services:
     - robot.py
     - robot_002
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_002
     depends_on:
     - mongo
@@ -72,7 +72,7 @@ services:
     - robot.py
     - robot_003
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_003
     depends_on:
     - mongo
@@ -87,7 +87,7 @@ services:
     - robot.py
     - robot_004
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_004
     depends_on:
     - mongo
@@ -102,7 +102,7 @@ services:
     - robot.py
     - robot_005
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_005
     depends_on:
     - mongo
@@ -117,7 +117,7 @@ services:
     - robot_proxy.py
     - robot_001
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_proxy_001
     depends_on:
     - mongo
@@ -132,7 +132,7 @@ services:
     - robot_proxy.py
     - robot_002
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_proxy_002
     depends_on:
     - mongo
@@ -147,7 +147,7 @@ services:
     - robot_proxy.py
     - robot_003
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_proxy_003
     depends_on:
     - mongo
@@ -162,7 +162,7 @@ services:
     - robot_proxy.py
     - robot_004
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_proxy_004
     depends_on:
     - mongo
@@ -177,7 +177,7 @@ services:
     - robot_proxy.py
     - robot_005
     - --approach
-    - tessi-corrective-abort
+    - tessi-corrective-preempt
     container_name: robot_proxy_005
     depends_on:
     - mongo
