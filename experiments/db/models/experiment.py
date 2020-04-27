@@ -86,7 +86,8 @@ class Experiment(MongoModel):
 
     @classmethod
     def get_run_ids(cls):
-        return [experiment.run_id for experiment in cls.objects.all()]
+        run_ids = [experiment.run_id for experiment in cls.objects.all()]
+        return sorted(run_ids)
 
     @staticmethod
     def get_new_run(run_ids):

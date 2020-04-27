@@ -5,13 +5,22 @@ from datetime import datetime
 import dateutil.parser
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
-from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, meanprops, get_title, \
-    get_plot_path, ticks
+from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, get_meanprops, get_title, \
+    get_plot_path, ticks, max_n_runs, get_flierprops
 from mrs.config.params import get_config_params
 
 
+# Based on:
+# https://stackoverflow.com/questions/16592222/matplotlib-group-boxplots
+# https://stackoverflow.com/questions/10101700/moving-matplotlib-legend-outside-of-the-axis-makes-it-cutoff-by-the-figure-box
+# https://matplotlib.org/3.1.1/gallery/statistics/boxplot_demo.html
+# https://stackoverflow.com/questions/12998430/remove-xticks-in-a-matplotlib-plot
+
+
 def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
+    print("Robot usage")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "robot_usage_" + recovery_method + '_' + dataset_name
@@ -37,7 +46,15 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
         approach_usage_robot_4 = list()
         approach_usage_robot_5 = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             robot_metrics = run_info.get("performance_metrics").get("fleet_performance_metrics").get(
                 "robots_performance_metrics")
             for robot in robot_metrics:
@@ -59,15 +76,15 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
         usage_robot_5 += [approach_usage_robot_5]
 
     bp1 = ax.boxplot(usage_robot_1, positions=np.array(range(len(usage_robot_1))) * 6, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#3182bd'), flierprops=get_flierprops('#3182bd'))
     bp2 = ax.boxplot(usage_robot_2, positions=np.array(range(len(usage_robot_2))) * 6 + 1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca25f'), flierprops=get_flierprops('#2ca25f'))
     bp3 = ax.boxplot(usage_robot_3, positions=np.array(range(len(usage_robot_3))) * 6 + 2, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
-    bp4 = ax.boxplot(usage_robot_2, positions=np.array(range(len(usage_robot_4))) * 6 + 3, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
-    bp5 = ax.boxplot(usage_robot_3, positions=np.array(range(len(usage_robot_5))) * 6 + 4, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#f03b20'), flierprops=get_flierprops('#f03b20'))
+    bp4 = ax.boxplot(usage_robot_4, positions=np.array(range(len(usage_robot_4))) * 6 + 3, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#756bb1'), flierprops=get_flierprops('#756bb1'))
+    bp5 = ax.boxplot(usage_robot_5, positions=np.array(range(len(usage_robot_5))) * 6 + 4, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#7fcdbb'), flierprops=get_flierprops('#7fcdbb'))
 
     set_box_color(bp1, '#3182bd')
     set_box_color(bp2, '#2ca25f')
@@ -75,33 +92,41 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
     set_box_color(bp4, '#756bb1')
     set_box_color(bp5, '#7fcdbb')
 
-    plt.plot([], c='#3182bd', label='Robot 001')
-    plt.plot([], c='#2ca25f', label='Robot 002')
-    plt.plot([], c='#f03b20', label='Robot 003')
-    plt.plot([], c='#756bb1', label='Robot 004')
-    plt.plot([], c='#7fcdbb', label='Robot 005')
-    plt.legend()
+    plt.plot([], c='#3182bd', label='Robot 001', linewidth=2)
+    plt.plot([], c='#2ca25f', label='Robot 002', linewidth=2)
+    plt.plot([], c='#f03b20', label='Robot 003', linewidth=2)
+    plt.plot([], c='#756bb1', label='Robot 004', linewidth=2)
+    plt.plot([], c='#7fcdbb', label='Robot 005', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=5, fancybox=True, shadow=True)
 
-    # ax.set_ylim(-1, 101)
-    # ax.set_yticks(list(range(0, 110, 10)))
-    ymin, ymax = ax.get_ylim()
-    print("ymin: ", ymin)
-    print("ymax: ", ymax)
-    plt.vlines(5, ymin=ymin, ymax=ymax)
-    plt.vlines(11, ymin=ymin, ymax=ymax)
-    plt.vlines(17, ymin=ymin, ymax=ymax)
+
+    ax.set_ylim(-1, 51)
+    ax.set_yticks(list(range(0, 60, 10)))
+    # ymin, ymax = ax.get_ylim()
+    # print("ymin: ", ymin)
+    # print("ymax: ", ymax)
+    plt.vlines(5, ymin=-1, ymax=51, linewidths=1)
+    plt.vlines(11, ymin=-1, ymax=51, linewidths=1)
+    plt.vlines(17, ymin=-1, ymax=51, linewidths=1)
 
     ax.set_ylabel("Percentage (%)")
     ax.set_title(title)
+    ax.yaxis.grid()
 
-    plt.xticks(range(0, len(ticks) * 6, 6), ticks)
+    plt.xticks(range(1, (len(ticks) * 6)-1, 6), ticks)
     plt.xlim(-1, len(ticks) * 6-1)
     plt.tight_layout()
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
 
-    save_plot(fig, plot_name, save_in_path)
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
+    print("Plot times")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "times_" + recovery_method + '_' + dataset_name
@@ -114,9 +139,6 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
     re_allocation_times = list()
     dgraph_recomputation_times = list()
 
-    print("-------------------")
-    print("Dataset: ", dataset_name)
-
     for i, approach in enumerate(approaches_recovery_method):
         print("Approach: ", approach)
         path_to_results = '../' + experiment_name + '/' + approach + '/' + bidding_rule
@@ -127,24 +149,26 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
         approach_re_allocation_times = list()
         approach_dgraph_recomputation_times = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             allocation_time = 0
             re_allocation_time = 0
             dgraph_recomputation_time = 0
 
             for task_performance in metrics.get("tasks_performance_metrics"):
-                #if task_performance.get('task_id') in metrics.get("successful_reallocations"):
                 allocation_time += task_performance.get('allocation_time')
                 re_allocation_time += task_performance.get('re_allocation_time')
 
             for robot_performance in metrics.get("robots_performance_metrics"):
                 dgraph_recomputation_time += robot_performance.get("dgraph_recomputation_time")
-
-            # print("allocation time: ", allocation_time)
-            # print("re allocation time: ", re_allocation_time)
-            # print("dgraph recomputation time: ", dgraph_recomputation_time)
 
             approach_allocation_times.append(allocation_time)
             approach_re_allocation_times.append(re_allocation_time)
@@ -154,44 +178,48 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
         re_allocation_times += [approach_re_allocation_times]
         dgraph_recomputation_times += [approach_dgraph_recomputation_times]
 
-    # print("allocation times: ", allocation_times)
-    # print("re allocation times: ", re_allocation_times)
-    # print("dgraph recomputation times: ", dgraph_recomputation_times)
-
     bp1 = ax.boxplot(allocation_times, positions=np.array(range(len(allocation_times))) * 4, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
     bp2 = ax.boxplot(re_allocation_times, positions=np.array(range(len(re_allocation_times))) * 4 + 1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
 
     bp3 = ax.boxplot(dgraph_recomputation_times, positions=np.array(range(len(dgraph_recomputation_times))) * 4 + 2, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#FFC300'), flierprops=get_flierprops('#FFC300'))
 
     set_box_color(bp1, '#4376b8')
     set_box_color(bp2, '#399b5e')
     set_box_color(bp3, '#FFC300')
 
-    plt.plot([], c='#4376b8', label='Allocation time')
-    plt.plot([], c='#399b5e', label='Re-allocation time')
-    plt.plot([], c='#FFC300', label='DGraph re-computation time')
-    plt.legend()
+    plt.plot([], c='#4376b8', label='Allocation time', linewidth=2)
+    plt.plot([], c='#399b5e', label='Re-allocation time', linewidth=2)
+    plt.plot([], c='#FFC300', label='DGraph re-computation time', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
 
     ax.set_ylim(bottom=-1)
     ymin, ymax = ax.get_ylim()
 
-    plt.vlines(3, ymin=ymin, ymax=ymax)
-    plt.vlines(7, ymin=ymin, ymax=ymax)
-    plt.vlines(11, ymin=ymin, ymax=ymax)
+    plt.vlines(3, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(7, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
 
-    plt.xticks(range(0, len(ticks) * 4, 4), ticks)
+    plt.xticks(range(1, (len(ticks) * 4)-1, 4), ticks)
     plt.xlim(-1, len(ticks) * 4 - 1)
     plt.tight_layout()
     ax.set_title(title)
     ax.set_ylabel('Time (seconds)')
+    ax.yaxis.grid()
 
-    save_plot(fig, plot_name, save_in_path)
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
+    print("Allocations")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "allocations_" + recovery_method + '_' + dataset_name
@@ -216,8 +244,15 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
         approach_preempted_tasks = list()
         approach_unsuccessful_re_allocations = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             approach_allocated_tasks.append(len(metrics.get("allocated_tasks")))
             approach_unallocated_tasks.append(len(metrics.get("unallocated_tasks")))
@@ -230,44 +265,56 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
         unsuccessful_re_allocations += [approach_unsuccessful_re_allocations]
 
     bp1 = ax.boxplot(allocated_tasks, positions=np.array(range(len(allocated_tasks))) * 4, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#3333ff'),
+                     flierprops=get_flierprops('#3333ff'))
     bp2 = ax.boxplot(unallocated_tasks, positions=np.array(range(len(unallocated_tasks))) * 4 + 1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'),
+                     flierprops=get_flierprops('#ff3333'))
 
-    plt.plot([], c='#3333ff', label='Allocated')
-    plt.plot([], c='#ff3333', label='Unallocated')
+    plt.plot([], c='#3333ff', label='Allocated', linewidth=2)
+    plt.plot([], c='#ff3333', label='Unallocated', linewidth=2)
 
     if recovery_method == 'preempt':
         bp3 = ax.boxplot(preempted_tasks, positions=np.array(range(len(preempted_tasks))) * 4 + 2, widths=0.6,
-                         patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
-        plt.plot([], c='#ffb733', label='Preempted')
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'),
+                         flierprops=get_flierprops('#ffb733'))
+        plt.plot([], c='#ffb733', label='Preempted', linewidth=2)
     else:
         bp3 = ax.boxplot(unsuccessful_re_allocations, positions=np.array(range(len(unsuccessful_re_allocations))) * 4 + 2, widths=0.6,
-                         patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
-        plt.plot([], c='#ffb733', label='Unsuccessful_re_allocations')
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'),
+                         flierprops=get_flierprops('#ffb733'))
+        plt.plot([], c='#ffb733', label='Unsuccessful_re_allocations', linewidth=2)
 
     set_box_color(bp1, '#3333ff')
     set_box_color(bp2, '#ff3333')
     set_box_color(bp3, '#ffb733')
-    plt.legend()
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
 
     ax.set_ylim(-1, 26)
     ax.set_yticks(list(range(0, 26, 5)))
-    plt.vlines(3, ymin=-1, ymax=26)
-    plt.vlines(7, ymin=-1, ymax=26)
-    plt.vlines(11, ymin=-1, ymax=26)
+    plt.vlines(3, ymin=-1, ymax=26, linewidths=1)
+    plt.vlines(7, ymin=-1, ymax=26, linewidths=1)
+    plt.vlines(11, ymin=-1, ymax=26, linewidths=1)
 
     ax.set_ylabel("Number of tasks")
     ax.set_title(title)
+    ax.yaxis.grid()
 
-    plt.xticks(range(0, len(ticks) * 4, 4), ticks)
+    plt.xticks(range(1, (len(ticks) * 4) -1, 4), ticks)
     plt.xlim(-1, len(ticks) * 4 - 1)
     plt.tight_layout()
 
-    save_plot(fig, plot_name, save_in_path)
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def box_plot_fleet_time_distribution(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
+    print("Fleet time distribution")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "fleet_time_" + recovery_method + '_' + dataset_name
@@ -295,8 +342,15 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
         approach_work_time = list()
         approach_idle_time = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics")
             metrics_start_time = dateutil.parser.parse(metrics['start_time'])
             metrics_finish_time = dateutil.parser.parse(metrics['finish_time'])
@@ -314,18 +368,16 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
                     travel_time += robot.get("time_distribution").get("travel_time")
                     work_time += robot.get("time_distribution").get("work_time")
 
-            print("travel time: ", travel_time)
-            print("work time: ", work_time)
+            # print("travel time: ", travel_time)
+            # print("work time: ", work_time)
 
             approach_travel_time.append(travel_time)
             approach_work_time.append(work_time)
             approach_idle_time.append(0)
-            # approach_travel_time += [travel_time]
-            # approach_work_time += [work_time]
 
-            print("approach travel time: ", approach_travel_time)
-            print("approach work time: ", approach_work_time)
-            print("approach idle time: ", approach_idle_time)
+            # print("approach travel time: ", approach_travel_time)
+            # print("approach work time: ", approach_work_time)
+            # print("approach idle time: ", approach_idle_time)
 
         fleet_travel_time += [approach_travel_time]
         fleet_work_time += [approach_work_time]
@@ -333,12 +385,12 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
 
     total_time = (finish_time - start_time).total_seconds()
 
-    print("     ")
-    print("start_time: ", start_time)
-    print("finish_time: ", finish_time)
-    print("total time: ", total_time)
-    print("fleet travel time: ", fleet_travel_time)
-    print("fleet work time: ", fleet_work_time)
+    # print("     ")
+    # print("start_time: ", start_time)
+    # print("finish_time: ", finish_time)
+    # print("total time: ", total_time)
+    # print("fleet travel time: ", fleet_travel_time)
+    # print("fleet work time: ", fleet_work_time)
 
     for i, approach in enumerate(fleet_travel_time):
         for j, travel_time in enumerate(approach):
@@ -349,42 +401,48 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
             fleet_work_time[i][j] = 100*work_time / (total_time*n_robots)
             fleet_idle_time[i][j] = 100 - (fleet_work_time[i][j] + fleet_travel_time[i][j])
 
-    print("     ")
-    print("fleet travel time: ", fleet_travel_time)
-    print("fleet work time: ", fleet_work_time)
-    print("fleet idle time: ", fleet_idle_time)
+    # print("     ")
+    # print("fleet travel time: ", fleet_travel_time)
+    # print("fleet work time: ", fleet_work_time)
+    # print("fleet idle time: ", fleet_idle_time)
 
     bp1 = ax.boxplot(fleet_travel_time, positions=np.array(range(len(fleet_travel_time))) * 4, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
     bp2 = ax.boxplot(fleet_work_time, positions=np.array(range(len(fleet_work_time))) * 4 + 1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
 
     bp3 = ax.boxplot(fleet_idle_time, positions=np.array(range(len(fleet_idle_time))) * 4 + 2, widths=0.6,
-                      patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                      meanline=False, showmeans=True, meanprops=get_meanprops('#FFC300'), flierprops=get_flierprops('#FFC300'))
 
     set_box_color(bp1, '#4376b8')
     set_box_color(bp2, '#399b5e')
     set_box_color(bp3, '#FFC300')
 
-    plt.plot([], c='#4376b8', label='Travel time')
-    plt.plot([], c='#399b5e', label='Work time')
-    plt.plot([], c='#FFC300', label='Idle time')
-    plt.legend()
+    plt.plot([], c='#4376b8', label='Travel time', linewidth=2)
+    plt.plot([], c='#399b5e', label='Work time', linewidth=2)
+    plt.plot([], c='#FFC300', label='Idle time', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
 
     ax.set_ylim(-1, 101)
     ax.set_yticks(list(range(0, 110, 10)))
-    plt.vlines(3, ymin=-1, ymax=101)
-    plt.vlines(7, ymin=-1, ymax=101)
-    plt.vlines(11, ymin=-1, ymax=101)
+    plt.vlines(3, ymin=-1, ymax=101, linewidths=1)
+    plt.vlines(7, ymin=-1, ymax=101, linewidths=1)
+    plt.vlines(11, ymin=-1, ymax=101, linewidths=1)
 
     ax.set_ylabel("Percentage (%)")
     ax.set_title(title)
+    ax.yaxis.grid()
 
-    plt.xticks(range(0, len(ticks) * 4, 4), ticks)
+    plt.xticks(range(1, (len(ticks) * 4)-1, 4), ticks)
     plt.xlim(-1, len(ticks) * 4 - 1)
     plt.tight_layout()
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
 
-    save_plot(fig, plot_name, save_in_path)
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
@@ -392,6 +450,7 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
     - Amount of delays (s)
     - Amount of earliness (s)
     """
+    print("Amount of delay")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "slack_" + recovery_method + '_' + dataset_name
@@ -412,49 +471,59 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
         run_delay = list()
         run_earliness = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             # Convert to minutes
-            run_delay.append(int(metrics.get("delay"))/60)
-            run_earliness.append(int(metrics.get("earliness"))/60)
+            run_delay.append(metrics.get("delay"))
+            run_earliness.append(metrics.get("earliness"))
 
         delay += [run_delay]
         earliness += [run_earliness]
 
-        print("delay: ", delay)
-        print("earliness: ", earliness)
-
     bp1 = ax.boxplot(delay, positions=np.array(range(len(delay))) * 3, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'), flierprops=get_flierprops('#ff3333'))
     bp2 = ax.boxplot(earliness, positions=np.array(range(len(earliness))) * 3 + 1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'), flierprops=get_flierprops('#ffb733'))
 
     set_box_color(bp1, '#ff3333')
     set_box_color(bp2, '#ffb733')
 
-    plt.plot([], c='#ff3333', label='Delayed')
-    plt.plot([], c='#ffb733', label='Early')
-    plt.legend()
+    plt.plot([], c='#ff3333', label='Delayed', linewidth=2)
+    plt.plot([], c='#ffb733', label='Early', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
 
-    ax.set_ylim(bottom=-1)
-    ymin, ymax = ax.get_ylim()
-    print("Y limit: ", ax.get_ylim())
+    # ax.set_ylim(bottom=-1)
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-    plt.vlines(2, ymin=ymin, ymax=ymax)
-    plt.vlines(5, ymin=ymin, ymax=ymax)
-    plt.vlines(8, ymin=ymin, ymax=ymax)
-
-    plt.xticks(range(0, len(ticks) * 3, 3), ticks)
+    plt.xticks(range(1, (len(ticks) * 3)-1, 3), ticks)
     plt.xlim(-1, len(ticks) * 3-1)
     plt.tight_layout()
     ax.set_title(title)
-    ax.set_ylabel('Time (minutes)')
-
-    plt.legend()
+    ax.set_ylabel('Time (s)')
+    ax.yaxis.grid()
     plt.tight_layout()
 
-    save_plot(fig, plot_name, save_in_path)
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(2, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, bidding_rule):
@@ -465,6 +534,7 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
 
     Use only for experiments with recovery method 're-allocation'
     """
+    print("Re-allocation")
     title = get_title(experiment_name, 're-allocation', dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "re_allocation_metrics_" + dataset_name
@@ -476,8 +546,6 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
     ax = fig.add_subplot(111)  # Number of tasks
     ax2 = ax.twinx()  # Percentage (%)
 
-    print("Dataset: ", dataset_name)
-
     for i, approach in enumerate(approaches):
         print("Approach: ", approach)
         path_to_results = '../' + experiment_name + '/' + approach + '/' + bidding_rule
@@ -487,8 +555,15 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
         approach_re_allocation_attempts = list()
         approach_re_allocations = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             successful_reallocations = len(metrics.get("successful_reallocations"))
             unsucessful_reallocations = len(metrics.get("unsuccessful_reallocations"))
@@ -501,50 +576,47 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
             approach_re_allocation_attempts.append(attempts)
             approach_re_allocations.append(percentage_re_allocations)
 
-            # for task_performance in metrics.get("tasks_performance_metrics"):
-            #     if task_performance.get('task_id') in metrics.get("successful_reallocations"):
-            #         run_re_allocation_times.append(task_performance.get('re_allocation_time'))
-            print("re-allocation attempts: ", attempts)
-            print("% re-allocations: ", percentage_re_allocations)
-
         re_allocation_attempts += [approach_re_allocation_attempts]
         re_allocations += [approach_re_allocations]
 
     bp1 = ax.boxplot(re_allocation_attempts, positions=np.array(range(len(re_allocation_attempts))) * 3,  widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
     bp2 = ax2.boxplot(re_allocations, positions=np.array(range(len(re_allocations))) * 3+1,  widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
-
-    # bp3 = ax2.boxplot(re_allocation_times, positions=np.array(range(len(re_allocation_times))) * 4+2,  widths=0.6,
-    #                   patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
 
     set_box_color(bp1, '#4376b8')
     set_box_color(bp2, '#399b5e')
-    # set_box_color(bp3, '#FFC300')
 
-    plt.plot([], c='#4376b8', label='Re-allocation attempts')
-    plt.plot([], c='#399b5e', label='% Successful re-allocations')
-    # plt.plot([], c='#FFC300', label='Re-allocation time')
-    plt.legend()
+    plt.plot([], c='#4376b8', label='Re-allocation attempts', linewidth=2)
+    plt.plot([], c='#399b5e', label='% Successful re-allocations', linewidth=2)
+    lgd = ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
 
     ax.set_ylim(bottom=0)
     ax2.set_ylim(-1, 101)
     ax2.set_yticks(list(range(0, 110, 10)))
 
     ymin, ymax = ax.get_ylim()
-    plt.vlines(2, ymin=-1, ymax=101)
-    plt.vlines(5, ymin=-1, ymax=101)
-    plt.vlines(8, ymin=-1, ymax=101)
+    plt.vlines(2, ymin=-1, ymax=101, linewidths=1)
+    plt.vlines(5, ymin=-1, ymax=101, linewidths=1)
+    plt.vlines(8, ymin=-1, ymax=101, linewidths=1)
 
     ax.set_title(title)
     ax.set_ylabel('Number of tasks')
     ax2.set_ylabel('Percentage (%)')
+    ax.yaxis.grid()
+    # ax2.yaxis.grid()
 
     plt.xticks(range(0, len(ticks) * 3, 3), ticks)
     plt.xlim(-1, len(ticks) * 3-1)
     plt.tight_layout()
 
-    save_plot(fig, plot_name, save_in_path)
+    ax.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 def plot_re_allocation_info(experiment_name, approaches, dataset_name, bidding_rule):
@@ -777,7 +849,7 @@ def bar_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
 
 
 def box_plot_completed_tasks(experiment_name, recovery_method, approaches, dataset_name, bidding_rule):
-    # Based on: https://stackoverflow.com/questions/16592222/matplotlib-group-boxplots
+    print("Completed tasks")
     title = get_title(experiment_name, recovery_method, dataset_name)
     save_in_path = get_plot_path(experiment_name)
     plot_name = "completed_tasks_" + recovery_method + '_' + dataset_name
@@ -803,8 +875,15 @@ def box_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
         delayed_tasks = list()
         early_tasks = list()
 
+        n_runs = 0
+
         for run_id, run_info in results.get("runs").items():
-            print("run_id: ", run_id)
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             completed_tasks.append(len(metrics.get("completed_tasks")))
             on_time_tasks.append(len(metrics.get("successful_tasks")))
@@ -817,41 +896,47 @@ def box_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
         early += [early_tasks]
 
     bp1 = ax.boxplot(completed, positions=np.array(range(len(completed)))*5, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#3333ff'), flierprops=get_flierprops('#3333ff'))
     bp2 = ax.boxplot(on_time, positions=np.array(range(len(on_time)))*5+1, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#339933'), flierprops=get_flierprops('#339933'))
     bp3 = ax.boxplot(delayed, positions=np.array(range(len(delayed)))*5+2, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'), flierprops=get_flierprops('#ff3333'))
     bp4 = ax.boxplot(early, positions=np.array(range(len(early)))*5+3, widths=0.6,
-                     patch_artist=True, meanline=False, showmeans=True, meanprops=meanprops)
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'), flierprops=get_flierprops('#ffb733'))
 
     set_box_color(bp1, '#3333ff')
     set_box_color(bp2, '#339933')
     set_box_color(bp3,  '#ff3333')
     set_box_color(bp4, '#ffb733')
 
-    plt.plot([], c='#3333ff', label='Completed')
-    plt.plot([], c='#339933', label='On-time')
-    plt.plot([], c='#ff3333', label='Delayed')
-    plt.plot([], c='#ffb733', label='Early')
-    plt.legend()
+    plt.plot([], c='#3333ff', label='Completed', linewidth=2)
+    plt.plot([], c='#339933', label='On-time', linewidth=2)
+    plt.plot([], c='#ff3333', label='Delayed', linewidth=2)
+    plt.plot([], c='#ffb733', label='Early', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
 
     plt.xticks(range(1, len(ticks) * 5, 5), ticks)
     plt.xlim(-1, len(ticks) * 4+3)
     plt.tight_layout()
 
-    plt.vlines(4, ymin=-1, ymax=26)
-    plt.vlines(9, ymin=-1, ymax=26)
-    plt.vlines(14, ymin=-1, ymax=26)
+    plt.vlines(4, ymin=-1, ymax=26, linewidths=1)
+    plt.vlines(9, ymin=-1, ymax=26, linewidths=1)
+    plt.vlines(14, ymin=-1, ymax=26, linewidths=1)
 
     ax.set_title(title)
 
     ax.set_ylim(-1, 26)
     ax.set_yticks(list(range(0, 26, 5)))
     ax.set_ylabel('Number of tasks')
-    ax.get_yaxis().tick_left()
+    ax.yaxis.grid()
 
-    save_plot(fig, plot_name, save_in_path)
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
 
 
 if __name__ == '__main__':
@@ -869,13 +954,13 @@ if __name__ == '__main__':
     datasets = config_params.get("datasets")
 
     for dataset in datasets:
-        box_plot_completed_tasks(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_completed_tasks(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         box_plot_amount_of_delay(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_allocations(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_fleet_time_distribution(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_times(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-
-        if args.recovery_method == "re-allocate":
-            a = [a for a in approaches if args.recovery_method in a]
-            box_plot_re_allocation_info(args.experiment_name, a, dataset, args.bidding_rule)
+        # box_plot_allocations(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_fleet_time_distribution(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_times(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        #
+        # if args.recovery_method == "re-allocate":
+        #     a = [a for a in approaches if args.recovery_method in a]
+        #     box_plot_re_allocation_info(args.experiment_name, a, dataset, args.bidding_rule)

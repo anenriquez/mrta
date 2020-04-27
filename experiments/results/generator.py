@@ -45,6 +45,7 @@ class TaskPerformanceMetrics(AsDictMixin):
         self.re_allocation_time = 0
         self.n_re_allocation_attempts = 0
         self.n_re_allocations = 0
+        self.allocation_times = dict()  # {n_previously_allocated_tasks: time_to_allocate}
 
     def get_metrics(self, task_performance):
         if task_performance.allocation:
@@ -53,6 +54,8 @@ class TaskPerformanceMetrics(AsDictMixin):
             self.re_allocation_time = sum(allocation_times[1:])
             self.n_re_allocation_attempts = task_performance.allocation.n_re_allocation_attempts
             self.n_re_allocations = len(allocation_times) - 1
+            self.allocation_times = {task_performance.allocation.n_previously_allocated_tasks[i]: time_ for i, time_
+                                     in enumerate(task_performance.allocation.time_to_allocate)}
 
 
 class RobotPerformanceMetrics(AsDictMixin):

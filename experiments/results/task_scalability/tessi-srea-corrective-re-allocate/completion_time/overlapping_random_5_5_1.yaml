@@ -306,3 +306,1353 @@ runs:
       start_time: '2020-01-23T08:39:49'
       successful_percentage: 100.0
     run_id: 10
+  11:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:16'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 114.0
+            travel_time: 86.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 28.0
+            travel_time: 0.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 110.0
+            travel_time: 80.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 258.0
+            travel_time: 226.0
+            work_time: 32.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 387.0
+            travel_time: 329.0
+            work_time: 58.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 4.339604616165161
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:28'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 5.814071178436279
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:35'
+            pickup_time: '2020-01-23T08:45:05'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 6.803618431091309
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:37'
+            pickup_time: '2020-01-23T08:45:09'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 3.8009274005889893
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:42'
+            pickup_time: '2020-01-23T08:45:10'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 2.2924818992614746
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:16'
+            pickup_time: '2020-01-23T08:45:18'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 11
+  15:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:11'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 112.0
+            travel_time: 82.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 28.0
+            travel_time: 0.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 108.0
+            travel_time: 77.0
+            work_time: 31.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 260.0
+            travel_time: 227.0
+            work_time: 33.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 382.0
+            travel_time: 319.0
+            work_time: 63.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.7989447116851807
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:28'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 6.309679985046387
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:35'
+            pickup_time: '2020-01-23T08:45:05'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 5.326273202896118
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:33'
+            pickup_time: '2020-01-23T08:45:02'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 4.312819004058838
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:44'
+            pickup_time: '2020-01-23T08:45:11'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 2.283090353012085
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:11'
+            pickup_time: '2020-01-23T08:45:08'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 15
+  16:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:10'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 1
+        early_tasks:
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 123.0
+            travel_time: 94.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 29.0
+            travel_time: 0.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 109.0
+            travel_time: 78.0
+            work_time: 31.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 246.0
+            travel_time: 215.0
+            work_time: 31.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 381.0
+            travel_time: 318.0
+            work_time: 63.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.2810375690460205
+          delay: 0
+          earliness: 1
+          execution_times:
+            delivery_time: '2020-01-23T08:45:30'
+            pickup_time: '2020-01-23T08:44:59'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 3.3074567317962646
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:29'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 4.310234069824219
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:34'
+            pickup_time: '2020-01-23T08:45:03'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 5.301909923553467
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:46'
+            pickup_time: '2020-01-23T08:45:17'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 1.7766070365905762
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:10'
+            pickup_time: '2020-01-23T08:45:07'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 4
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 80.0
+    run_id: 16
+  20:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:16'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 107.0
+            travel_time: 80.0
+            work_time: 27.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 27.0
+            travel_time: 0.0
+            work_time: 27.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 110.0
+            travel_time: 80.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 255.0
+            travel_time: 226.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 387.0
+            travel_time: 328.0
+            work_time: 59.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.298133134841919
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:27'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 5.300597429275513
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:30'
+            pickup_time: '2020-01-23T08:45:03'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 4.316070795059204
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:35'
+            pickup_time: '2020-01-23T08:45:05'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 2.7830350399017334
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:39'
+            pickup_time: '2020-01-23T08:45:10'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 1.2823898792266846
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:16'
+            pickup_time: '2020-01-23T08:45:17'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 20
+  24:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:10'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 107.0
+            travel_time: 78.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 28.0
+            travel_time: 0.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 107.0
+            travel_time: 77.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 268.0
+            travel_time: 235.0
+            work_time: 33.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 381.0
+            travel_time: 318.0
+            work_time: 63.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.2702717781066895
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:28'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 5.807512283325195
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:30'
+            pickup_time: '2020-01-23T08:45:01'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 4.292538404464722
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:32'
+            pickup_time: '2020-01-23T08:45:02'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 3.2961504459381104
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:52'
+            pickup_time: '2020-01-23T08:45:19'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 1.7730958461761475
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:10'
+            pickup_time: '2020-01-23T08:45:07'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 24
+  28:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:18'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 119.0
+            travel_time: 91.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 29.0
+            travel_time: 0.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 108.0
+            travel_time: 78.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 255.0
+            travel_time: 224.0
+            work_time: 31.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 389.0
+            travel_time: 327.0
+            work_time: 62.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.279184341430664
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:29'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 4.311253547668457
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:33'
+            pickup_time: '2020-01-23T08:45:03'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 2.7840938568115234
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:39'
+            pickup_time: '2020-01-23T08:45:08'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 5.2828874588012695
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:42'
+            pickup_time: '2020-01-23T08:45:14'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 1.7717559337615967
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:18'
+            pickup_time: '2020-01-23T08:45:16'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 28
+  32:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:17'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 121.0
+            travel_time: 94.0
+            work_time: 27.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 29.0
+            travel_time: 0.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 108.0
+            travel_time: 78.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 260.0
+            travel_time: 231.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 388.0
+            travel_time: 327.0
+            work_time: 61.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 2.7938742637634277
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:29'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 4.290407657623291
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:33'
+            pickup_time: '2020-01-23T08:45:03'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 3.287605047225952
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:44'
+            pickup_time: '2020-01-23T08:45:15'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 5.794492959976196
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:44'
+            pickup_time: '2020-01-23T08:45:17'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 1.7822997570037842
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:17'
+            pickup_time: '2020-01-23T08:45:16'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 32
+  36:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:22'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 112.0
+            travel_time: 85.0
+            work_time: 27.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 28.0
+            travel_time: 0.0
+            work_time: 28.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 109.0
+            travel_time: 79.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 254.0
+            travel_time: 223.0
+            work_time: 31.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 393.0
+            travel_time: 330.0
+            work_time: 63.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.307032823562622
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:28'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 4.292438507080078
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:34'
+            pickup_time: '2020-01-23T08:45:04'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 5.79418420791626
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:35'
+            pickup_time: '2020-01-23T08:45:08'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 2.7818148136138916
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:38'
+            pickup_time: '2020-01-23T08:45:07'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 1.7757525444030762
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:22'
+            pickup_time: '2020-01-23T08:45:19'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 36
+  40:
+    performance_metrics:
+      finish_time: '2020-01-23T08:46:17'
+      fleet_performance_metrics:
+        allocated_tasks:
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        biggest_load: 20.0
+        completed_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        delay: 0
+        delayed_tasks: []
+        earliness: 0
+        early_tasks: []
+        preempted_tasks: []
+        robots_performance_metrics:
+        - dgraph_recomputation_time: 0
+          robot_id: robot_001
+          robot_tasks:
+          - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+          time_distribution:
+            idle_time: 0
+            total_time: 116.0
+            travel_time: 87.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_002
+          robot_tasks:
+          - d547b183-fb25-47a1-a1c8-27e99e1a5340
+          time_distribution:
+            idle_time: 0
+            total_time: 29.0
+            travel_time: 0.0
+            work_time: 29.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_003
+          robot_tasks:
+          - a4e00311-b91f-42bb-8705-db02a24845e1
+          time_distribution:
+            idle_time: 0
+            total_time: 107.0
+            travel_time: 77.0
+            work_time: 30.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_004
+          robot_tasks:
+          - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+          time_distribution:
+            idle_time: 0
+            total_time: 264.0
+            travel_time: 231.0
+            work_time: 33.0
+          usage: 20.0
+        - dgraph_recomputation_time: 0
+          robot_id: robot_005
+          robot_tasks:
+          - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+          time_distribution:
+            idle_time: 0
+            total_time: 388.0
+            travel_time: 326.0
+            work_time: 62.0
+          usage: 20.0
+        successful_reallocations: []
+        successful_tasks:
+        - d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - a4e00311-b91f-42bb-8705-db02a24845e1
+        - cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        tasks_performance_metrics:
+        - allocation_time: 3.2684357166290283
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:29'
+            pickup_time: '2020-01-23T08:45:00'
+            start_time: '2020-01-23T08:45:00'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: d547b183-fb25-47a1-a1c8-27e99e1a5340
+        - allocation_time: 4.8241355419158936
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:32'
+            pickup_time: '2020-01-23T08:45:02'
+            start_time: '2020-01-23T08:43:45'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a4e00311-b91f-42bb-8705-db02a24845e1
+        - allocation_time: 5.287313461303711
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:39'
+            pickup_time: '2020-01-23T08:45:10'
+            start_time: '2020-01-23T08:43:43'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: cfe983f0-631d-4bd8-a631-ce72aa58aa38
+        - allocation_time: 2.7921648025512695
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:45:48'
+            pickup_time: '2020-01-23T08:45:15'
+            start_time: '2020-01-23T08:41:24'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: a3f96ada-5db0-46dd-8fa5-5a2856d939a4
+        - allocation_time: 1.775268793106079
+          delay: 0
+          earliness: 0
+          execution_times:
+            delivery_time: '2020-01-23T08:46:17'
+            pickup_time: '2020-01-23T08:45:15'
+            start_time: '2020-01-23T08:39:49'
+          n_re_allocation_attempts: 0
+          n_re_allocations: 0
+          re_allocation_time: 0
+          status: 6
+          task_id: 88f90f26-c0dd-4106-a6d9-882901eb51ca
+        time_distribution: null
+        total_n_tasks: 5
+        unallocated_tasks: []
+        unsuccessful_reallocations: []
+        usage: 0.0
+      n_successful_tasks: 5
+      start_time: '2020-01-23T08:39:49'
+      successful_percentage: 100.0
+    run_id: 40
