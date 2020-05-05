@@ -97,10 +97,6 @@ def get_gantt_tasks_schedule(title, tasks, tasks_performance, **kwargs):
             task_id = dict_repr.get('_id')
             task = [task for task in tasks if task.task_id == task_id].pop()
             robot_id = task.assigned_robots[0]
-            print("Task: ", task_id)
-            print("start time: ", p.execution.start_time)
-            print("pickup time: ", p.execution.pickup_time)
-            print("delivery time: ", p.execution.delivery_time)
             tasks_schedule += get_gantt_task_schedule(robot_id, p.execution.start_time,
                                                       p.execution.pickup_time,
                                                       p.execution.delivery_time)
