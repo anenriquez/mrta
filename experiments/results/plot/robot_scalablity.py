@@ -1,3 +1,4 @@
+import collections
 import statistics
 
 import matplotlib.pyplot as plt
@@ -5,8 +6,7 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, get_meanprops, get_plot_path, \
-    ticks, get_flierprops
-from experiments.results.plot.utils import markers
+    ticks, get_flierprops, markers
 from mrs.config.params import get_config_params
 
 path_to_robot_results = ['robot_scalability_1', 'robot_scalability_2', 'robot_scalability_3', 'robot_scalability_4',
@@ -21,8 +21,6 @@ def plot_allocations(approaches):
     save_in_path = get_plot_path('robot_scalability')
     plot_name = "allocated_tasks"
     fig = plt.figure(figsize=(9, 6))
-    ax = fig.add_subplot(111)
-
     robots = list(range(1, 6))
 
     for i, approach in enumerate(approaches):
@@ -60,13 +58,107 @@ def plot_allocations(approaches):
         plt.errorbar(robots, avgs_allocations, stdevs_allocations, marker=markers[i], label=ticks[i])
 
     plt.xticks(robots)
-    plt.yticks(list(range(0, 26, 5)))
+    # plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of robots")
     plt.ylabel("Number of allocated tasks")
     plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def box_plot_allocations(approaches):
+    title = "Experiment: Robot scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('robot_scalability')
+    plot_name = "box_allocated_tasks"
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)
+
+    tessi_allocated_tasks = list()
+    tessi_drea_allocated_tasks = list()
+    tessi_srea_allocated_tasks = list()
+    tessi_dsc_allocated_tasks = list()
+
+    for robot in path_to_robot_results:
+        print("Robot: ", robot)
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../' + robot + '/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            results = results_per_dataset.pop('nonoverlapping_random_25_1')
+            approach_allocated_tasks = list()
+
+            for run_id, run_info in results.get("runs").items():
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                approach_allocated_tasks.append(len(metrics.get("allocated_tasks")))
+
+            if approach == 'tessi-corrective-re-allocate':
+                tessi_allocated_tasks += [approach_allocated_tasks]
+            elif approach == 'tessi-srea-preventive-re-schedule-re-allocate':
+                tessi_drea_allocated_tasks += [approach_allocated_tasks]
+            elif approach == 'tessi-srea-corrective-re-allocate':
+                tessi_srea_allocated_tasks += [approach_allocated_tasks]
+            elif approach == 'tessi-dsc-corrective-re-allocate':
+                tessi_dsc_allocated_tasks += [approach_allocated_tasks]
+
+    bp1 = ax.boxplot(tessi_allocated_tasks, positions=np.array(range(len(tessi_allocated_tasks))) * 5,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                     flierprops=get_flierprops('#1f77b4'))
+    bp2 = ax.boxplot(tessi_drea_allocated_tasks,
+                     positions=np.array(range(len(tessi_drea_allocated_tasks))) * 5 + 1,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                     flierprops=get_flierprops('#ff7f0e'))
+    bp3 = ax.boxplot(tessi_srea_allocated_tasks,
+                     positions=np.array(range(len(tessi_srea_allocated_tasks))) * 5 + 2,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                     flierprops=get_flierprops('#2ca02c'))
+    bp4 = ax.boxplot(tessi_dsc_allocated_tasks,
+                     positions=np.array(range(len(tessi_dsc_allocated_tasks))) * 5 + 3,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                     flierprops=get_flierprops('#d62728'))
+
+    set_box_color(bp1, '#1f77b4')
+    set_box_color(bp2, '#ff7f0e')
+    set_box_color(bp3, '#2ca02c')
+    set_box_color(bp4, '#d62728')
+
+    plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+    plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+    plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+    plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+    plt.xlim(-1, len(xticks) * 4 + 4)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    ax.set_title(title)
+
+    ax.set_ylabel('Number of allocated tasks')
+    ax.yaxis.grid()
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    plt.tight_layout()
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
@@ -79,7 +171,6 @@ def plot_re_allocations(approaches):
     fig = plt.figure(figsize=(9, 6))
     ax = fig.add_subplot(111)
 
-    robots = list(range(1, 6))
     tessi_re_allocations = list()
     tessi_drea_re_allocations = list()
     tessi_srea_re_allocations = list()
@@ -178,7 +269,6 @@ def plot_re_allocation_attempts(approaches):
     fig = plt.figure(figsize=(9, 6))
     ax = fig.add_subplot(111)
 
-    robots = list(range(1, 6))
     tessi_re_allocation_attempts = list()
     tessi_drea_re_allocation_attempts = list()
     tessi_srea_re_allocation_attempts = list()
@@ -272,9 +362,62 @@ def plot_successful_tasks(approaches):
     save_in_path = get_plot_path('robot_scalability')
     plot_name = "successful_tasks"
     fig = plt.figure(figsize=(9, 6))
+    robots = list(range(1, 6))
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        avgs_successful_tasks = list()
+        stdevs_successful_tasks = list()
+
+        for r in path_to_robot_results:
+            path_to_results = '../' + r + '/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            results = results_per_dataset.pop('nonoverlapping_random_25_1')
+
+            robot_successful_tasks = list()
+
+            for run_id, run_info in results.get("runs").items():
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                robot_successful_tasks.append(len(metrics.get("successful_tasks")))
+
+            try:
+                avg_successful_tasks = statistics.mean(robot_successful_tasks)
+            except statistics.StatisticsError:
+                # mean requires at least one data point
+                avg_successful_tasks = 0
+
+            try:
+                stdev_successful_tasks = statistics.stdev(robot_successful_tasks)
+            except statistics.StatisticsError:
+                # variance requires at least two data points
+                stdev_successful_tasks = 0
+
+            avgs_successful_tasks.append(avg_successful_tasks)
+            stdevs_successful_tasks.append(stdev_successful_tasks)
+
+        plt.errorbar(robots, avgs_successful_tasks, stdevs_successful_tasks, marker=markers[i], label=ticks[i])
+
+    plt.xticks(robots)
+    # plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of robots")
+    plt.ylabel("Number of successful tasks")
+    plt.title(title)
+    axes = plt.gca()
+    axes.yaxis.grid()
+    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def box_plot_successful_tasks(approaches):
+    title = "Experiment: Robot scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('robot_scalability')
+    plot_name = "box_successful_tasks"
+    fig = plt.figure(figsize=(9, 6))
     ax = fig.add_subplot(111)
 
-    robots = list(range(1, 6))
     tessi_successful_tasks = list()
     tessi_drea_successful_tasks = list()
     tessi_srea_successful_tasks = list()
@@ -360,6 +503,101 @@ def plot_successful_tasks(approaches):
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
+def box_plot_completed_tasks(approaches):
+    title = "Experiment: Robot scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('robot_scalability')
+    plot_name = "box_completed_tasks"
+    fig = plt.figure(figsize=(9, 6))
+
+    ax = fig.add_subplot(111)
+
+    tessi_completed_tasks = list()
+    tessi_drea_completed_tasks = list()
+    tessi_srea_completed_tasks = list()
+    tessi_dsc_completed_tasks = list()
+
+    for robot in path_to_robot_results:
+        print("Robot: ", robot)
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../' + robot + '/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            results = results_per_dataset.pop('nonoverlapping_random_25_1')
+            approach_completed_tasks = list()
+
+            for run_id, run_info in results.get("runs").items():
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                approach_completed_tasks.append(len(metrics.get("completed_tasks")))
+
+            if approach == 'tessi-corrective-re-allocate':
+                tessi_completed_tasks += [approach_completed_tasks]
+            elif approach == 'tessi-srea-preventive-re-schedule-re-allocate':
+                tessi_drea_completed_tasks += [approach_completed_tasks]
+            elif approach == 'tessi-srea-corrective-re-allocate':
+                tessi_srea_completed_tasks += [approach_completed_tasks]
+            elif approach == 'tessi-dsc-corrective-re-allocate':
+                tessi_dsc_completed_tasks += [approach_completed_tasks]
+
+    bp1 = ax.boxplot(tessi_completed_tasks, positions=np.array(range(len(tessi_completed_tasks))) * 5,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                     flierprops=get_flierprops('#1f77b4'))
+    bp2 = ax.boxplot(tessi_drea_completed_tasks,
+                     positions=np.array(range(len(tessi_drea_completed_tasks))) * 5 + 1,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                     flierprops=get_flierprops('#ff7f0e'))
+    bp3 = ax.boxplot(tessi_srea_completed_tasks,
+                     positions=np.array(range(len(tessi_srea_completed_tasks))) * 5 + 2,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                     flierprops=get_flierprops('#2ca02c'))
+    bp4 = ax.boxplot(tessi_dsc_completed_tasks,
+                     positions=np.array(range(len(tessi_dsc_completed_tasks))) * 5 + 3,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                     flierprops=get_flierprops('#d62728'))
+
+    set_box_color(bp1, '#1f77b4')
+    set_box_color(bp2, '#ff7f0e')
+    set_box_color(bp3, '#2ca02c')
+    set_box_color(bp4, '#d62728')
+
+    plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+    plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+    plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+    plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+    plt.xlim(-1, len(xticks) * 4 + 4)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    ax.set_title(title)
+
+    ax.set_ylabel('Number of completed tasks')
+    ax.yaxis.grid()
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    plt.tight_layout()
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
 def plot_completed_tasks(approaches):
     title = "Experiment: Robot scalability \n" + \
             "Recovery method: re-allocation \n"
@@ -369,7 +607,6 @@ def plot_completed_tasks(approaches):
     fig = plt.figure(figsize=(9, 6))
 
     robots = list(range(1, 6))
-    # robots = list(range(1, 3))
 
     for i, approach in enumerate(approaches):
         print("Approach: ", approach)
@@ -406,7 +643,7 @@ def plot_completed_tasks(approaches):
         plt.errorbar(robots, avgs_completed_tasks, stdevs_completed_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(robots)
-    plt.yticks(list(range(0, 26, 5)))
+    # plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of robots")
     plt.ylabel("Number of completed tasks")
     plt.title(title)
@@ -427,7 +664,6 @@ def plot_allocation_times(approaches):
     fig = plt.figure(figsize=(9, 6))
 
     robots = list(range(1, 6))
-    # robots = list(range(1, 3))
 
     for i, approach in enumerate(approaches):
         print("Approach: ", approach)
@@ -488,7 +724,6 @@ def plot_dgraph_recomputation_times(approaches):
     fig = plt.figure(figsize=(9, 6))
 
     robots = list(range(1, 6))
-    # robots = list(range(1, 3))
 
     for i, approach in enumerate(approaches):
         print("Approach: ", approach)
@@ -544,23 +779,24 @@ def plot_re_allocation_times(approaches):
             "Recovery method: re-allocation \n"
 
     save_in_path = get_plot_path('robot_scalability')
-    plot_name = "re_allocation_times"
+    plot_name = "re_allocation_times_"
     fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)
 
-    robots = list(range(1, 6))
-    # robots = list(range(1, 3))
+    tessi_re_allocation_times = list()
+    tessi_drea_re_allocation_times = list()
+    tessi_srea_re_allocation_times = list()
+    tessi_dsc_re_allocation_times = list()
 
-    for i, approach in enumerate(approaches):
-        print("Approach: ", approach)
-        avgs_re_allocation_times = list()
-        stdevs_re_allocation_times = list()
+    for robot in path_to_robot_results:
+        print("Robot: ", robot)
 
-        for r in path_to_robot_results:
-            path_to_results = '../' + r + '/' + approach + '/completion_time'
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../' + robot + '/' + approach + '/completion_time'
             results_per_dataset = get_dataset_results(path_to_results)
             results = results_per_dataset.pop('nonoverlapping_random_25_1')
-
-            robot_re_allocation_times = list()
+            approach_re_allocations_times = list()
 
             for run_id, run_info in results.get("runs").items():
                 print("run_id: ", run_id)
@@ -570,36 +806,70 @@ def plot_re_allocation_times(approaches):
                 for task_performance in metrics.get("tasks_performance_metrics"):
                     re_allocation_time += task_performance.get('re_allocation_time')
 
-                robot_re_allocation_times.append(re_allocation_time)
+                approach_re_allocations_times.append(re_allocation_time)
 
-            try:
-                avg_re_allocation_times = statistics.mean(robot_re_allocation_times)
-            except statistics.StatisticsError:
-                # mean requires at least one data point
-                avg_re_allocation_times = 0
+            if approach == 'tessi-corrective-re-allocate':
+                tessi_re_allocation_times += [approach_re_allocations_times]
+            elif approach == 'tessi-srea-preventive-re-schedule-re-allocate':
+                tessi_drea_re_allocation_times += [approach_re_allocations_times]
+            elif approach == 'tessi-srea-corrective-re-allocate':
+                tessi_srea_re_allocation_times += [approach_re_allocations_times]
+            elif approach == 'tessi-dsc-corrective-re-allocate':
+                tessi_dsc_re_allocation_times += [approach_re_allocations_times]
 
-            try:
-                stdev_re_allocation_times = statistics.stdev(robot_re_allocation_times)
-            except statistics.StatisticsError:
-                # variance requires at least two data points
-                stdev_re_allocation_times = 0
+    bp1 = ax.boxplot(tessi_re_allocation_times, positions=np.array(range(len(tessi_re_allocation_times))) * 5,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                     flierprops=get_flierprops('#1f77b4'))
+    bp2 = ax.boxplot(tessi_drea_re_allocation_times,
+                     positions=np.array(range(len(tessi_drea_re_allocation_times))) * 5 + 1,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                     flierprops=get_flierprops('#ff7f0e'))
+    bp3 = ax.boxplot(tessi_srea_re_allocation_times,
+                     positions=np.array(range(len(tessi_srea_re_allocation_times))) * 5 + 2,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                     flierprops=get_flierprops('#2ca02c'))
+    bp4 = ax.boxplot(tessi_dsc_re_allocation_times,
+                     positions=np.array(range(len(tessi_dsc_re_allocation_times))) * 5 + 3,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                     flierprops=get_flierprops('#d62728'))
 
-            avgs_re_allocation_times.append(avg_re_allocation_times)
-            stdevs_re_allocation_times.append(stdev_re_allocation_times)
+    set_box_color(bp1, '#1f77b4')
+    set_box_color(bp2, '#ff7f0e')
+    set_box_color(bp3, '#2ca02c')
+    set_box_color(bp4, '#d62728')
 
-        # TODO: Limit lower limit to zero
-        lolims = np.ones(5, dtype=bool)
+    plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+    plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+    plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+    plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
 
-        plt.errorbar(robots, avgs_re_allocation_times, stdevs_re_allocation_times, marker=markers[i], label=ticks[i])
+    plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+    plt.xlim(-1, len(xticks) * 4 + 4)
 
-    plt.xticks(robots)
-    plt.xlabel("Number of robots")
-    plt.ylabel("Re-allocation time (s)")
-    plt.title(title)
-    axes = plt.gca()
-    axes.yaxis.grid()
-    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
 
+    ax.set_title(title)
+
+    ax.set_ylabel('Re-allocation time (s)')
+    ax.yaxis.grid()
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    plt.tight_layout()
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
@@ -696,7 +966,7 @@ def plot_robot_utilization(approaches):
         plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
         plt.ylim(ymin, ymax)
 
-        ax.set_ylabel("Percentage (%)")
+        ax.set_ylabel("Percentage of completed tasks(%)")
         ax.set_title(title)
         ax.yaxis.grid()
 
@@ -712,17 +982,82 @@ def plot_robot_utilization(approaches):
         save_plot(fig, plot_name, save_in_path, lgd)
 
 
+def plot_bid_time_vs_tasks_in_schedule(approaches):
+    title = "Experiment: Robot scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    for r in path_to_robot_results:
+        save_in_path = get_plot_path('robot_scalability')
+        plot_name = "bid_times_" + r
+        fig = plt.figure(figsize=(9, 6))
+        print("Robot: ", r)
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../' + r + '/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            results = results_per_dataset.pop('nonoverlapping_random_25_1')
+
+            bid_times = dict()
+            stdev_bid_times = dict()
+
+            for run_id, run_info in results.get("runs").items():
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+
+                for n_tasks, time_to_bid in metrics.get("bid_times").items():
+                    if n_tasks not in bid_times:
+                        bid_times[n_tasks] = list()
+                    bid_times[n_tasks].append(time_to_bid)
+
+            for n_tasks, times_to_bid in bid_times.items():
+                bid_times[n_tasks] = statistics.mean(times_to_bid)
+                try:
+                    stdev_bid_times[n_tasks] = statistics.stdev(times_to_bid)
+                except statistics.StatisticsError:
+                    # variance requires at least two data points
+                    stdev_bid_times[n_tasks] = 0
+
+            bid_times = collections.OrderedDict(sorted(bid_times.items()))
+            stdev_bid_times = collections.OrderedDict(sorted(stdev_bid_times.items()))
+            n_tasks_in_schedule = list(bid_times.keys())
+
+            print("n tasks in schedule: ", n_tasks_in_schedule)
+            print("bid times: ", bid_times)
+            print("Stdev bid times: ", stdev_bid_times)
+
+            plt.errorbar(n_tasks_in_schedule, list(bid_times.values()), list(stdev_bid_times.values()),
+                         marker=markers[i], label=ticks[i])
+
+        plt.xlabel("Number of tasks in schedule")
+        plt.ylabel("Allocation time (s)")
+        plt.title(title)
+        axes = plt.gca()
+        axes.yaxis.grid()
+        axes.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+        save_plot(fig, plot_name, save_in_path, lgd)
+
+
 if __name__ == '__main__':
     config_params = get_config_params(experiment='robot_scalability_1')
     approaches = config_params.get("approaches")
 
-    # plot_allocations(approaches)
-    # plot_re_allocations(approaches)
-    # plot_re_allocation_attempts(approaches)
+    box_plot_allocations(approaches)
+    box_plot_completed_tasks(approaches)
+    box_plot_successful_tasks(approaches)
+
+    plot_allocations(approaches)
+    plot_completed_tasks(approaches)
     plot_successful_tasks(approaches)
-    # plot_completed_tasks(approaches)
-    #
-    # plot_allocation_times(approaches)
-    # plot_dgraph_recomputation_times(approaches)
-    # plot_re_allocation_times(approaches)
-    # plot_robot_utilization(approaches)
+
+    plot_re_allocations(approaches)
+    plot_re_allocation_attempts(approaches)
+    plot_re_allocation_times(approaches)
+
+    plot_allocation_times(approaches)
+    plot_dgraph_recomputation_times(approaches)
+    plot_robot_utilization(approaches)
+    plot_bid_time_vs_tasks_in_schedule(approaches)

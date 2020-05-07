@@ -52,7 +52,7 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             robot_metrics = run_info.get("performance_metrics").get("fleet_performance_metrics").get(
@@ -100,16 +100,15 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
     lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=5, fancybox=True, shadow=True)
 
 
-    ax.set_ylim(-1, 51)
-    ax.set_yticks(list(range(0, 60, 10)))
-    # ymin, ymax = ax.get_ylim()
-    # print("ymin: ", ymin)
-    # print("ymax: ", ymax)
-    plt.vlines(5, ymin=-1, ymax=51, linewidths=1)
-    plt.vlines(11, ymin=-1, ymax=51, linewidths=1)
-    plt.vlines(17, ymin=-1, ymax=51, linewidths=1)
+    # ax.set_ylim(-1, 51)
+    # ax.set_yticks(list(range(0, 60, 10)))
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
 
-    ax.set_ylabel("Percentage (%)")
+    ax.set_ylabel("Percentage of completed tasks(%)")
     ax.set_title(title)
     ax.yaxis.grid()
 
@@ -155,7 +154,7 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -250,7 +249,7 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -348,7 +347,7 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics")
@@ -412,7 +411,7 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
                      meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
 
     bp3 = ax.boxplot(fleet_idle_time, positions=np.array(range(len(fleet_idle_time))) * 4 + 2, widths=0.6,
-                      meanline=False, showmeans=True, meanprops=get_meanprops('#FFC300'), flierprops=get_flierprops('#FFC300'))
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#FFC300'), flierprops=get_flierprops('#FFC300'))
 
     set_box_color(bp1, '#4376b8')
     set_box_color(bp2, '#399b5e')
@@ -423,11 +422,12 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
     plt.plot([], c='#FFC300', label='Idle time', linewidth=2)
     lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
 
-    ax.set_ylim(-1, 101)
-    ax.set_yticks(list(range(0, 110, 10)))
-    plt.vlines(3, ymin=-1, ymax=101, linewidths=1)
-    plt.vlines(7, ymin=-1, ymax=101, linewidths=1)
-    plt.vlines(11, ymin=-1, ymax=101, linewidths=1)
+    # ax.set_yticks(list(range(0, 110, 10)))
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(3, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(7, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
 
     ax.set_ylabel("Percentage (%)")
     ax.set_title(title)
@@ -477,11 +477,10 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
-            # Convert to minutes
             run_delay.append(metrics.get("delay"))
             run_earliness.append(metrics.get("earliness"))
 
@@ -544,7 +543,6 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
 
     fig = plt.figure(figsize=(9, 6))
     ax = fig.add_subplot(111)  # Number of tasks
-    ax2 = ax.twinx()  # Percentage (%)
 
     for i, approach in enumerate(approaches):
         print("Approach: ", approach)
@@ -561,50 +559,41 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             successful_reallocations = len(metrics.get("successful_reallocations"))
             unsucessful_reallocations = len(metrics.get("unsuccessful_reallocations"))
             attempts = successful_reallocations + unsucessful_reallocations
-            if attempts > 0:
-                percentage_re_allocations = (100 * successful_reallocations)/attempts
-            else:
-                percentage_re_allocations = 0
 
             approach_re_allocation_attempts.append(attempts)
-            approach_re_allocations.append(percentage_re_allocations)
+            approach_re_allocations.append(successful_reallocations)
 
         re_allocation_attempts += [approach_re_allocation_attempts]
         re_allocations += [approach_re_allocations]
 
     bp1 = ax.boxplot(re_allocation_attempts, positions=np.array(range(len(re_allocation_attempts))) * 3,  widths=0.6,
                      meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
-    bp2 = ax2.boxplot(re_allocations, positions=np.array(range(len(re_allocations))) * 3+1,  widths=0.6,
+    bp2 = ax.boxplot(re_allocations, positions=np.array(range(len(re_allocations))) * 3+1,  widths=0.6,
                      meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
 
     set_box_color(bp1, '#4376b8')
     set_box_color(bp2, '#399b5e')
 
     plt.plot([], c='#4376b8', label='Re-allocation attempts', linewidth=2)
-    plt.plot([], c='#399b5e', label='% Successful re-allocations', linewidth=2)
-    lgd = ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
-
-    ax.set_ylim(bottom=0)
-    ax2.set_ylim(-1, 101)
-    ax2.set_yticks(list(range(0, 110, 10)))
+    plt.plot([], c='#399b5e', label='Successful re-allocations', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
 
     ymin, ymax = ax.get_ylim()
-    plt.vlines(2, ymin=-1, ymax=101, linewidths=1)
-    plt.vlines(5, ymin=-1, ymax=101, linewidths=1)
-    plt.vlines(8, ymin=-1, ymax=101, linewidths=1)
+    plt.vlines(2, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
 
     ax.set_title(title)
     ax.set_ylabel('Number of tasks')
-    ax2.set_ylabel('Percentage (%)')
     ax.yaxis.grid()
-    # ax2.yaxis.grid()
 
     plt.xticks(range(0, len(ticks) * 3, 3), ticks)
     plt.xlim(-1, len(ticks) * 3-1)
@@ -881,7 +870,7 @@ def box_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs > max_n_runs:
+            if n_runs >= max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -955,12 +944,12 @@ if __name__ == '__main__':
 
     for dataset in datasets:
         # box_plot_completed_tasks(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_amount_of_delay(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_amount_of_delay(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_allocations(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_fleet_time_distribution(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_times(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        # box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        #
+        box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+
         # if args.recovery_method == "re-allocate":
         #     a = [a for a in approaches if args.recovery_method in a]
         #     box_plot_re_allocation_info(args.experiment_name, a, dataset, args.bidding_rule)

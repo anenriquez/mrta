@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import statistics
 import uuid
 from datetime import datetime
 
@@ -8,13 +9,13 @@ import numpy as np
 import yaml
 from fmlib.db.mongo import MongoStore
 from ropod.structs.status import TaskStatus as TaskStatusConst
+from ropod.utils.uuid import from_str
 
 from experiments.db.models.experiment import Experiment as ExperimentModel
 from experiments.results.plot.gantt import get_gantt_tasks_schedule, get_gantt_robots_d_graphs, get_gif
 from mrs.config.params import get_config_params
 from mrs.utils.as_dict import AsDictMixin
 from mrs.utils.utils import load_yaml_file_from_module
-from ropod.utils.uuid import from_str
 
 
 class TimeDistribution(AsDictMixin):
@@ -45,7 +46,7 @@ class TaskPerformanceMetrics(AsDictMixin):
         self.re_allocation_time = 0
         self.n_re_allocation_attempts = 0
         self.n_re_allocations = 0
-        self.allocation_times = dict()  # {n_previously_allocated_tasks: time_to_allocate}
+        # self.bid_times = dict()  # {n_previously_allocated_tasks: time_to_allocate}
 
     def get_metrics(self, task_performance):
         if task_performance.allocation:
@@ -54,8 +55,8 @@ class TaskPerformanceMetrics(AsDictMixin):
             self.re_allocation_time = sum(allocation_times[1:])
             self.n_re_allocation_attempts = task_performance.allocation.n_re_allocation_attempts
             self.n_re_allocations = len(allocation_times) - 1
-            self.allocation_times = {task_performance.allocation.n_previously_allocated_tasks[i]: time_ for i, time_
-                                     in enumerate(task_performance.allocation.time_to_allocate)}
+            # self.bid_times = {task_performance.allocation.n_previously_allocated_tasks[i]: time_ for i, time_
+            #                          in enumerate(task_performance.allocation.time_to_allocate)}
 
 
 class RobotPerformanceMetrics(AsDictMixin):
@@ -70,14 +71,12 @@ class RobotPerformanceMetrics(AsDictMixin):
         return str(self.to_dict())
 
     def get_metrics(self, run_info, completed_tasks, total_n_tasks):
-        # robot_peformance.allocated_tasks include all tasks allocated to the robot, but some of these could have been
+        # robot_performance.allocated_tasks includes all tasks allocated to the robot, but some of these could have been
         # re-allocated. Take robots from task.assigned_robots
-        print("robot: ", self.robot_id)
         for task_id in completed_tasks:
             task = FleetPerformanceMetrics.get_task(run_info, task_id)
             if self.robot_id in task.assigned_robots:
                 self.robot_tasks.append(task_id)
-        print("robot tasks: ", self.robot_tasks)
         self.time_distribution = self.get_time_distribution(run_info)
         self.usage = 100 * (len(self.robot_tasks)/total_n_tasks)
         robot_performance = self.get_robot_performance(run_info, self.robot_id)
@@ -140,6 +139,10 @@ class FleetPerformanceMetrics(AsDictMixin):
         self.usage = None
         self.biggest_load = None
 
+        self.bid_times = dict()
+
+        self.rounds = False
+
     def to_dict(self):
         dict_repr = super().to_dict()
         robots_performance_metrics = list()
@@ -170,6 +173,11 @@ class FleetPerformanceMetrics(AsDictMixin):
         self.robots_performance_metrics = self.get_robots_performance_metrics(run_info, self.completed_tasks, self.total_n_tasks)
         self.usage = self.get_fleet_usage(run_info)
         self.biggest_load = self.get_biggest_load()
+
+        if run_info.rounds:
+            self.rounds = True
+
+        self.get_bid_times(run_info)
 
     @staticmethod
     def get_allocated_tasks(run_info):
@@ -350,6 +358,18 @@ class FleetPerformanceMetrics(AsDictMixin):
         else:
             earliness = 0
         return earliness
+
+    def get_bid_times(self, run_info):
+        if run_info.bid_times:
+            print("Run id:", run_info.run_id)
+            for bid_time in run_info.bid_times:
+                if bid_time.n_previously_allocated_tasks not in self.bid_times:
+                    self.bid_times[bid_time.n_previously_allocated_tasks] = list()
+                    for time_to_bid in bid_time.times_to_bid:
+                        self.bid_times[bid_time.n_previously_allocated_tasks].append(time_to_bid)
+
+            for n_previously_allocated_tasks, times_to_bid in self.bid_times.items():
+                self.bid_times[n_previously_allocated_tasks] = statistics.mean(times_to_bid)
 
 
 class PerformanceMetrics(AsDictMixin):
@@ -542,5 +562,5 @@ if __name__ == '__main__':
     for experiment in experiments:
         file_path = experiment.name + "/" + experiment.approach + "/" + experiment.bidding_rule + "/"
         experiment.to_file(file_path)
-        plot_task_schedules(experiment, file_path)
+        # plot_task_schedules(experiment, file_path)
         # plot_robots_d_graphs(experiment, file_path)

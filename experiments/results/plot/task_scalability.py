@@ -1,10 +1,12 @@
 import collections
 import statistics
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.ticker import MaxNLocator
 
-from experiments.results.plot.utils import get_dataset_results, ticks, markers, get_plot_path, save_plot
+from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, get_meanprops, get_plot_path, \
+    ticks, get_flierprops, markers
 from mrs.config.params import get_config_params
 
 
@@ -110,11 +112,18 @@ def plot_allocations(approaches):
         path_to_results = '../task_scalability/' + approach + '/completion_time'
         results_per_dataset = get_dataset_results(path_to_results)
 
+        for dataset_name, results in results_per_dataset.items():
+            print("dataset_name: ", dataset_name)
+
         avgs_allocated_tasks = list()
         stdevs_allocated_tasks = list()
 
         # Order results
         results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
+
+        for n_tasks_, _ in results.items():
+            print("n_tasks:", n_tasks_)
+
         ordered_results = collections.OrderedDict(sorted(results.items()))
 
         for n_tasks, results in ordered_results.items():
@@ -418,6 +427,7 @@ def plot_allocation_times(approaches):
                     allocation_time += task_performance.get('allocation_time')
 
                 dataset_allocation_times.append(allocation_time)
+                print("allocation time: ", allocation_time)
 
             if dataset_allocation_times:
                 avg_allocation_times = sum(dataset_allocation_times)/len(dataset_allocation_times)
@@ -446,67 +456,70 @@ def plot_allocation_times(approaches):
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
-def plot_allocation_time_vs_tasks_in_schedule(approaches):
+def plot_bid_time_vs_tasks_in_schedule(approaches):
     title = "Experiment: Task scalability \n" + \
             "Recovery method: re-allocation \n"
 
-    save_in_path = get_plot_path('task_scalability')
-    plot_name = "allocation_times_schedule"
-    fig = plt.figure(figsize=(9, 6))
+    for n_tasks in range(5, 26, 5):
+        print("n_tasks: ", n_tasks)
 
-    tasks = list(range(5, 26, 5))
+        save_in_path = get_plot_path('task_scalability')
+        plot_name = "bid_times_" + str(n_tasks)
+        fig = plt.figure(figsize=(9, 6))
 
-    for i, approach in enumerate(approaches):
-        print("Approach: ", approach)
-        path_to_results = '../task_scalability/' + approach + '/completion_time'
-        results_per_dataset = get_dataset_results(path_to_results)
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../task_scalability/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            dataset_name = 'overlapping_random_%s_5_1' % str(n_tasks)
+            print("Dataset name: ", dataset_name)
+            results = results_per_dataset.pop(dataset_name)
 
-        avgs_allocation_times = list()
-        stdevs_allocation_times = list()
-
-        # Order results
-        results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
-        ordered_results = collections.OrderedDict(sorted(results.items()))
-
-        for n_tasks, results in ordered_results.items():
-            print("n_tasks: ", results["n_tasks"])
-            dataset_allocation_times = list()
+            bid_times = dict()
+            stdev_bid_times = dict()
 
             for run_id, run_info in results.get("runs").items():
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
-                allocation_time = 0
 
-                for task_performance in metrics.get("tasks_performance_metrics"):
-                    allocation_time += task_performance.get('allocation_time')
+                # if metrics.get("bid_times") is None:
+                #     print("No allocation information")
+                #     continue
 
-                dataset_allocation_times.append(allocation_time)
+                for n_previously_allocated_tasks, time_to_bid in metrics.get("bid_times").items():
+                    if n_previously_allocated_tasks not in bid_times:
+                        bid_times[n_previously_allocated_tasks] = list()
+                    bid_times[n_previously_allocated_tasks].append(time_to_bid)
 
-            if dataset_allocation_times:
-                avg_allocation_times = sum(dataset_allocation_times)/len(dataset_allocation_times)
-                stdev_allocation_times = statistics.stdev(dataset_allocation_times)
-            else:
-                avg_allocation_times = 0
-                stdev_allocation_times = 0
+            for n_previously_allocated_tasks, times_to_bid in bid_times.items():
+                bid_times[n_previously_allocated_tasks] = statistics.mean(times_to_bid)
+                try:
+                    stdev_bid_times[n_previously_allocated_tasks] = statistics.stdev(times_to_bid)
+                except statistics.StatisticsError:
+                    # variance requires at least two data points
+                    stdev_bid_times[n_previously_allocated_tasks] = 0
 
-            avgs_allocation_times.append(avg_allocation_times)
-            stdevs_allocation_times.append(stdev_allocation_times)
+            bid_times = collections.OrderedDict(sorted(bid_times.items()))
+            stdev_bid_times = collections.OrderedDict(sorted(stdev_bid_times.items()))
+            n_tasks_in_schedule = list(bid_times.keys())
 
-        print("tasks: ", tasks)
-        print("avgs allocation times: ", avgs_allocation_times)
-        print("stdevs allocation times: ", stdevs_allocation_times)
+            print("n tasks in schedule: ", n_tasks_in_schedule)
+            print("bid times: ", bid_times)
+            print("Stdev bid times: ", stdev_bid_times)
 
-        plt.errorbar(tasks, avgs_allocation_times, stdevs_allocation_times, marker=markers[i], label=ticks[i])
+            plt.errorbar(n_tasks_in_schedule, list(bid_times.values()), list(stdev_bid_times.values()),
+                         marker=markers[i], label=ticks[i])
 
-    plt.xticks(tasks)
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Allocation time (s)")
-    plt.title(title)
-    axes = plt.gca()
-    axes.yaxis.grid()
-    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+        # plt.xticks(n_tasks_in_schedule)
+        plt.xlabel("Number of tasks in schedule")
+        plt.ylabel("Bid time (s)")
+        plt.title(title)
+        axes = plt.gca()
+        axes.yaxis.grid()
+        lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
 
-    save_plot(fig, plot_name, save_in_path, lgd)
+        save_plot(fig, plot_name, save_in_path, lgd)
+
 
 def plot_dgraph_recomputation_times(approaches):
     title = "Experiment: Task scalability \n" + \
@@ -644,17 +657,134 @@ def plot_re_allocation_times(approaches):
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
+def plot_robot_utilization(approaches):
+
+    for n_tasks in range(5, 26, 5):
+        print("n_tasks: ", n_tasks)
+
+        title = "Experiment 3:  %s tasks" % str(n_tasks) + "\n" + \
+                "Recovery method: re-allocation \n"
+
+        save_in_path = get_plot_path('task_scalability')
+        plot_name = "robot_utilization_" + str(n_tasks)
+        fig = plt.figure(figsize=(9, 6))
+        ax = fig.add_subplot(111)
+
+        usage_robot_1 = list()
+        usage_robot_2 = list()
+        usage_robot_3 = list()
+        usage_robot_4 = list()
+        usage_robot_5 = list()
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../task_scalability/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            dataset_name = 'overlapping_random_%s_5_1' % str(n_tasks)
+            print("Dataset name: ", dataset_name)
+            results = results_per_dataset.pop(dataset_name)
+
+            approach_usage_robot_1 = list()
+            approach_usage_robot_2 = list()
+            approach_usage_robot_3 = list()
+            approach_usage_robot_4 = list()
+            approach_usage_robot_5 = list()
+
+            for run_id, run_info in results.get("runs").items():
+                print("run_id: ", run_id)
+                robot_metrics = run_info.get("performance_metrics").get("fleet_performance_metrics").get(
+                    "robots_performance_metrics")
+                for robot in robot_metrics:
+                    if robot.get("robot_id") == "robot_001":
+                        approach_usage_robot_1.append(robot["usage"])
+                    if robot.get("robot_id") == "robot_002":
+                        approach_usage_robot_2.append(robot["usage"])
+                    if robot.get("robot_id") == "robot_003":
+                        approach_usage_robot_3.append(robot["usage"])
+                    if robot.get("robot_id") == "robot_004":
+                        approach_usage_robot_4.append(robot["usage"])
+                    if robot.get("robot_id") == "robot_005":
+                        approach_usage_robot_5.append(robot["usage"])
+
+            usage_robot_1 += [approach_usage_robot_1]
+            usage_robot_2 += [approach_usage_robot_2]
+            usage_robot_3 += [approach_usage_robot_3]
+            usage_robot_4 += [approach_usage_robot_4]
+            usage_robot_5 += [approach_usage_robot_5]
+
+        print("Usage robot 1: ", usage_robot_1)
+        print("Usage robot 2: ", usage_robot_2)
+        print("Usage robot 3: ", usage_robot_3)
+        print("Usage robot 4: ", usage_robot_4)
+        print("Usage robot 5: ", usage_robot_5)
+
+        bp1 = ax.boxplot(usage_robot_1, positions=np.array(range(len(usage_robot_1))) * 6, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#3182bd'),
+                         flierprops=get_flierprops('#3182bd'))
+        bp2 = ax.boxplot(usage_robot_2, positions=np.array(range(len(usage_robot_2))) * 6 + 1, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#2ca25f'),
+                         flierprops=get_flierprops('#2ca25f'))
+        bp3 = ax.boxplot(usage_robot_3, positions=np.array(range(len(usage_robot_3))) * 6 + 2, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#f03b20'),
+                         flierprops=get_flierprops('#f03b20'))
+        bp4 = ax.boxplot(usage_robot_4, positions=np.array(range(len(usage_robot_4))) * 6 + 3, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#756bb1'),
+                         flierprops=get_flierprops('#756bb1'))
+        bp5 = ax.boxplot(usage_robot_5, positions=np.array(range(len(usage_robot_5))) * 6 + 4, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#7fcdbb'),
+                         flierprops=get_flierprops('#7fcdbb'))
+
+        set_box_color(bp1, '#3182bd')
+        set_box_color(bp2, '#2ca25f')
+        set_box_color(bp3, '#f03b20')
+        set_box_color(bp4, '#756bb1')
+        set_box_color(bp5, '#7fcdbb')
+
+        plt.plot([], c='#3182bd', label='Robot 001', linewidth=2)
+        plt.plot([], c='#2ca25f', label='Robot 002', linewidth=2)
+        plt.plot([], c='#f03b20', label='Robot 003', linewidth=2)
+        plt.plot([], c='#756bb1', label='Robot 004', linewidth=2)
+        plt.plot([], c='#7fcdbb', label='Robot 005', linewidth=2)
+        lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=5, fancybox=True, shadow=True)
+
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ymin, ymax = ax.get_ylim()
+        plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.ylim(ymin, ymax)
+
+        ax.set_ylabel("Percentage of completed tasks (%)")
+        ax.set_title(title)
+        ax.yaxis.grid()
+
+        plt.xticks(range(1, (len(ticks) * 6) - 1, 6), ticks)
+        plt.xlim(-1, len(ticks) * 6 - 1)
+        plt.tight_layout()
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False)  # ticks along the top edge are off
+
+        save_plot(fig, plot_name, save_in_path, lgd)
+
+
 if __name__ == '__main__':
     config_params = get_config_params(experiment='task_scalability')
     approaches = config_params.get("approaches")
 
-    plot_allocations(approaches)
-    plot_re_allocations(approaches)
-    plot_re_allocation_attempts(approaches)
-    plot_successful_tasks(approaches)
-    plot_completed_tasks(approaches)
+    # plot_allocations(approaches)
+    # plot_re_allocations(approaches)
+    # plot_re_allocation_attempts(approaches)
+    # plot_successful_tasks(approaches)
+    # plot_completed_tasks(approaches)
+    #
+    # plot_allocation_times(approaches)
+    # plot_dgraph_recomputation_times(approaches)
+    # plot_re_allocation_times(approaches)
+    # plot_bid_time_vs_tasks_in_schedule(approaches)
 
-    plot_allocation_times(approaches)
-    plot_dgraph_recomputation_times(approaches)
-    plot_re_allocation_times(approaches)
+    plot_robot_utilization(approaches)
 
