@@ -133,6 +133,7 @@ robot_proxy_api:
         - ROBOT-POSE
         - TASK-STATUS
         - REMOVE-TASK-FROM-SCHEDULE
+        - FINISH-TEST
       debug_msgs: false
     acknowledge: false
     publish:
@@ -167,7 +168,8 @@ robot_proxy_api:
         component: '.task_cb'
       - msg_type: 'TASK-STATUS'
         component: '.task_status_cb'
-
+      - msg_type: 'FINISH-TEST'
+        component: '.finish_test_cb'
 
 robot_api:
   version: 0.1.0

@@ -15,6 +15,7 @@ from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.utils.time import relative_to_ztp
+from mrs.db.models.bid import BidTime
 
 
 _component_modules = {'simulator': Simulator,
@@ -186,6 +187,12 @@ class RobotProxy:
         stn_task.update_edge("travel_time", travel_duration.mean, travel_duration.variance)
         self.timetable.add_stn_task(stn_task)
         self.timetable.update_task(stn_task)
+
+    def finish_test_cb(self, msg):
+        self.logger.critical("Received finished test")
+        for n_tasks, times_to_bid in self.bidder.bid_times.items():
+            BidTime.create_new(times_to_bid=times_to_bid, n_previously_allocated_tasks=n_tasks)
+        self.bidder.bid_times = dict()
 
     def run(self):
         try:
