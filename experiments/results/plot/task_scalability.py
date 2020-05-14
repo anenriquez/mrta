@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, get_meanprops, get_plot_path, \
-    ticks, get_flierprops, markers
+    ticks, get_flierprops, markers, colors
 from mrs.config.params import get_config_params
 
 
@@ -49,7 +49,7 @@ def plot_allocations_(approach):
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             dataset_allocated_tasks.append(len(metrics.get("allocated_tasks")))
             dataset_unallocated_tasks.append(len(metrics.get("unallocated_tasks")))
-            dataset_successful_re_allocations.append(len(metrics.get("successful_reallocations")))
+            dataset_successful_re_allocations.append(len(metrics.get("re_allocated_tasks")))
 
         if dataset_allocated_tasks:
             avg_allocated_tasks = sum(dataset_allocated_tasks)/len(dataset_allocated_tasks)
@@ -89,7 +89,7 @@ def plot_allocations_(approach):
     plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of  tasks")
     plt.ylabel("Number of tasks")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
@@ -151,7 +151,7 @@ def plot_allocations(approaches):
     plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of tasks")
     plt.ylabel("Number of allocated tasks")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
@@ -159,12 +159,12 @@ def plot_allocations(approaches):
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
-def plot_re_allocations(approaches):
+def plot_re_allocated_tasks(approaches):
     title = "Experiment: Task scalability \n" + \
             "Recovery method: re-allocation \n"
 
     save_in_path = get_plot_path('task_scalability')
-    plot_name = "re_allocations"
+    plot_name = "re_allocated_tasks"
     fig = plt.figure(figsize=(9, 6))
 
     tasks = list(range(5, 26, 5))
@@ -174,9 +174,9 @@ def plot_re_allocations(approaches):
         path_to_results = '../task_scalability/' + approach + '/completion_time'
         results_per_dataset = get_dataset_results(path_to_results)
 
-        avgs_re_allocations = list()
+        avgs_re_allocated_tasks = list()
 
-        stdevs_re_allocations = list()
+        stdevs_re_allocated_tasks = list()
 
         # Order results
         results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
@@ -184,30 +184,30 @@ def plot_re_allocations(approaches):
 
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
-            dataset_re_allocations = list()
+            dataset_re_allocated_tasks = list()
 
             for run_id, run_info in results.get("runs").items():
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
-                successful_reallocations = len(metrics.get("successful_reallocations"))
-                dataset_re_allocations.append(successful_reallocations)
+                re_allocated_tasks = len(metrics.get("re_allocated_tasks"))
+                dataset_re_allocated_tasks.append(re_allocated_tasks)
 
-            if dataset_re_allocations:
-                avg_re_allocations = sum(dataset_re_allocations) / len(dataset_re_allocations)
-                stdev_re_allocations = statistics.stdev(dataset_re_allocations)
+            if dataset_re_allocated_tasks:
+                avg_re_allocations = sum(dataset_re_allocated_tasks) / len(dataset_re_allocated_tasks)
+                stdev_re_allocations = statistics.stdev(dataset_re_allocated_tasks)
             else:
                 avg_re_allocations = 0
                 stdev_re_allocations = 0
 
-            avgs_re_allocations.append(avg_re_allocations)
-            stdevs_re_allocations.append(stdev_re_allocations)
+            avgs_re_allocated_tasks.append(avg_re_allocations)
+            stdevs_re_allocated_tasks.append(stdev_re_allocations)
 
-        plt.errorbar(tasks, avgs_re_allocations, stdevs_re_allocations, marker=markers[i], label=ticks[i])
+        plt.errorbar(tasks, avgs_re_allocated_tasks, stdevs_re_allocated_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
     plt.ylabel("Number of re-allocated tasks")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     axes.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -233,8 +233,10 @@ def plot_re_allocation_attempts(approaches):
         results_per_dataset = get_dataset_results(path_to_results)
 
         avgs_re_allocation_attempts = list()
-
         stdevs_re_allocation_attempts = list()
+
+        avgs_re_allocations = list()
+        stdevs_re_allocations = list()
 
         # Order results
         results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
@@ -243,34 +245,50 @@ def plot_re_allocation_attempts(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
             dataset_re_allocation_attempts = list()
+            dataset_re_allocations = list()
 
             for run_id, run_info in results.get("runs").items():
                 print("run_id: ", run_id)
+                attempts = 0
+                re_allocations = 0
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
 
-                successful_reallocations = len(metrics.get("successful_reallocations"))
-                unsucessful_reallocations = len(metrics.get("unsuccessful_reallocations"))
-                attempts = successful_reallocations + unsucessful_reallocations
+                for task_metrics in metrics.get("tasks_performance_metrics"):
+                    attempts += task_metrics.get("n_re_allocation_attempts")
+                    re_allocations += task_metrics.get("n_re_allocations")
 
                 dataset_re_allocation_attempts.append(attempts)
+                dataset_re_allocations.append(re_allocations)
 
-            if dataset_re_allocation_attempts:
-                avg_re_allocation_attempts = sum(dataset_re_allocation_attempts) / len(dataset_re_allocation_attempts)
+            try:
+                avg_re_allocation_attempts = statistics.mean(dataset_re_allocation_attempts)
                 stdev_re_allocation_attempts = statistics.stdev(dataset_re_allocation_attempts)
-            else:
+
+            except statistics.StatisticsError:
                 avg_re_allocation_attempts = 0
                 stdev_re_allocation_attempts = 0
+
+            try:
+                avg_re_allocations = statistics.mean(dataset_re_allocations)
+                stdev_re_allocations = statistics.stdev(dataset_re_allocations)
+            except statistics.StatisticsError:
+                avg_re_allocations = 0
+                stdev_re_allocations = 0
 
             avgs_re_allocation_attempts.append(avg_re_allocation_attempts)
             stdevs_re_allocation_attempts.append(stdev_re_allocation_attempts)
 
-        plt.errorbar(tasks, avgs_re_allocation_attempts, stdevs_re_allocation_attempts, marker=markers[i], label=ticks[i])
+            avgs_re_allocations.append(avg_re_allocations)
+            stdevs_re_allocations.append(stdev_re_allocations)
+
+        plt.errorbar(tasks, avgs_re_allocation_attempts, stdevs_re_allocation_attempts, marker=markers[i], label=ticks[i], linestyle='--')
+        plt.errorbar(tasks, avgs_re_allocations, stdevs_re_allocations, marker=markers[i], color=colors[i])
 
     plt.xticks(tasks)
     # plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of tasks")
     plt.ylabel("Number of re-allocation attempts")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     axes.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -327,7 +345,7 @@ def plot_successful_tasks(approaches):
     plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of tasks")
     plt.ylabel("Number of successful tasks")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
 
@@ -383,7 +401,7 @@ def plot_completed_tasks(approaches):
     plt.yticks(list(range(0, 26, 5)))
     plt.xlabel("Number of tasks")
     plt.ylabel("Number of completed tasks")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
 
@@ -448,7 +466,7 @@ def plot_allocation_times(approaches):
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
     plt.ylabel("Allocation time (s)")
-    plt.title(title)
+    #plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
@@ -482,10 +500,6 @@ def plot_bid_time_vs_tasks_in_schedule(approaches):
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
 
-                # if metrics.get("bid_times") is None:
-                #     print("No allocation information")
-                #     continue
-
                 for n_previously_allocated_tasks, time_to_bid in metrics.get("bid_times").items():
                     if n_previously_allocated_tasks not in bid_times:
                         bid_times[n_previously_allocated_tasks] = list()
@@ -513,7 +527,7 @@ def plot_bid_time_vs_tasks_in_schedule(approaches):
         # plt.xticks(n_tasks_in_schedule)
         plt.xlabel("Number of tasks in schedule")
         plt.ylabel("Bid time (s)")
-        plt.title(title)
+        # plt.title(title)
         axes = plt.gca()
         axes.yaxis.grid()
         lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
@@ -577,7 +591,7 @@ def plot_dgraph_recomputation_times(approaches):
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
     plt.ylabel("DGraph re-computation time (s)")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
@@ -649,7 +663,7 @@ def plot_re_allocation_times(approaches):
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
     plt.ylabel("Re-allocation time (s)")
-    plt.title(title)
+    # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
@@ -756,7 +770,7 @@ def plot_robot_utilization(approaches):
         plt.ylim(ymin, ymax)
 
         ax.set_ylabel("Percentage of completed tasks (%)")
-        ax.set_title(title)
+        # ax.set_title(title)
         ax.yaxis.grid()
 
         plt.xticks(range(1, (len(ticks) * 6) - 1, 6), ticks)
@@ -775,16 +789,17 @@ if __name__ == '__main__':
     config_params = get_config_params(experiment='task_scalability')
     approaches = config_params.get("approaches")
 
-    # plot_allocations(approaches)
-    # plot_re_allocations(approaches)
-    # plot_re_allocation_attempts(approaches)
-    # plot_successful_tasks(approaches)
-    # plot_completed_tasks(approaches)
-    #
-    # plot_allocation_times(approaches)
-    # plot_dgraph_recomputation_times(approaches)
-    # plot_re_allocation_times(approaches)
-    # plot_bid_time_vs_tasks_in_schedule(approaches)
+    plot_allocations(approaches)
+    plot_re_allocated_tasks(approaches)
+    plot_re_allocation_attempts(approaches)
+
+    plot_successful_tasks(approaches)
+    plot_completed_tasks(approaches)
+
+    plot_allocation_times(approaches)
+    plot_dgraph_recomputation_times(approaches)
+    plot_re_allocation_times(approaches)
+    plot_bid_time_vs_tasks_in_schedule(approaches)
 
     plot_robot_utilization(approaches)
 

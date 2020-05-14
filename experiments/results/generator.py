@@ -19,8 +19,8 @@ from mrs.utils.utils import load_yaml_file_from_module
 
 
 class TimeDistribution(AsDictMixin):
-    def __init__(self, total_time, travel_time, work_time, idle_time):
-        self.total_time = total_time
+    def __init__(self, experiment_time, travel_time, work_time, idle_time):
+        self.experiment_time = experiment_time
         self.travel_time = travel_time
         self.work_time = work_time
         self.idle_time = idle_time
@@ -46,7 +46,6 @@ class TaskPerformanceMetrics(AsDictMixin):
         self.re_allocation_time = 0
         self.n_re_allocation_attempts = 0
         self.n_re_allocations = 0
-        # self.bid_times = dict()  # {n_previously_allocated_tasks: time_to_allocate}
 
     def get_metrics(self, task_performance):
         if task_performance.allocation:
@@ -55,8 +54,6 @@ class TaskPerformanceMetrics(AsDictMixin):
             self.re_allocation_time = sum(allocation_times[1:])
             self.n_re_allocation_attempts = task_performance.allocation.n_re_allocation_attempts
             self.n_re_allocations = len(allocation_times) - 1
-            # self.bid_times = {task_performance.allocation.n_previously_allocated_tasks[i]: time_ for i, time_
-            #                          in enumerate(task_performance.allocation.time_to_allocate)}
 
 
 class RobotPerformanceMetrics(AsDictMixin):
@@ -125,8 +122,8 @@ class FleetPerformanceMetrics(AsDictMixin):
         self.total_n_tasks = 0
         self.allocated_tasks = list()
         self.unallocated_tasks = list()
-        self.unsuccessful_reallocations = list()
-        self.successful_reallocations = list()
+        self.unsuccessfully_re_allocated_tasks = list()
+        self.re_allocated_tasks = list()
         self.completed_tasks = list()
         self.preempted_tasks = list()
         self.delayed_tasks = list()
@@ -142,6 +139,7 @@ class FleetPerformanceMetrics(AsDictMixin):
         self.bid_times = dict()
 
         self.rounds = False
+        self.time_distribution = None
 
     def to_dict(self):
         dict_repr = super().to_dict()
@@ -157,12 +155,12 @@ class FleetPerformanceMetrics(AsDictMixin):
         dict_repr.update(tasks_performance_metrics=tasks_performance_metrics)
         return dict_repr
 
-    def get_metrics(self, run_info):
+    def get_metrics(self, run_info, start_time, finish_time):
         self.total_n_tasks = len(run_info.tasks)
         self.allocated_tasks = self.get_allocated_tasks(run_info)
         self.unallocated_tasks = self.get_unallocated_tasks(run_info)
-        self.unsuccessful_reallocations = self.get_unsuccessful_reallocations(run_info)
-        self.successful_reallocations = self.get_successful_reallocations(run_info)
+        self.re_allocated_tasks = self.get_re_allocated_tasks(run_info)
+        self.unsuccessfully_re_allocated_tasks = self.get_unsuccessfully_re_allocated_tasks(run_info)
         self.completed_tasks = self.get_tasks_by_status(run_info, TaskStatusConst.COMPLETED)
         self.preempted_tasks = self.get_preempted_tasks(run_info)
         self.tasks_performance_metrics = self.get_tasks_performance_metrics(run_info)
@@ -178,6 +176,7 @@ class FleetPerformanceMetrics(AsDictMixin):
             self.rounds = True
 
         self.get_bid_times(run_info)
+        self.time_distribution = self.get_time_distribution(start_time, finish_time)
 
     @staticmethod
     def get_allocated_tasks(run_info):
@@ -199,26 +198,26 @@ class FleetPerformanceMetrics(AsDictMixin):
         return unallocated_tasks
 
     @staticmethod
-    def get_unsuccessful_reallocations(run_info):
+    def get_unsuccessfully_re_allocated_tasks(run_info):
         # Tasks that entered a re-allocation process and could not be re-allocated
-        unsuccessful_reallocations = list()
+        unsuccessfully_re_allocated_tasks = list()
         for task_performance in run_info.tasks_performance:
             if task_performance.allocation and \
                     task_performance.allocation.n_re_allocation_attempts > 0 \
                     and not task_performance.allocation.allocated:
-                unsuccessful_reallocations.append(str(task_performance.task_id))
-        return unsuccessful_reallocations
+                unsuccessfully_re_allocated_tasks.append(str(task_performance.task_id))
+        return unsuccessfully_re_allocated_tasks
 
     @staticmethod
-    def get_successful_reallocations(run_info):
+    def get_re_allocated_tasks(run_info):
         # Tasks that entered a re-allocation process and could be re-allocated
-        successful_reallocations = list()
+        re_allocated_tasks = list()
         for task_performance in run_info.tasks_performance:
             if task_performance.allocation and \
                     task_performance.allocation.n_re_allocation_attempts > 0 \
                     and task_performance.allocation.allocated:
-                successful_reallocations.append(str(task_performance.task_id))
-        return successful_reallocations
+                re_allocated_tasks.append(str(task_performance.task_id))
+        return re_allocated_tasks
 
     @staticmethod
     def get_preempted_tasks(run_info):
@@ -234,30 +233,37 @@ class FleetPerformanceMetrics(AsDictMixin):
 
     def get_tasks_performance_metrics(self, run_info):
         tasks_performance_metrics = list()
-        for task in run_info.tasks:
-            task_status = self.get_task_status(run_info, task)
-            task_performance = [p for p in run_info.tasks_performance if p.task_id == task.task_id].pop()
+        for p in run_info.tasks_performance:
+            task_status = self.get_task_status(run_info, p.task_id)
+            task = self.get_task(run_info, p.task_id)
 
-            if task_performance.execution:
-                d = self.get_delay(task, task_performance)
+            # For some runs, we did not store preempted tasks in the experiment db.
+            # tasks with preempted status are not in the task_archive collection
+            if task_status is None:
+                status = TaskStatusConst.PREEMPTED
+            else:
+                status = task_status.status
+
+            if p.execution:
+                d = self.get_delay(task, p)
                 if d > 0:
                     self.delayed_tasks.append(str(task.task_id))
                     self.delay += d
-                e = self.get_earliness(task, task_performance)
+                e = self.get_earliness(task, p)
                 if e > 0:
                     self.early_tasks.append(str(task.task_id))
                     self.earliness += e
 
-                execution_times = ExecutionTimes(task_performance.execution.start_time,
-                                                 task_performance.execution.pickup_time,
-                                                 task_performance.execution.delivery_time)
+                execution_times = ExecutionTimes(p.execution.start_time,
+                                                 p.execution.pickup_time,
+                                                 p.execution.delivery_time)
 
-                task_performance_metrics = TaskPerformanceMetrics(task.task_id, task_status.status, d, e,
+                task_performance_metrics = TaskPerformanceMetrics(p.task_id, status, d, e,
                                                                   execution_times=execution_times)
             else:
-                task_performance_metrics = TaskPerformanceMetrics(task.task_id, task_status.status)
+                task_performance_metrics = TaskPerformanceMetrics(p.task_id, status)
 
-            task_performance_metrics.get_metrics(task_performance)
+            task_performance_metrics.get_metrics(p)
             tasks_performance_metrics.append(task_performance_metrics)
 
         return tasks_performance_metrics
@@ -270,22 +276,21 @@ class FleetPerformanceMetrics(AsDictMixin):
             robots_performance_metrics.append(robot_performance_metrics)
         return robots_performance_metrics
 
-    # def get_time_distribution(self, start_time, finish_time):
-    #     # TODO: Use the same finish time and start time for all methods and all runs
-    #     # total_time = (finish_time - start_time).total_seconds()
-    #     travel_time = 0
-    #     work_time = 0
-    #
-    #     for robot in self.robots_performance_metrics:
-    #         if robot.time_distribution:
-    #             travel_time += robot.time_distribution.travel_time
-    #             work_time += robot.time_distribution.work_time
-    #
-    #     # fleet_travel_time = 100 * travel_time / (total_time * len(self._robot_ids))
-    #     # fleet_work_time = 100 * work_time / (total_time * len(self._robot_ids))
-    #     # fleet_idle_time = 100 - (fleet_travel_time + fleet_work_time)
-    #
-    #     return TimeDistribution(total_time, fleet_travel_time, fleet_work_time, fleet_idle_time)
+    def get_time_distribution(self, start_time, finish_time):
+        experiment_time = (finish_time - start_time).total_seconds()
+        travel_time = 0
+        work_time = 0
+
+        for robot in self.robots_performance_metrics:
+            if robot.time_distribution:
+                travel_time += robot.time_distribution.travel_time
+                work_time += robot.time_distribution.work_time
+
+        fleet_travel_time = 100 * travel_time / (experiment_time * len(self._robot_ids))
+        fleet_work_time = 100 * work_time / (experiment_time * len(self._robot_ids))
+        fleet_idle_time = 100 - (fleet_travel_time + fleet_work_time)
+
+        return TimeDistribution(experiment_time, fleet_travel_time, fleet_work_time, fleet_idle_time)
 
     def get_fleet_usage(self, run_info):
         n_robots_used = 0
@@ -320,11 +325,10 @@ class FleetPerformanceMetrics(AsDictMixin):
                 return task
 
     @staticmethod
-    def get_task_status(run_info, task):
+    def get_task_status(run_info, task_id):
         for task_status in run_info.tasks_status:
             dict_repr = task_status.to_son().to_dict()
-            task_id = dict_repr.get('_id')
-            if task.task_id == task_id:
+            if task_id == dict_repr.get('_id'):
                 return task_status
 
     @staticmethod
@@ -361,7 +365,6 @@ class FleetPerformanceMetrics(AsDictMixin):
 
     def get_bid_times(self, run_info):
         if run_info.bid_times:
-            print("Run id:", run_info.run_id)
             for bid_time in run_info.bid_times:
                 if bid_time.n_previously_allocated_tasks not in self.bid_times:
                     self.bid_times[bid_time.n_previously_allocated_tasks] = list()
@@ -379,7 +382,8 @@ class PerformanceMetrics(AsDictMixin):
         self.fleet_performance_metrics = fleet_performance_metrics
         self.n_successful_tasks = len(self.fleet_performance_metrics.successful_tasks)
         # % of completed tasks on time
-        self.successful_percentage = 100 * self.n_successful_tasks/self.fleet_performance_metrics.total_n_tasks
+        self.success_rate = self.n_successful_tasks / len(self.fleet_performance_metrics.completed_tasks)
+        self.completion_rate = len(self.fleet_performance_metrics.completed_tasks)/n_tasks
 
     def to_dict(self):
         dict_repr = super().to_dict()
@@ -412,7 +416,7 @@ class Run(AsDictMixin):
     def get_performance_metrics(self):
         start_time, finish_time = self.get_start_finish_time()
         fleet_performance_metrics = FleetPerformanceMetrics(self._robot_ids)
-        fleet_performance_metrics.get_metrics(self._run_info)
+        fleet_performance_metrics.get_metrics(self._run_info, start_time, finish_time)
         self.performance_metrics = PerformanceMetrics(self._n_tasks, start_time, finish_time, fleet_performance_metrics)
 
     def get_start_finish_time(self):
@@ -440,10 +444,6 @@ class Experiment(AsDictMixin):
         dataset_name (str): Name of the dataset
         n_tasks (int): Number of tasks in the experiment
         runs (list): List of Runs
-        success_rate (float): from 0.0 to 1.0
-                            successful_runs/n_runs
-                            a run is successful if all tasks are allocated and completed
-                            on time
         """
         self.name = name
         self.approach = approach
@@ -452,8 +452,6 @@ class Experiment(AsDictMixin):
         self.dataset_name = dataset_name
         self.n_tasks = n_tasks
         self.runs = list()
-        self.avg_successful_tasks = 0.0
-        self.avg_successful_percentage = 0.0
 
     def to_dict(self):
         dict_repr = super().to_dict()
@@ -477,11 +475,6 @@ class Experiment(AsDictMixin):
         MongoStore(db_name=self.name)
         return ExperimentModel.get_experiments(self.approach, bidding_rule, self.dataset_name)
 
-    def get_avg_success(self):
-        n_successful_tasks = [run.performance_metrics.n_successful_tasks for run in self.runs]
-        self.avg_successful_tasks = sum(n_successful_tasks)/len(n_successful_tasks)
-        self.avg_successful_percentage = 100 * self.avg_successful_tasks / self.n_tasks
-
     def get_results(self):
         runs_info = self.get_runs_info_from_db()
         logging.info("Number of runs: %s", len(runs_info))
@@ -490,8 +483,6 @@ class Experiment(AsDictMixin):
             run = Run(self._robot_ids, self.n_tasks, run_info)
             run.get_performance_metrics()
             self.runs.append(run)
-        #self.get_avg_success()
-        # self.success_rate = self.get_success_rate()
 
 
 def get_experiment(name, approach, bidding_rule, robot_ids, dataset_module, dataset_name):
@@ -562,5 +553,5 @@ if __name__ == '__main__':
     for experiment in experiments:
         file_path = experiment.name + "/" + experiment.approach + "/" + experiment.bidding_rule + "/"
         experiment.to_file(file_path)
-        # plot_task_schedules(experiment, file_path)
+        plot_task_schedules(experiment, file_path)
         # plot_robots_d_graphs(experiment, file_path)

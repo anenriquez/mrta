@@ -81,7 +81,7 @@ def box_plot_task(results, approach, path_to_results):
         n_successful_tasks.append(len(metrics.get("successful_tasks")))
         n_unallocated_tasks.append(len(metrics.get("unallocated_tasks")))
         n_preempted_tasks.append(len(metrics.get("preempted_tasks")))
-        n_unsucessful_reallocations_tasks.append(len(metrics.get("unsuccessful_reallocations")))
+        n_unsucessful_reallocations_tasks.append(len(metrics.get("unsuccessfully_re_allocated_tasks")))
 
     # Maybe remove successful tasks
 

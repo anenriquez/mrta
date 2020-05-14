@@ -10,6 +10,7 @@ from matplotlib.ticker import MaxNLocator
 from experiments.results.plot.utils import get_dataset_results, save_plot, set_box_color, get_meanprops, get_title, \
     get_plot_path, ticks, max_n_runs, get_flierprops
 from mrs.config.params import get_config_params
+from mrs.utils.utils import load_yaml_file_from_module
 
 
 # Based on:
@@ -52,7 +53,7 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             robot_metrics = run_info.get("performance_metrics").get("fleet_performance_metrics").get(
@@ -109,11 +110,132 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
     plt.ylim(ymin, ymax)
 
     ax.set_ylabel("Percentage of completed tasks(%)")
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.yaxis.grid()
 
     plt.xticks(range(1, (len(ticks) * 6)-1, 6), ticks)
     plt.xlim(-1, len(ticks) * 6-1)
+    plt.tight_layout()
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def box_plot_set_distribution(experiment_name, recovery_method, approaches, dataset_name, dataset_module, bidding_rule):
+    print("Set distribution")
+    save_in_path = get_plot_path(experiment_name)
+    plot_name = "set_distribution" + recovery_method + '_' + dataset_name
+    approaches_recovery_method = [a for a in approaches if recovery_method in a]
+
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)
+    distribution_robot_1 = list()
+    distribution_robot_2 = list()
+    distribution_robot_3 = list()
+    distribution_robot_4 = list()
+    distribution_robot_5 = list()
+
+    dataset_dict = load_yaml_file_from_module(dataset_module, dataset_name + '.yaml')
+    tasks_dict = dataset_dict.get('tasks')
+
+    for i, approach in enumerate(approaches_recovery_method):
+        print("Approach: ", approach)
+        path_to_results = '../' + experiment_name + '/' + approach + '/' + bidding_rule
+        results_per_dataset = get_dataset_results(path_to_results)
+        results = results_per_dataset.get(dataset_name)
+
+        approach_distribution_robot_1 = list()
+        approach_distribution_robot_2 = list()
+        approach_distribution_robot_3 = list()
+        approach_distribution_robot_4 = list()
+        approach_distribution_robot_5 = list()
+
+        n_runs = 0
+
+        for run_id, run_info in results.get("runs").items():
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
+            metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+            robot_metrics = metrics.get("robots_performance_metrics")
+
+            for robot in robot_metrics:
+                set_numbers = list()
+                for robot_task in robot.get("robot_tasks"):
+                    task = tasks_dict.get(robot_task)
+                    if task.get("set_number") not in set_numbers:
+                        set_numbers.append(task.get("set_number"))
+
+                if robot.get("robot_id") == "robot_001":
+                    approach_distribution_robot_1.append(len(set_numbers))
+                if robot.get("robot_id") == "robot_002":
+                    approach_distribution_robot_2.append(len(set_numbers))
+                if robot.get("robot_id") == "robot_003":
+                    approach_distribution_robot_3.append(len(set_numbers))
+                if robot.get("robot_id") == "robot_004":
+                    approach_distribution_robot_4.append(len(set_numbers))
+                if robot.get("robot_id") == "robot_005":
+                    approach_distribution_robot_5.append(len(set_numbers))
+
+            print("robot 1: ", approach_distribution_robot_1)
+            print("robot 2: ", approach_distribution_robot_2)
+            print("robot 3: ", approach_distribution_robot_3)
+            print("robot 4: ", approach_distribution_robot_4)
+            print("robot 5: ", approach_distribution_robot_5)
+
+        distribution_robot_1 += [approach_distribution_robot_1]
+        distribution_robot_2 += [approach_distribution_robot_2]
+        distribution_robot_3 += [approach_distribution_robot_3]
+        distribution_robot_4 += [approach_distribution_robot_4]
+        distribution_robot_5 += [approach_distribution_robot_5]
+
+    bp1 = ax.boxplot(distribution_robot_1, positions=np.array(range(len(distribution_robot_1))) * 6, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#3182bd'),
+                     flierprops=get_flierprops('#3182bd'))
+    bp2 = ax.boxplot(distribution_robot_2, positions=np.array(range(len(distribution_robot_2))) * 6 + 1, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca25f'),
+                     flierprops=get_flierprops('#2ca25f'))
+    bp3 = ax.boxplot(distribution_robot_3, positions=np.array(range(len(distribution_robot_3))) * 6 + 2, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#f03b20'),
+                     flierprops=get_flierprops('#f03b20'))
+    bp4 = ax.boxplot(distribution_robot_4, positions=np.array(range(len(distribution_robot_4))) * 6 + 3, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#756bb1'),
+                     flierprops=get_flierprops('#756bb1'))
+    bp5 = ax.boxplot(distribution_robot_5, positions=np.array(range(len(distribution_robot_5))) * 6 + 4, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#7fcdbb'),
+                     flierprops=get_flierprops('#7fcdbb'))
+
+    set_box_color(bp1, '#3182bd')
+    set_box_color(bp2, '#2ca25f')
+    set_box_color(bp3, '#f03b20')
+    set_box_color(bp4, '#756bb1')
+    set_box_color(bp5, '#7fcdbb')
+
+    plt.plot([], c='#3182bd', label='Robot 001', linewidth=2)
+    plt.plot([], c='#2ca25f', label='Robot 002', linewidth=2)
+    plt.plot([], c='#f03b20', label='Robot 003', linewidth=2)
+    plt.plot([], c='#756bb1', label='Robot 004', linewidth=2)
+    plt.plot([], c='#7fcdbb', label='Robot 005', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=5, fancybox=True, shadow=True)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    ax.set_ylabel("Number of set of tasks")
+    ax.yaxis.grid()
+
+    plt.xticks(range(1, (len(ticks) * 6) - 1, 6), ticks)
+    plt.xlim(-1, len(ticks) * 6 - 1)
     plt.tight_layout()
     plt.tick_params(
         axis='x',  # changes apply to the x-axis
@@ -154,7 +276,7 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -204,7 +326,7 @@ def box_plot_times(experiment_name, recovery_method, approaches, dataset_name, b
     plt.xticks(range(1, (len(ticks) * 4)-1, 4), ticks)
     plt.xlim(-1, len(ticks) * 4 - 1)
     plt.tight_layout()
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.set_ylabel('Time (seconds)')
     ax.yaxis.grid()
 
@@ -230,7 +352,8 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
     allocated_tasks = list()
     unallocated_tasks = list()
     preempted_tasks = list()
-    unsuccessful_re_allocations = list()
+    re_allocated_tasks = list()
+    unsuccessfully_re_allocated_tasks = list()
 
     for i, approach in enumerate(approaches_recovery_method):
         print("Approach: ", approach)
@@ -241,7 +364,8 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
         approach_allocated_tasks = list()
         approach_unallocated_tasks = list()
         approach_preempted_tasks = list()
-        approach_unsuccessful_re_allocations = list()
+        approach_re_allocated_tasks = list()
+        approach_unsuccessfully_re_allocated_tasks = list()
 
         n_runs = 0
 
@@ -249,58 +373,91 @@ def box_plot_allocations(experiment_name, recovery_method, approaches, dataset_n
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             approach_allocated_tasks.append(len(metrics.get("allocated_tasks")))
             approach_unallocated_tasks.append(len(metrics.get("unallocated_tasks")))
             approach_preempted_tasks.append(len(metrics.get("preempted_tasks")))
-            approach_unsuccessful_re_allocations.append(len(metrics.get("unsuccessful_reallocations")))
+            approach_re_allocated_tasks.append(len(metrics.get("re_allocated_tasks")))
+            approach_unsuccessfully_re_allocated_tasks.append(len(metrics.get("unsuccessfully_re_allocated_tasks")))
 
         allocated_tasks += [approach_allocated_tasks]
         unallocated_tasks += [approach_unallocated_tasks]
         preempted_tasks += [approach_preempted_tasks]
-        unsuccessful_re_allocations += [approach_unsuccessful_re_allocations]
-
-    bp1 = ax.boxplot(allocated_tasks, positions=np.array(range(len(allocated_tasks))) * 4, widths=0.6,
-                     meanline=False, showmeans=True, meanprops=get_meanprops('#3333ff'),
-                     flierprops=get_flierprops('#3333ff'))
-    bp2 = ax.boxplot(unallocated_tasks, positions=np.array(range(len(unallocated_tasks))) * 4 + 1, widths=0.6,
-                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'),
-                     flierprops=get_flierprops('#ff3333'))
-
-    plt.plot([], c='#3333ff', label='Allocated', linewidth=2)
-    plt.plot([], c='#ff3333', label='Unallocated', linewidth=2)
+        re_allocated_tasks += [approach_re_allocated_tasks]
+        unsuccessfully_re_allocated_tasks += [approach_unsuccessfully_re_allocated_tasks]
 
     if recovery_method == 'preempt':
+        bp1 = ax.boxplot(allocated_tasks, positions=np.array(range(len(allocated_tasks))) * 4, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#3333ff'),
+                         flierprops=get_flierprops('#3333ff'))
+        bp2 = ax.boxplot(unallocated_tasks, positions=np.array(range(len(unallocated_tasks))) * 4 + 1, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'),
+                         flierprops=get_flierprops('#ff3333'))
+
         bp3 = ax.boxplot(preempted_tasks, positions=np.array(range(len(preempted_tasks))) * 4 + 2, widths=0.6,
                          meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'),
                          flierprops=get_flierprops('#ffb733'))
+
+        set_box_color(bp1, '#3333ff')
+        set_box_color(bp2, '#ff3333')
+        set_box_color(bp3, '#ffb733')
+
+        plt.plot([], c='#3333ff', label='Allocated', linewidth=2)
+        plt.plot([], c='#ff3333', label='Unallocated', linewidth=2)
         plt.plot([], c='#ffb733', label='Preempted', linewidth=2)
+
+        plt.vlines(3, ymin=-1, ymax=26, linewidths=1)
+        plt.vlines(7, ymin=-1, ymax=26, linewidths=1)
+        plt.vlines(11, ymin=-1, ymax=26, linewidths=1)
+
+        plt.xticks(range(1, (len(ticks) * 4) - 1, 4), ticks)
+        plt.xlim(-1, len(ticks) * 4 - 1)
+        lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
+
     else:
-        bp3 = ax.boxplot(unsuccessful_re_allocations, positions=np.array(range(len(unsuccessful_re_allocations))) * 4 + 2, widths=0.6,
+        bp1 = ax.boxplot(allocated_tasks, positions=np.array(range(len(allocated_tasks))) * 5, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#3333ff'),
+                         flierprops=get_flierprops('#3333ff'))
+        bp2 = ax.boxplot(unallocated_tasks, positions=np.array(range(len(unallocated_tasks))) * 5 + 1, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ff3333'),
+                         flierprops=get_flierprops('#ff3333'))
+
+        bp3 = ax.boxplot(re_allocated_tasks, positions=np.array(range(len(re_allocated_tasks))) * 5 + 2, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'),
+                         flierprops=get_flierprops('#399b5e'))
+
+        bp4 = ax.boxplot(unsuccessfully_re_allocated_tasks,
+                         positions=np.array(range(len(unsuccessfully_re_allocated_tasks))) * 5 + 3, widths=0.6,
                          meanline=False, showmeans=True, meanprops=get_meanprops('#ffb733'),
                          flierprops=get_flierprops('#ffb733'))
-        plt.plot([], c='#ffb733', label='Unsuccessful_re_allocations', linewidth=2)
 
-    set_box_color(bp1, '#3333ff')
-    set_box_color(bp2, '#ff3333')
-    set_box_color(bp3, '#ffb733')
-    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
+        set_box_color(bp1, '#3333ff')
+        set_box_color(bp2, '#ff3333')
+        set_box_color(bp3, '#399b5e')
+        set_box_color(bp4, '#ffb733')
+
+        plt.plot([], c='#3333ff', label='Allocated', linewidth=2)
+        plt.plot([], c='#ff3333', label='Unallocated', linewidth=2)
+        plt.plot([], c='#399b5e', label='Re-allocated', linewidth=2)
+        plt.plot([], c='#ffb733', label='Unsuccessfully re-allocated', linewidth=2)
+
+        plt.vlines(4, ymin=-1, ymax=26, linewidths=1)
+        plt.vlines(9, ymin=-1, ymax=26, linewidths=1)
+        plt.vlines(14, ymin=-1, ymax=26, linewidths=1)
+
+        plt.xticks(range(1, len(ticks) * 5, 5), ticks)
+        plt.xlim(-1, len(ticks) * 4 + 3)
+        lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
 
     ax.set_ylim(-1, 26)
     ax.set_yticks(list(range(0, 26, 5)))
-    plt.vlines(3, ymin=-1, ymax=26, linewidths=1)
-    plt.vlines(7, ymin=-1, ymax=26, linewidths=1)
-    plt.vlines(11, ymin=-1, ymax=26, linewidths=1)
 
     ax.set_ylabel("Number of tasks")
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.yaxis.grid()
-
-    plt.xticks(range(1, (len(ticks) * 4) -1, 4), ticks)
-    plt.xlim(-1, len(ticks) * 4 - 1)
     plt.tight_layout()
 
     plt.tick_params(
@@ -327,8 +484,8 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
     fleet_work_time = list()
     fleet_idle_time = list()
 
-    start_time = datetime.max
-    finish_time = datetime.min
+    longest_experiment_time = -np.inf
+
     n_robots = 5
 
     for i, approach in enumerate(approaches_recovery_method):
@@ -347,63 +504,49 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics")
-            metrics_start_time = dateutil.parser.parse(metrics['start_time'])
-            metrics_finish_time = dateutil.parser.parse(metrics['finish_time'])
-            if metrics_start_time < start_time:
-                start_time = metrics_start_time
-            if metrics_finish_time > finish_time:
-                finish_time = metrics_finish_time
+            start_time = dateutil.parser.parse(metrics['start_time'])
+            finish_time = dateutil.parser.parse(metrics['finish_time'])
+            experiment_time = (finish_time - start_time).total_seconds()
+            if experiment_time > longest_experiment_time:
+                longest_experiment_time = experiment_time
 
             robot_metrics = metrics.get("fleet_performance_metrics").get("robots_performance_metrics")
             travel_time = 0
             work_time = 0
+
             for robot in robot_metrics:
-                print("robot: ", robot['robot_id'])
                 if robot.get("time_distribution"):
                     travel_time += robot.get("time_distribution").get("travel_time")
                     work_time += robot.get("time_distribution").get("work_time")
-
-            # print("travel time: ", travel_time)
-            # print("work time: ", work_time)
 
             approach_travel_time.append(travel_time)
             approach_work_time.append(work_time)
             approach_idle_time.append(0)
 
-            # print("approach travel time: ", approach_travel_time)
-            # print("approach work time: ", approach_work_time)
-            # print("approach idle time: ", approach_idle_time)
-
         fleet_travel_time += [approach_travel_time]
         fleet_work_time += [approach_work_time]
         fleet_idle_time += [approach_idle_time]
 
-    total_time = (finish_time - start_time).total_seconds()
+    for i, approach_runs in enumerate(fleet_idle_time):
+        for j, idle_time in enumerate(approach_runs):
+            fleet_idle_time[i][j] = (longest_experiment_time*n_robots) - (fleet_work_time[i][j] +fleet_travel_time[i][j])
 
-    # print("     ")
-    # print("start_time: ", start_time)
-    # print("finish_time: ", finish_time)
-    # print("total time: ", total_time)
-    # print("fleet travel time: ", fleet_travel_time)
-    # print("fleet work time: ", fleet_work_time)
+    for i, approach_runs in enumerate(fleet_travel_time):
+        for j, travel_time in enumerate(approach_runs):
+            fleet_travel_time[i][j] = 100*travel_time / (longest_experiment_time*n_robots)
 
-    for i, approach in enumerate(fleet_travel_time):
-        for j, travel_time in enumerate(approach):
-            fleet_travel_time[i][j] = 100*travel_time / (total_time*n_robots)
+    for i, approach_runs in enumerate(fleet_work_time):
+        for j, work_time in enumerate(approach_runs):
+            fleet_work_time[i][j] = 100*work_time / (longest_experiment_time*n_robots)
+            # fleet_idle_time[i][j] = 100 - (fleet_work_time[i][j] + fleet_travel_time[i][j])
 
-    for i, approach in enumerate(fleet_work_time):
-        for j, work_time in enumerate(approach):
-            fleet_work_time[i][j] = 100*work_time / (total_time*n_robots)
-            fleet_idle_time[i][j] = 100 - (fleet_work_time[i][j] + fleet_travel_time[i][j])
-
-    # print("     ")
-    # print("fleet travel time: ", fleet_travel_time)
-    # print("fleet work time: ", fleet_work_time)
-    # print("fleet idle time: ", fleet_idle_time)
+    for i, approach_runs in enumerate(fleet_idle_time):
+        for j, idle_time in enumerate(approach_runs):
+            fleet_idle_time[i][j] = 100*idle_time / (longest_experiment_time*n_robots)
 
     bp1 = ax.boxplot(fleet_travel_time, positions=np.array(range(len(fleet_travel_time))) * 4, widths=0.6,
                      meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
@@ -430,7 +573,7 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
     plt.ylim(ymin, ymax)
 
     ax.set_ylabel("Percentage (%)")
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.yaxis.grid()
 
     plt.xticks(range(1, (len(ticks) * 4)-1, 4), ticks)
@@ -477,7 +620,7 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -505,7 +648,7 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
     plt.xticks(range(1, (len(ticks) * 3)-1, 3), ticks)
     plt.xlim(-1, len(ticks) * 3-1)
     plt.tight_layout()
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.set_ylabel('Time (s)')
     ax.yaxis.grid()
     plt.tight_layout()
@@ -529,7 +672,6 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
     """ Plots re-allocation information:
     - Number of re-allocation attempts
     - Number of re-allocations (e.g. successful attempts)
-    - Re-allocation time (for successful attempts)
 
     Use only for experiments with recovery method 're-allocation'
     """
@@ -559,16 +701,20 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
-            metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
-            successful_reallocations = len(metrics.get("successful_reallocations"))
-            unsucessful_reallocations = len(metrics.get("unsuccessful_reallocations"))
-            attempts = successful_reallocations + unsucessful_reallocations
+            n_re_allocation_attempts = 0
+            n_re_allocations = 0
 
-            approach_re_allocation_attempts.append(attempts)
-            approach_re_allocations.append(successful_reallocations)
+            metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+
+            for task_metrics in metrics.get("tasks_performance_metrics"):
+                n_re_allocation_attempts += task_metrics.get("n_re_allocation_attempts")
+                n_re_allocations += task_metrics.get("n_re_allocations")
+
+            approach_re_allocation_attempts.append(n_re_allocation_attempts)
+            approach_re_allocations.append(n_re_allocations)
 
         re_allocation_attempts += [approach_re_allocation_attempts]
         re_allocations += [approach_re_allocations]
@@ -582,7 +728,7 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
     set_box_color(bp2, '#399b5e')
 
     plt.plot([], c='#4376b8', label='Re-allocation attempts', linewidth=2)
-    plt.plot([], c='#399b5e', label='Successful re-allocations', linewidth=2)
+    plt.plot([], c='#399b5e', label='Re-allocations', linewidth=2)
     lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
 
     ymin, ymax = ax.get_ylim()
@@ -591,8 +737,98 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
     plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
     plt.ylim(ymin, ymax)
 
-    ax.set_title(title)
-    ax.set_ylabel('Number of tasks')
+    # ax.set_title(title)
+    # ax.set_ylabel('Number of tasks')
+    ax.yaxis.grid()
+
+    plt.xticks(range(0, len(ticks) * 3, 3), ticks)
+    plt.xlim(-1, len(ticks) * 3-1)
+    plt.tight_layout()
+
+    ax.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def box_plot_re_allocation_per_task_info(experiment_name, approaches, dataset_name, bidding_rule):
+    """ Plots re-allocation information:
+    - Number of re-allocation attempts per task
+    - Number of re-allocations per task
+
+    Use only for experiments with recovery method 're-allocation'
+    """
+    print("Re-allocation")
+    title = get_title(experiment_name, 're-allocation', dataset_name)
+    save_in_path = get_plot_path(experiment_name)
+    plot_name = "re_allocation_metrics_per_task_" + dataset_name
+
+    re_allocation_attempts_per_task = list()
+    re_allocations_per_task = list()  # Percentage of re allocation attempts that were successful
+
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)  # Number of tasks
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        path_to_results = '../' + experiment_name + '/' + approach + '/' + bidding_rule
+        results_per_dataset = get_dataset_results(path_to_results)
+        results = results_per_dataset.get(dataset_name)
+
+        approach_re_allocation_attempts_per_task = list()
+        approach_re_allocations_per_task = list()
+
+        n_runs = 0
+
+        for run_id, run_info in results.get("runs").items():
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
+
+            n_re_allocation_attempts = 0
+            n_re_allocations = 0
+            n_tasks = 0
+
+            metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+
+            for task_metrics in metrics.get("tasks_performance_metrics"):
+                if task_metrics.get("n_re_allocation_attempts") > 0:
+                    n_tasks += 1
+                    n_re_allocation_attempts += task_metrics.get("n_re_allocation_attempts")
+                    n_re_allocations += task_metrics.get("n_re_allocations")
+
+            if n_tasks > 0:
+                approach_re_allocation_attempts_per_task.append(n_re_allocation_attempts/n_tasks)
+                approach_re_allocations_per_task.append(n_re_allocations/n_tasks)
+
+        re_allocation_attempts_per_task += [approach_re_allocation_attempts_per_task]
+        re_allocations_per_task += [approach_re_allocations_per_task]
+
+    bp1 = ax.boxplot(re_allocation_attempts_per_task, positions=np.array(range(len(re_allocation_attempts_per_task))) * 3,  widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#4376b8'), flierprops=get_flierprops('#4376b8'))
+    bp2 = ax.boxplot(re_allocations_per_task, positions=np.array(range(len(re_allocations_per_task))) * 3+1,  widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#399b5e'), flierprops=get_flierprops('#399b5e'))
+
+    set_box_color(bp1, '#4376b8')
+    set_box_color(bp2, '#399b5e')
+
+    plt.plot([], c='#4376b8', label='Re-allocation attempts per task', linewidth=2)
+    plt.plot([], c='#399b5e', label='Re-allocations per task', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(2, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    # ax.set_title(title)
+    # ax.set_ylabel('Number of tasks')
     ax.yaxis.grid()
 
     plt.xticks(range(0, len(ticks) * 3, 3), ticks)
@@ -649,14 +885,14 @@ def plot_re_allocation_info(experiment_name, approaches, dataset_name, bidding_r
         for run_id, run_info in results.get("runs").items():
             print("run_id: ", run_id)
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
-            successful_reallocations = len(metrics.get("successful_reallocations"))
-            unsucessful_reallocations = len(metrics.get("unsuccessful_reallocations"))
+            successful_reallocations = len(metrics.get("re_allocated_tasks"))
+            unsucessful_reallocations = len(metrics.get("unsuccessfully_re_allocated_tasks"))
 
             re_allocation_attempts.append(successful_reallocations + unsucessful_reallocations)
             re_allocations.append(successful_reallocations)
 
             for task_performance in metrics.get("tasks_performance_metrics"):
-                if task_performance.get('task_id') in metrics.get("successful_reallocations"):
+                if task_performance.get('task_id') in metrics.get("re_allocated_tasks"):
                     re_allocation_times.append(task_performance.get('re_allocation_time'))
 
         print("re_allocation_attempts: ", re_allocation_attempts)
@@ -704,7 +940,7 @@ def plot_re_allocation_info(experiment_name, approaches, dataset_name, bidding_r
            yerr=stdevs_re_allocations)
 
     ax2.set_ylabel('Time (seconds)')
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.set_ylim(0, 25)
     ax.set_ylabel('Number of tasks')
     ax.set_xlabel('Approaches')
@@ -822,7 +1058,7 @@ def bar_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
     plt.bar(index + 2*bar_width, avgs_delayed_tasks, bar_width, alpha=opacity, color='red', label='Delayed', yerr=stdevs_delayed_tasks)
     plt.bar(index + 3*bar_width, avgs_early_tasks, bar_width, alpha=opacity, color='orange', label='Early', yerr=stdevs_early_tasks)
 
-    ax.set_title(title)
+    # ax.set_title(title)
     ax.set_ylim(0, 25)
     ax.set_ylabel('Number of tasks')
     ax.set_xlabel('Approaches')
@@ -870,7 +1106,7 @@ def box_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
             # Get only the first n runs
             n_runs += 1
             print("Run: ", n_runs)
-            if n_runs >= max_n_runs:
+            if n_runs > max_n_runs:
                 break
 
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
@@ -912,7 +1148,7 @@ def box_plot_completed_tasks(experiment_name, recovery_method, approaches, datas
     plt.vlines(9, ymin=-1, ymax=26, linewidths=1)
     plt.vlines(14, ymin=-1, ymax=26, linewidths=1)
 
-    ax.set_title(title)
+    # ax.set_title(title)
 
     ax.set_ylim(-1, 26)
     ax.set_yticks(list(range(0, 26, 5)))
@@ -941,6 +1177,7 @@ if __name__ == '__main__':
     config_params = get_config_params(experiment=args.experiment_name)
     approaches = config_params.get("approaches")
     datasets = config_params.get("datasets")
+    dataset_module = config_params.get("dataset_module")
 
     for dataset in datasets:
         # box_plot_completed_tasks(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
@@ -948,8 +1185,11 @@ if __name__ == '__main__':
         # box_plot_allocations(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_fleet_time_distribution(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_times(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        # box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+
+        box_plot_set_distribution(args.experiment_name, args.recovery_method, approaches, dataset, dataset_module, args.bidding_rule)
 
         # if args.recovery_method == "re-allocate":
         #     a = [a for a in approaches if args.recovery_method in a]
         #     box_plot_re_allocation_info(args.experiment_name, a, dataset, args.bidding_rule)
+        #     box_plot_re_allocation_per_task_info(args.experiment_name, a, dataset, args.bidding_rule)
