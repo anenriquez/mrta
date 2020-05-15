@@ -243,49 +243,43 @@ class PerformanceMetrics(AsDictMixin):
 
         # Taking the average
 
-        self.number_allocated_tasks = number_allocated_tasks/max_n_runs
-        self.number_unallocated_tasks = number_unallocated_tasks/max_n_runs
-        self.number_completed_tasks = number_completed_tasks/max_n_runs
-        self.number_on_time_tasks = number_on_time_tasks/max_n_runs
-        self.number_delayed_tasks = number_delayed_tasks/max_n_runs
-        self.number_early_tasks = number_early_tasks/max_n_runs
+        self.number_allocated_tasks = number_allocated_tasks/self.max_n_runs
+        self.number_unallocated_tasks = number_unallocated_tasks/self.max_n_runs
+        self.number_completed_tasks = number_completed_tasks/self.max_n_runs
+        self.number_on_time_tasks = number_on_time_tasks/self.max_n_runs
+        self.number_delayed_tasks = number_delayed_tasks/self.max_n_runs
+        self.number_early_tasks = number_early_tasks/self.max_n_runs
 
-        self.completion_rate = completion_rate/max_n_runs
-        self.success_rate = success_rate/max_n_runs
+        self.completion_rate = completion_rate/self.max_n_runs
+        self.success_rate = success_rate/self.max_n_runs
 
-        self.total_delay = total_delay/max_n_runs
-        self.total_earliness = total_earliness/max_n_runs
+        self.total_delay = total_delay/self.max_n_runs
+        self.total_earliness = total_earliness/self.max_n_runs
 
-        self.number_preempted_tasks = number_preempted_tasks/max_n_runs
-        self.number_re_alloced_tasks = number_re_alloced_tasks/max_n_runs
-        self.number_unsuccessfully_re_allocated_tasks = number_unsuccessfully_re_allocated_tasks/max_n_runs
+        self.number_preempted_tasks = number_preempted_tasks/self.max_n_runs
+        self.number_re_alloced_tasks = number_re_alloced_tasks/self.max_n_runs
+        self.number_unsuccessfully_re_allocated_tasks = number_unsuccessfully_re_allocated_tasks/self.max_n_runs
 
-        self.number_re_allocation_attempts = number_re_allocation_attempts/max_n_runs
-        self.number_re_allocations = number_re_allocations/max_n_runs
+        self.number_re_allocation_attempts = number_re_allocation_attempts/self.max_n_runs
+        self.number_re_allocations = number_re_allocations/self.max_n_runs
 
-        self.number_re_allocation_attempts_per_task = number_re_allocation_attempts_per_task/max_n_runs
-        self.number_re_allocations_per_task = number_re_allocations_per_task/max_n_runs
+        self.number_re_allocation_attempts_per_task = number_re_allocation_attempts_per_task/self.max_n_runs
+        self.number_re_allocations_per_task = number_re_allocations_per_task/self.max_n_runs
 
-        self.allocation_time = allocation_time/max_n_runs
-        self.re_allocation_time = re_allocation_time/max_n_runs
-        self.d_graph_re_computation_time = d_graph_re_computation_time/max_n_runs
+        self.allocation_time = allocation_time/self.max_n_runs
+        self.re_allocation_time = re_allocation_time/self.max_n_runs
+        self.d_graph_re_computation_time = d_graph_re_computation_time/self.max_n_runs
 
         for n_tasks, times_to_bid in bid_times.items():
             self.bid_times[n_tasks] = statistics.mean(times_to_bid)
 
-        self.robot_001_usage = robot_001_usage/max_n_runs
-        self.robot_002_usage = robot_002_usage/max_n_runs
-        self.robot_003_usage = robot_003_usage/max_n_runs
-        self.robot_004_usage = robot_004_usage/max_n_runs
-        self.robot_005_usage = robot_005_usage/max_n_runs
+        self.robot_001_usage = robot_001_usage/self.max_n_runs
+        self.robot_002_usage = robot_002_usage/self.max_n_runs
+        self.robot_003_usage = robot_003_usage/self.max_n_runs
+        self.robot_004_usage = robot_004_usage/self.max_n_runs
+        self.robot_005_usage = robot_005_usage/self.max_n_runs
 
         fleet_total_time = longest_experiment_time * len(robot_metrics)
-        print("Longest experiment time: ", longest_experiment_time)
-        print("n robots: ", len(robot_metrics))
-
-        print("fleet travel time: ", fleet_travel_time)
-        print("fleet work time: ", fleet_work_time)
-        print("fleet idle time: ", fleet_idle_time)
 
         for i, travel_time in enumerate(fleet_travel_time):
             fleet_travel_time[i] = 100 * travel_time / fleet_total_time
@@ -294,26 +288,17 @@ class PerformanceMetrics(AsDictMixin):
             fleet_work_time[i] = 100 * work_time / fleet_total_time
             fleet_idle_time[i] = 100 - (fleet_work_time[i] + fleet_travel_time[i])
 
-        print("fleet travel time: ", fleet_travel_time)
-        print("fleet work time: ", fleet_work_time)
-        print("fleet idle time: ", fleet_idle_time)
-
         self.fleet_work_time = statistics.mean(fleet_work_time)
         self.fleet_travel_time = statistics.mean(fleet_travel_time)
         self.fleet_idle_time = statistics.mean(fleet_idle_time)
 
-        print("start times: ", start_times)
-        print("finish times: ", finish_times)
-
         start_time = statistics.mean(start_times)
-        print("start time: ", start_time)
         self.start_time = datetime.fromtimestamp(start_time).isoformat()
 
         finish_time = statistics.mean(finish_times)
-        print("finish time: ", finish_time)
         self.finish_time = datetime.fromtimestamp(finish_time).isoformat()
 
-        self.experiment_time = experiment_time_acc/max_n_runs #finish_time - start_time
+        self.experiment_time = experiment_time_acc/self.max_n_runs  #finish_time - start_time
 
 
 if __name__ == '__main__':
@@ -323,6 +308,7 @@ if __name__ == '__main__':
                         choices=['preempt', 're-allocate'])
 
     parser.add_argument('--bidding_rule', type=str, action='store', default='completion_time')
+    parser.add_argument('--max_n_runs', type=int, action='store', default=max_n_runs)
 
     args = parser.parse_args()
 
@@ -335,7 +321,7 @@ if __name__ == '__main__':
 
     for dataset in datasets:
         for approach in approaches_recovery_method:
-            performance_metrics = PerformanceMetrics(args.experiment_name, approach, dataset, args.bidding_rule, max_n_runs)
+            performance_metrics = PerformanceMetrics(args.experiment_name, approach, dataset, args.bidding_rule, args.max_n_runs)
             performance_metrics.get_avg_performance_metrics()
 
             file_path = args.experiment_name + "/" + approach + "/" + args.bidding_rule + "/summary/"
