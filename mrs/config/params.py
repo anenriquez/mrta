@@ -9,6 +9,11 @@ experiment_number = {"non_intentional_delays": "1",
                      "robot_scalability_3": "4-3",
                      "robot_scalability_4": "4-4",
                      "robot_scalability_5": "4-5",
+                     "robot_scalability_1_1": "5-1",
+                     "robot_scalability_2_1": "5-2",
+                     "robot_scalability_3_1": "5-3",
+                     "robot_scalability_4_1": "5-4",
+                     "robot_scalability_5_1": "5-5",
                      }
 
 approach_number = {"tessi-preventive-preempt": "1",
