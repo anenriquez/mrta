@@ -6,6 +6,7 @@ name: task_scalability
 runs:
   3:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:08.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -319,10 +320,11 @@ runs:
         usage: 100.0
       n_successful_tasks: 11
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 73.33333333333333
+      success_rate: 0.7333333333333333
     run_id: 3
   8:
     performance_metrics:
+      completion_rate: 0.9333333333333333
       finish_time: '2020-01-23T08:52:08.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -630,10 +632,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 11
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 73.33333333333333
+      success_rate: 0.7857142857142857
     run_id: 8
   13:
     performance_metrics:
+      completion_rate: 0.9333333333333333
       finish_time: '2020-01-23T08:52:12.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -941,10 +944,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 10
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 66.66666666666667
+      success_rate: 0.7142857142857143
     run_id: 13
   17:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:09.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -1258,10 +1262,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 9
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 60.0
+      success_rate: 0.6
     run_id: 17
   21:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:13.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -1575,10 +1580,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 12
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 80.0
+      success_rate: 0.8
     run_id: 21
   26:
     performance_metrics:
+      completion_rate: 0.9333333333333333
       finish_time: '2020-01-23T08:52:16.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -1886,10 +1892,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 13
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 86.66666666666667
+      success_rate: 0.9285714285714286
     run_id: 26
   30:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:15.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -2203,10 +2210,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 11
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 73.33333333333333
+      success_rate: 0.7333333333333333
     run_id: 30
   34:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:14.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -2520,10 +2528,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 12
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 80.0
+      success_rate: 0.8
     run_id: 34
   37:
     performance_metrics:
+      completion_rate: 0.9333333333333333
       finish_time: '2020-01-23T08:52:05.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -2831,10 +2840,11 @@ runs:
         usage: 0.0
       n_successful_tasks: 7
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 46.666666666666664
+      success_rate: 0.5
     run_id: 37
   40:
     performance_metrics:
+      completion_rate: 1.0
       finish_time: '2020-01-23T08:52:10.680000'
       fleet_performance_metrics:
         allocated_tasks:
@@ -3148,5 +3158,5 @@ runs:
         usage: 0.0
       n_successful_tasks: 12
       start_time: '2020-01-23T08:39:34.880000'
-      successful_percentage: 80.0
+      success_rate: 0.8
     run_id: 40

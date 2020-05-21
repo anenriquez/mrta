@@ -9,6 +9,8 @@ from experiments.results.plot.utils import get_dataset_results, save_plot, set_b
     ticks, get_flierprops, markers, colors
 from mrs.config.params import get_config_params
 
+max_n_runs = 10
+
 
 def plot_allocations_(approach):
     title = "Experiment: Task scalability \n" + \
@@ -43,8 +45,14 @@ def plot_allocations_(approach):
         dataset_allocated_tasks = list()
         dataset_unallocated_tasks = list()
         dataset_successful_re_allocations = list()
+        n_runs = 0
 
         for run_id, run_info in results.get("runs").items():
+            # Get only the first n runs
+            n_runs += 1
+            print("Run: ", n_runs)
+            if n_runs > max_n_runs:
+                break
             print("run_id: ", run_id)
             metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
             dataset_allocated_tasks.append(len(metrics.get("allocated_tasks")))
@@ -129,8 +137,15 @@ def plot_allocations(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
             dataset_allocated_tasks = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 dataset_allocated_tasks.append(len(metrics.get("allocated_tasks")))
@@ -185,8 +200,14 @@ def plot_re_allocated_tasks(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
             dataset_re_allocated_tasks = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 re_allocated_tasks = len(metrics.get("re_allocated_tasks"))
@@ -246,8 +267,14 @@ def plot_re_allocation_attempts(approaches):
             print("n_tasks:", results["n_tasks"])
             dataset_re_allocation_attempts = list()
             dataset_re_allocations = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 attempts = 0
                 re_allocations = 0
@@ -323,8 +350,14 @@ def plot_successful_tasks(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
             dataset_successful_tasks = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 dataset_successful_tasks.append(len(metrics.get("successful_tasks")))
@@ -379,8 +412,14 @@ def plot_completed_tasks(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks:", results["n_tasks"])
             datset_completed_tasks = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 datset_completed_tasks.append(len(metrics.get("completed_tasks")))
@@ -435,8 +474,14 @@ def plot_allocation_times(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks: ", results["n_tasks"])
             dataset_allocation_times = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 allocation_time = 0
@@ -445,7 +490,6 @@ def plot_allocation_times(approaches):
                     allocation_time += task_performance.get('allocation_time')
 
                 dataset_allocation_times.append(allocation_time)
-                print("allocation time: ", allocation_time)
 
             if dataset_allocation_times:
                 avg_allocation_times = sum(dataset_allocation_times)/len(dataset_allocation_times)
@@ -465,7 +509,7 @@ def plot_allocation_times(approaches):
 
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
-    plt.ylabel("Allocation time (s)")
+    plt.ylabel("Allocation time [s]")
     #plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -495,8 +539,14 @@ def plot_bid_time_vs_tasks_in_schedule(approaches):
 
             bid_times = dict()
             stdev_bid_times = dict()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
 
@@ -526,7 +576,7 @@ def plot_bid_time_vs_tasks_in_schedule(approaches):
 
         # plt.xticks(n_tasks_in_schedule)
         plt.xlabel("Number of tasks in schedule")
-        plt.ylabel("Bid time (s)")
+        plt.ylabel("Bid time [s]")
         # plt.title(title)
         axes = plt.gca()
         axes.yaxis.grid()
@@ -561,8 +611,14 @@ def plot_dgraph_recomputation_times(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks: ", results["n_tasks"])
             dataset_re_computation_times = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 dgraph_re_computation_time = 0
@@ -590,7 +646,7 @@ def plot_dgraph_recomputation_times(approaches):
 
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
-    plt.ylabel("DGraph re-computation time (s)")
+    plt.ylabel("DGraph re-computation time [s]")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -625,8 +681,14 @@ def plot_re_allocation_times(approaches):
         for n_tasks, results in ordered_results.items():
             print("n_tasks: ", results["n_tasks"])
             dataset_re_allocation_times = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
                 re_allocation_time = 0
@@ -662,7 +724,7 @@ def plot_re_allocation_times(approaches):
 
     plt.xticks(tasks)
     plt.xlabel("Number of tasks")
-    plt.ylabel("Re-allocation time (s)")
+    plt.ylabel("Re-allocation time [s]")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -703,8 +765,14 @@ def plot_robot_utilization(approaches):
             approach_usage_robot_3 = list()
             approach_usage_robot_4 = list()
             approach_usage_robot_5 = list()
+            n_runs = 0
 
             for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
                 print("run_id: ", run_id)
                 robot_metrics = run_info.get("performance_metrics").get("fleet_performance_metrics").get(
                     "robots_performance_metrics")

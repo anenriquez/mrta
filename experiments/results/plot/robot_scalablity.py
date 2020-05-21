@@ -1165,17 +1165,184 @@ def plot_re_allocation_per_task_info(approaches):
     save_plot(fig, plot_name, save_in_path, lgd)
 
 
+def plot_amount_of_delay_and_earliness(approaches):
+    save_in_path = get_plot_path('robot_scalability')
+
+    tessi_delay = list()
+    tessi_drea_delay = list()
+    tessi_srea_delay = list()
+    tessi_dsc_delay = list()
+
+    tessi_earliness = list()
+    tessi_drea_earliness = list()
+    tessi_srea_earliness = list()
+    tessi_dsc_earliness = list()
+
+    for robot in path_to_robot_results:
+        print("Robot: ", robot)
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../' + robot + '/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            results = results_per_dataset.pop('nonoverlapping_random_25_1')
+            approach_n_re_allocations_per_task = list()
+
+            delay = list()
+            earliness = list()
+
+            for run_id, run_info in results.get("runs").items():
+                print("Run id: ", run_id)
+
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                delay.append(metrics.get("delay"))
+                earliness.append(metrics.get("earliness"))
+
+            if approach == 'tessi-corrective-re-allocate':
+                tessi_delay += [delay]
+                tessi_earliness += [earliness]
+
+            elif approach == 'tessi-srea-preventive-re-schedule-re-allocate':
+                tessi_drea_delay += [delay]
+                tessi_drea_earliness += [earliness]
+
+            elif approach == 'tessi-srea-corrective-re-allocate':
+                tessi_srea_delay += [delay]
+                tessi_srea_earliness += [earliness]
+
+            elif approach == 'tessi-dsc-corrective-re-allocate':
+                tessi_dsc_delay += [delay]
+                tessi_dsc_earliness += [earliness]
+
+    print("tessi: ", tessi_delay)
+    print("tessi-drea: ", tessi_drea_delay)
+    print("tessi-srea: ", tessi_srea_delay)
+    print("tessi dsc: ", tessi_dsc_delay)
+
+    plot_name = "delay"
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)
+
+    bp1 = ax.boxplot(tessi_delay, positions=np.array(range(len(tessi_delay))) * 5, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                     flierprops=get_flierprops('#1f77b4'))
+    bp2 = ax.boxplot(tessi_drea_delay, positions=np.array(range(len(tessi_drea_delay))) * 5 + 1,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                     flierprops=get_flierprops('#ff7f0e'))
+    bp3 = ax.boxplot(tessi_srea_delay, positions=np.array(range(len(tessi_srea_delay))) * 5 + 2,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                     flierprops=get_flierprops('#2ca02c'))
+    bp4 = ax.boxplot(tessi_dsc_delay, positions=np.array(range(len(tessi_dsc_delay))) * 5 + 3,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                     flierprops=get_flierprops('#d62728'))
+
+    set_box_color(bp1, '#1f77b4')
+    set_box_color(bp2, '#ff7f0e')
+    set_box_color(bp3, '#2ca02c')
+    set_box_color(bp4, '#d62728')
+
+    plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+    plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+    plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+    plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+    plt.xlim(-1, len(xticks) * 4 + 4)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    # ax.set_title(title)
+
+    ax.set_ylabel('Total delay [s]')
+    ax.yaxis.grid()
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    plt.tight_layout()
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+    plot_name = "earliness"
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111)
+
+    bp1 = ax.boxplot(tessi_earliness, positions=np.array(range(len(tessi_earliness))) * 5, widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                     flierprops=get_flierprops('#1f77b4'))
+    bp2 = ax.boxplot(tessi_drea_earliness, positions=np.array(range(len(tessi_drea_earliness))) * 5 + 1,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                     flierprops=get_flierprops('#ff7f0e'))
+    bp3 = ax.boxplot(tessi_srea_earliness, positions=np.array(range(len(tessi_srea_earliness))) * 5 + 2,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                     flierprops=get_flierprops('#2ca02c'))
+    bp4 = ax.boxplot(tessi_dsc_earliness, positions=np.array(range(len(tessi_dsc_earliness))) * 5 + 3,
+                     widths=0.6,
+                     meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                     flierprops=get_flierprops('#d62728'))
+
+    set_box_color(bp1, '#1f77b4')
+    set_box_color(bp2, '#ff7f0e')
+    set_box_color(bp3, '#2ca02c')
+    set_box_color(bp4, '#d62728')
+
+    plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+    plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+    plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+    plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+    plt.xlim(-1, len(xticks) * 4 + 4)
+
+    ymin, ymax = ax.get_ylim()
+    plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+    plt.ylim(ymin, ymax)
+
+    # ax.set_title(title)
+
+    ax.set_ylabel('Total earliness [s]')
+    ax.yaxis.grid()
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False)  # ticks along the top edge are off
+
+    plt.tight_layout()
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
 if __name__ == '__main__':
     config_params = get_config_params(experiment='robot_scalability_1')
     approaches = config_params.get("approaches")
 
-    # box_plot_allocations(approaches)
-    # box_plot_completed_tasks(approaches)
-    # box_plot_successful_tasks(approaches)
+    box_plot_allocations(approaches)
+    box_plot_completed_tasks(approaches)
+    box_plot_successful_tasks(approaches)
 
     plot_allocations(approaches)
     plot_completed_tasks(approaches)
     plot_successful_tasks(approaches)
+
+    plot_amount_of_delay_and_earliness(approaches)
 
     plot_re_allocations(approaches)
     plot_re_allocation_attempts(approaches)
