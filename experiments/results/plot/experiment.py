@@ -103,13 +103,18 @@ def box_plot_robot_usage(experiment_name, recovery_method, approaches, dataset_n
 
     # ax.set_ylim(-1, 51)
     # ax.set_yticks(list(range(0, 60, 10)))
-    ymin, ymax = ax.get_ylim()
+    # ymin, ymax = ax.get_ylim()
+    ymin = 0
+    ymax = 35
+    plt.ylim(ymin, ymax)
+
     plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
-    plt.ylim(ymin, ymax)
+    # plt.ylim(ymin, ymax)
+    plt.yticks(list(range(0, 35, 5)))
 
-    ax.set_ylabel("Percentage of completed tasks(%)")
+    ax.set_ylabel("Completed tasks(%)")
     # ax.set_title(title)
     ax.yaxis.grid()
 
@@ -566,11 +571,16 @@ def box_plot_fleet_time_distribution(experiment_name, recovery_method, approache
     lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fancybox=True, shadow=True)
 
     # ax.set_yticks(list(range(0, 110, 10)))
-    ymin, ymax = ax.get_ylim()
+    # ymin, ymax = ax.get_ylim()
+    ymin = 0
+    ymax = 80
+    plt.ylim(ymin, ymax)
+
     plt.vlines(3, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(7, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
-    plt.ylim(ymin, ymax)
+    # plt.ylim(ymin, ymax)
+    ax.set_yticks(list(range(0, 80, 10)))
 
     ax.set_ylabel("Percentage (%)")
     # ax.set_title(title)
@@ -649,7 +659,7 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
     plt.xlim(-1, len(ticks) * 3-1)
     plt.tight_layout()
     # ax.set_title(title)
-    ax.set_ylabel('Time (s)')
+    ax.set_ylabel('Time [s]')
     ax.yaxis.grid()
     plt.tight_layout()
 
@@ -659,11 +669,17 @@ def box_plot_amount_of_delay(experiment_name, recovery_method, approaches, datas
         bottom=False,  # ticks along the bottom edge are off
         top=False)  # ticks along the top edge are off
 
-    ymin, ymax = ax.get_ylim()
+    # ymin, ymax = ax.get_ylim()
+    # print("ymax: ", ymax)
+    ymin = -0.5
+    ymax = 1170
+    plt.ylim(ymin, ymax)
+
     plt.vlines(2, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
-    plt.ylim(ymin, ymax)
+    # plt.ylim(ymin, ymax)
+    plt.yticks(list(range(0, 1170, 150)))
 
     save_plot(fig, plot_name, save_in_path, lgd)
 
@@ -700,9 +716,9 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
         for run_id, run_info in results.get("runs").items():
             # Get only the first n runs
             n_runs += 1
-            print("Run: ", n_runs)
             if n_runs > max_n_runs:
                 break
+            print("Run: ", n_runs)
 
             n_re_allocation_attempts = 0
             n_re_allocations = 0
@@ -731,11 +747,16 @@ def box_plot_re_allocation_info(experiment_name, approaches, dataset_name, biddi
     plt.plot([], c='#399b5e', label='Re-allocations', linewidth=2)
     lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, fancybox=True, shadow=True)
 
-    ymin, ymax = ax.get_ylim()
+    # ymin, ymax = ax.get_ylim()
+    ymin = -0.5
+    ymax = 26
+    plt.ylim(ymin, ymax)
+
     plt.vlines(2, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
     plt.vlines(8, ymin=ymin, ymax=ymax, linewidths=1)
-    plt.ylim(ymin, ymax)
+    # plt.ylim(ymin, ymax)
+    plt.yticks(list(range(0, 27, 2)))
 
     # ax.set_title(title)
     # ax.set_ylabel('Number of tasks')
@@ -1185,9 +1206,9 @@ if __name__ == '__main__':
         # box_plot_allocations(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_fleet_time_distribution(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
         # box_plot_times(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
-        # box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
+        box_plot_robot_usage(args.experiment_name, args.recovery_method, approaches, dataset, args.bidding_rule)
 
-        box_plot_set_distribution(args.experiment_name, args.recovery_method, approaches, dataset, dataset_module, args.bidding_rule)
+        # box_plot_set_distribution(args.experiment_name, args.recovery_method, approaches, dataset, dataset_module, args.bidding_rule)
 
         # if args.recovery_method == "re-allocate":
         #     a = [a for a in approaches if args.recovery_method in a]

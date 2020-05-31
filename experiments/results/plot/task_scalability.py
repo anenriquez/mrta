@@ -163,9 +163,80 @@ def plot_allocations(approaches):
         plt.errorbar(tasks, avgs_allocated_tasks, stdevs_allocated_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
     plt.yticks(list(range(0, 26, 5)))
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Number of allocated tasks")
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of allocated tasks")
+    # plt.title(title)
+    axes = plt.gca()
+    axes.yaxis.grid()
+    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def plot_un_allocations(approaches):
+    title = "Experiment: Task scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('task_scalability')
+    plot_name = "unallocated_tasks"
+    fig = plt.figure(figsize=(9, 6))
+
+    tasks = list(range(5, 26, 5))
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        path_to_results = '../task_scalability/' + approach + '/completion_time'
+        results_per_dataset = get_dataset_results(path_to_results)
+
+        for dataset_name, results in results_per_dataset.items():
+            print("dataset_name: ", dataset_name)
+
+        avgs_unallocated_tasks = list()
+        stdevs_unallocated_tasks = list()
+
+        # Order results
+        results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
+
+        for n_tasks_, _ in results.items():
+            print("n_tasks:", n_tasks_)
+
+        ordered_results = collections.OrderedDict(sorted(results.items()))
+
+        for n_tasks, results in ordered_results.items():
+            print("n_tasks:", results["n_tasks"])
+            dataset_unallocated_tasks = list()
+            n_runs = 0
+
+            for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                dataset_unallocated_tasks.append(len(metrics.get("unallocated_tasks")))
+
+            if dataset_unallocated_tasks:
+                avg_unallocated_tasks = sum(dataset_unallocated_tasks) / len(dataset_unallocated_tasks)
+                stdev_unallocated_tasks = statistics.stdev(dataset_unallocated_tasks)
+            else:
+                avg_unallocated_tasks = 0
+                stdev_unallocated_tasks = 0
+
+            avgs_unallocated_tasks.append(avg_unallocated_tasks)
+            stdevs_unallocated_tasks.append(stdev_unallocated_tasks)
+
+        plt.errorbar(tasks, avgs_unallocated_tasks, stdevs_unallocated_tasks, marker=markers[i], label=ticks[i])
+
+    plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
+    plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of unallocated tasks")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -226,12 +297,80 @@ def plot_re_allocated_tasks(approaches):
         plt.errorbar(tasks, avgs_re_allocated_tasks, stdevs_re_allocated_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Number of re-allocated tasks")
+    plt.ylim(-0.5, 26)
+    plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of re-allocated tasks")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
-    axes.yaxis.set_major_locator(MaxNLocator(integer=True))
+    # axes.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def plot_unsuccessfully_re_allocated_tasks(approaches):
+    title = "Experiment: Task scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('task_scalability')
+    plot_name = "unsuccessfully_re_allocated_tasks"
+    fig = plt.figure(figsize=(9, 6))
+
+    tasks = list(range(5, 26, 5))
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        path_to_results = '../task_scalability/' + approach + '/completion_time'
+        results_per_dataset = get_dataset_results(path_to_results)
+
+        avgs_re_allocated_tasks = list()
+
+        stdevs_re_allocated_tasks = list()
+
+        # Order results
+        results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
+        ordered_results = collections.OrderedDict(sorted(results.items()))
+
+        for n_tasks, results in ordered_results.items():
+            print("n_tasks:", results["n_tasks"])
+            dataset_re_allocated_tasks = list()
+            n_runs = 0
+
+            for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                re_allocated_tasks = len(metrics.get("unsuccessfully_re_allocated_tasks"))
+                dataset_re_allocated_tasks.append(re_allocated_tasks)
+
+            if dataset_re_allocated_tasks:
+                avg_re_allocations = sum(dataset_re_allocated_tasks) / len(dataset_re_allocated_tasks)
+                stdev_re_allocations = statistics.stdev(dataset_re_allocated_tasks)
+            else:
+                avg_re_allocations = 0
+                stdev_re_allocations = 0
+
+            avgs_re_allocated_tasks.append(avg_re_allocations)
+            stdevs_re_allocated_tasks.append(stdev_re_allocations)
+
+        plt.errorbar(tasks, avgs_re_allocated_tasks, stdevs_re_allocated_tasks, marker=markers[i], label=ticks[i])
+
+    plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
+    plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of unsuccessfully re-allocated tasks")
+
+    # plt.title(title)
+    axes = plt.gca()
+    axes.yaxis.grid()
 
     lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
 
@@ -375,9 +514,10 @@ def plot_successful_tasks(approaches):
         plt.errorbar(tasks, avgs_successful_tasks, stdevs_successful_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
     plt.yticks(list(range(0, 26, 5)))
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Number of successful tasks")
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of tasks completed on-time")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -437,9 +577,136 @@ def plot_completed_tasks(approaches):
         plt.errorbar(tasks, avgs_completed_tasks, stdevs_completed_tasks, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
     plt.yticks(list(range(0, 26, 5)))
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Number of completed tasks")
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of completed tasks")
+    # plt.title(title)
+    axes = plt.gca()
+    axes.yaxis.grid()
+
+    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def plot_delayed_tasks(approaches):
+    title = "Experiment: Task scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('task_scalability')
+    plot_name = "delayed_tasks"
+    fig = plt.figure(figsize=(9, 6))
+
+    tasks = list(range(5, 26, 5))
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        path_to_results = '../task_scalability/' + approach + '/completion_time'
+        results_per_dataset = get_dataset_results(path_to_results)
+
+        avgs_delayed_tasks = list()
+        stdevs_delayed_tasks = list()
+
+        # Order results
+        results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
+        ordered_results = collections.OrderedDict(sorted(results.items()))
+
+        for n_tasks, results in ordered_results.items():
+            print("n_tasks:", results["n_tasks"])
+            datset_delayed_tasks = list()
+            n_runs = 0
+
+            for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                datset_delayed_tasks.append(len(metrics.get("delayed_tasks")))
+
+            if datset_delayed_tasks:
+                avg_delayed_tasks = sum(datset_delayed_tasks) / len(datset_delayed_tasks)
+                stdev_delayed_tasks = statistics.stdev(datset_delayed_tasks)
+            else:
+                avg_delayed_tasks = 0
+                stdev_delayed_tasks = 0
+
+            avgs_delayed_tasks.append(avg_delayed_tasks)
+            stdevs_delayed_tasks.append(stdev_delayed_tasks)
+
+        plt.errorbar(tasks, avgs_delayed_tasks, stdevs_delayed_tasks, marker=markers[i], label=ticks[i])
+
+    plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
+    plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of delayed tasks")
+    # plt.title(title)
+    axes = plt.gca()
+    axes.yaxis.grid()
+
+    lgd = axes.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+    save_plot(fig, plot_name, save_in_path, lgd)
+
+
+def plot_early_tasks(approaches):
+    title = "Experiment: Task scalability \n" + \
+            "Recovery method: re-allocation \n"
+
+    save_in_path = get_plot_path('task_scalability')
+    plot_name = "early_tasks"
+    fig = plt.figure(figsize=(9, 6))
+
+    tasks = list(range(5, 26, 5))
+
+    for i, approach in enumerate(approaches):
+        print("Approach: ", approach)
+        path_to_results = '../task_scalability/' + approach + '/completion_time'
+        results_per_dataset = get_dataset_results(path_to_results)
+
+        avgs_early_tasks = list()
+        stdevs_early_tasks = list()
+
+        # Order results
+        results = {r.get('n_tasks'): r for (dataset_name, r) in results_per_dataset.items()}
+        ordered_results = collections.OrderedDict(sorted(results.items()))
+
+        for n_tasks, results in ordered_results.items():
+            print("n_tasks:", results["n_tasks"])
+            datset_early_tasks = list()
+            n_runs = 0
+
+            for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+                print("run_id: ", run_id)
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                datset_early_tasks.append(len(metrics.get("early_tasks")))
+
+            if datset_early_tasks:
+                avg_early_tasks = sum(datset_early_tasks) / len(datset_early_tasks)
+                stdev_early_tasks = statistics.stdev(datset_early_tasks)
+            else:
+                avg_early_tasks = 0
+                stdev_early_tasks = 0
+
+            avgs_early_tasks.append(avg_early_tasks)
+            stdevs_early_tasks.append(stdev_early_tasks)
+
+        plt.errorbar(tasks, avgs_early_tasks, stdevs_early_tasks, marker=markers[i], label=ticks[i])
+
+    plt.xticks(tasks)
+    plt.ylim(-0.5, 26)
+    plt.yticks(list(range(0, 26, 5)))
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Average number of early tasks")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -508,8 +775,8 @@ def plot_allocation_times(approaches):
         plt.errorbar(tasks, avgs_allocation_times, stdevs_allocation_times, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
-    plt.xlabel("Number of tasks")
-    plt.ylabel("Allocation time [s]")
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Time [s]")
     #plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -645,8 +912,8 @@ def plot_dgraph_recomputation_times(approaches):
         plt.errorbar(tasks, avgs_dgraph_re_computation_times, stdevs_dgraph_re_computation_times, marker=markers[i], label=ticks[i])
 
     plt.xticks(tasks)
-    plt.xlabel("Number of tasks")
-    plt.ylabel("DGraph re-computation time [s]")
+    plt.xlabel("Number of tasks in dataset")
+    plt.ylabel("Time [s]")
     # plt.title(title)
     axes = plt.gca()
     axes.yaxis.grid()
@@ -831,13 +1098,15 @@ def plot_robot_utilization(approaches):
 
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-        ymin, ymax = ax.get_ylim()
+        ymin = -5
+        ymax = 110
+        plt.ylim(ymin, ymax)
         plt.vlines(5, ymin=ymin, ymax=ymax, linewidths=1)
         plt.vlines(11, ymin=ymin, ymax=ymax, linewidths=1)
         plt.vlines(17, ymin=ymin, ymax=ymax, linewidths=1)
-        plt.ylim(ymin, ymax)
+        plt.yticks(list(range(0, 110, 10)))
 
-        ax.set_ylabel("Percentage of completed tasks (%)")
+        ax.set_ylabel("Completed tasks (%)")
         # ax.set_title(title)
         ax.yaxis.grid()
 
@@ -853,21 +1122,207 @@ def plot_robot_utilization(approaches):
         save_plot(fig, plot_name, save_in_path, lgd)
 
 
+def plot_amount_of_delay_and_earliness(approaches):
+    xticks = ['#tasks=5', '#tasks=10', '#tasks=3', '#tasks=4', '#tasks=5']
+
+    for n_tasks in range(5, 26, 5):
+        print("n_tasks: ", n_tasks)
+
+        title = "Experiment 3:  %s tasks" % str(n_tasks) + "\n" + \
+                "Recovery method: re-allocation \n"
+
+        save_in_path = get_plot_path('task_scalability')
+
+        tessi_delay = list()
+        tessi_drea_delay = list()
+        tessi_srea_delay = list()
+        tessi_dsc_delay = list()
+
+        tessi_earliness = list()
+        tessi_drea_earliness = list()
+        tessi_srea_earliness = list()
+        tessi_dsc_earliness = list()
+
+        for i, approach in enumerate(approaches):
+            print("Approach: ", approach)
+            path_to_results = '../task_scalability/' + approach + '/completion_time'
+            results_per_dataset = get_dataset_results(path_to_results)
+            dataset_name = 'overlapping_random_%s_5_1' % str(n_tasks)
+            print("Dataset name: ", dataset_name)
+            results = results_per_dataset.pop(dataset_name)
+
+            delay = list()
+            earliness = list()
+            n_runs = 0
+
+            for run_id, run_info in results.get("runs").items():
+                # Get only the first n runs
+                n_runs += 1
+                print("Run: ", n_runs)
+                if n_runs > max_n_runs:
+                    break
+                print("run_id: ", run_id)
+
+                metrics = run_info.get("performance_metrics").get("fleet_performance_metrics")
+                delay.append(metrics.get("delay"))
+                earliness.append(metrics.get("earliness"))
+
+            if approach == 'tessi-corrective-re-allocate':
+                tessi_delay += [delay]
+                tessi_earliness += [earliness]
+
+            elif approach == 'tessi-srea-preventive-re-schedule-re-allocate':
+                tessi_drea_delay += [delay]
+                tessi_drea_earliness += [earliness]
+
+            elif approach == 'tessi-srea-corrective-re-allocate':
+                tessi_srea_delay += [delay]
+                tessi_srea_earliness += [earliness]
+
+            elif approach == 'tessi-dsc-corrective-re-allocate':
+                tessi_dsc_delay += [delay]
+                tessi_dsc_earliness += [earliness]
+
+        plot_name = "delay"
+        fig = plt.figure(figsize=(9, 6))
+        ax = fig.add_subplot(111)
+
+        bp1 = ax.boxplot(tessi_delay, positions=np.array(range(len(tessi_delay))) * 5, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                         flierprops=get_flierprops('#1f77b4'))
+        bp2 = ax.boxplot(tessi_drea_delay, positions=np.array(range(len(tessi_drea_delay))) * 5 + 1,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                         flierprops=get_flierprops('#ff7f0e'))
+        bp3 = ax.boxplot(tessi_srea_delay, positions=np.array(range(len(tessi_srea_delay))) * 5 + 2,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                         flierprops=get_flierprops('#2ca02c'))
+        bp4 = ax.boxplot(tessi_dsc_delay, positions=np.array(range(len(tessi_dsc_delay))) * 5 + 3,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                         flierprops=get_flierprops('#d62728'))
+
+        set_box_color(bp1, '#1f77b4')
+        set_box_color(bp2, '#ff7f0e')
+        set_box_color(bp3, '#2ca02c')
+        set_box_color(bp4, '#d62728')
+
+        plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+        plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+        plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+        plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+        lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+        plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+        plt.xlim(-1, len(xticks) * 4 + 4)
+
+        # ymin, ymax = ax.get_ylim()
+        ymin = -0.5
+        ymax = 27
+        plt.ylim(ymin, ymax)
+        plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+        # plt.ylim(ymin, ymax)
+        plt.yticks(list(range(0, 27, 5)))
+
+        # ax.set_title(title)
+
+        ax.set_ylabel('Time [s]')
+        ax.yaxis.grid()
+
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False)  # ticks along the top edge are off
+
+        plt.tight_layout()
+        save_plot(fig, plot_name, save_in_path, lgd)
+
+        plot_name = "earliness"
+        fig = plt.figure(figsize=(9, 6))
+        ax = fig.add_subplot(111)
+
+        bp1 = ax.boxplot(tessi_earliness, positions=np.array(range(len(tessi_earliness))) * 5, widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#1f77b4'),
+                         flierprops=get_flierprops('#1f77b4'))
+        bp2 = ax.boxplot(tessi_drea_earliness, positions=np.array(range(len(tessi_drea_earliness))) * 5 + 1,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#ff7f0e'),
+                         flierprops=get_flierprops('#ff7f0e'))
+        bp3 = ax.boxplot(tessi_srea_earliness, positions=np.array(range(len(tessi_srea_earliness))) * 5 + 2,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#2ca02c'),
+                         flierprops=get_flierprops('#2ca02c'))
+        bp4 = ax.boxplot(tessi_dsc_earliness, positions=np.array(range(len(tessi_dsc_earliness))) * 5 + 3,
+                         widths=0.6,
+                         meanline=False, showmeans=True, meanprops=get_meanprops('#d62728'),
+                         flierprops=get_flierprops('#d62728'))
+
+        set_box_color(bp1, '#1f77b4')
+        set_box_color(bp2, '#ff7f0e')
+        set_box_color(bp3, '#2ca02c')
+        set_box_color(bp4, '#d62728')
+
+        plt.plot([], c='#1f77b4', label='TeSSI', linewidth=2)
+        plt.plot([], c='#ff7f0e', label='TeSSI-DREA', linewidth=2)
+        plt.plot([], c='#2ca02c', label='TeSSI-SREA', linewidth=2)
+        plt.plot([], c='#d62728', label='TeSSI-DSC', linewidth=2)
+        lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=4, fancybox=True, shadow=True)
+
+        plt.xticks(range(1, len(xticks) * 5, 5), xticks)
+        plt.xlim(-1, len(xticks) * 4 + 4)
+
+        # ymin, ymax = ax.get_ylim()
+        ymin = -0.5
+        ymax = 27
+        plt.ylim(ymin, ymax)
+        plt.vlines(4, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(9, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(14, ymin=ymin, ymax=ymax, linewidths=1)
+        plt.vlines(19, ymin=ymin, ymax=ymax, linewidths=1)
+        # plt.ylim(ymin, ymax)
+        plt.yticks(list(range(0, 27, 5)))
+
+        # ax.set_title(title)
+
+        ax.set_ylabel('Time [s]')
+        ax.yaxis.grid()
+
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False)  # ticks along the top edge are off
+
+        plt.tight_layout()
+        save_plot(fig, plot_name, save_in_path, lgd)
+
+
 if __name__ == '__main__':
     config_params = get_config_params(experiment='task_scalability')
     approaches = config_params.get("approaches")
 
-    plot_allocations(approaches)
-    plot_re_allocated_tasks(approaches)
-    plot_re_allocation_attempts(approaches)
+    # plot_allocations(approaches)
+    # plot_un_allocations(approaches)
+    # plot_re_allocated_tasks(approaches)
+    # plot_unsuccessfully_re_allocated_tasks(approaches)
+    # plot_re_allocation_attempts(approaches)
 
-    plot_successful_tasks(approaches)
-    plot_completed_tasks(approaches)
-
-    plot_allocation_times(approaches)
-    plot_dgraph_recomputation_times(approaches)
-    plot_re_allocation_times(approaches)
-    plot_bid_time_vs_tasks_in_schedule(approaches)
-
+    # plot_successful_tasks(approaches)
+    # plot_completed_tasks(approaches)
+    # plot_early_tasks(approaches)
+    # plot_delayed_tasks(approaches)
+    #
+    # plot_allocation_times(approaches)
+    # plot_dgraph_recomputation_times(approaches)
+    # plot_re_allocation_times(approaches)
+    # plot_bid_time_vs_tasks_in_schedule(approaches)
+    #
     plot_robot_utilization(approaches)
+
+    # plot_amount_of_delay_and_earliness(approaches)
 
