@@ -5,10 +5,11 @@
 
 Allocates tasks with temporal constraints and uncertain durations to a multi-robot system.
 
-Includes three allocation algorithms:
-- Temporal-sequential single item auctions (TeSSI)[1]. 
-- Temporal-sequential single item auctions with degree of strong controllability (TeSSI-DSC) (based on [1] and [3]).
-- Temporal-sequential single item auctions with static robust execution (TeSSI-SREA) (based on [1] and [2])
+Includes four allocation algorithms:
+- Temporal Sequential Single-Item auctions (TeSSI)[1]. 
+- Temporal Sequential Single-Item auctions with Degree of Strong Controllability (TeSSI-DSC) (based on [1] and [3]).
+- Temporal Sequential Single-Item auctions with Static Robust Execution Algorithm (TeSSI-SREA) (based on [1] and [2])
+- Temporal Sequential Single-Item auctions with Dynamic Robust Execution Algorithm (TeSSI-DREA) (based on [1] and [2])
  
 Each robot maintains a temporal network with its tasks. The temporal network is either a:
 - Simple Temporal Network (STN)
@@ -16,6 +17,11 @@ Each robot maintains a temporal network with its tasks. The temporal network is 
 - Probabilistic Simple Temporal Network (PSTN)
 
 The temporal network represents a Simple Temporal Problem (STP).
+
+The allocation methods can be combined with the delay recovery methods:
+- preemption
+- re-allocation
+- relaxation of constraints
 
 The [mrta_stn](https://github.com/anenriquez/mrta_stn/) repository includes the temporal
 network models and solvers for the STP.
@@ -28,7 +34,7 @@ Brief description of the components:
 
 ### FMS: 
 - Gets tasks' plan from pickup to delivery and adds it to the task.
-- Requests the auctioneer to allocate tasks
+- Requests the auctioneer to allocate tasks.
  
 #### Auctioneer
 - Announces unallocated tasks to the robot proxies in the local network, opening an allocation round.
@@ -51,10 +57,10 @@ Brief description of the components:
 - Updates performance metrics during allocation, scheduling and execution
 
 #### Simulator
-- Controls simulation time using [simpy](https://simpy.readthedocs.io/en/latest/)
+- Controls simulation time using [simpy](https://simpy.readthedocs.io/en/latest/).
 
 ### RobotProxy
-Acts on behalf of the robot
+Acts on behalf of the robot.
 
 #### Bidder
 - Receives task announcements.
@@ -65,7 +71,7 @@ Acts on behalf of the robot
 - Same as the timetable monitor, but only updates the robot's proxy timetable.
 
 ### Robot
-Physical robot (in this case, just a mockup)
+Physical robot (in this case, just a mockup).
 
 #### Schedule Monitor
 - Receives a task queue and schedules the first task in the queue.
@@ -77,24 +83,25 @@ Physical robot (in this case, just a mockup)
 - Determines the duration of actions based on a duration graph (travel time based on historical information) and sends task-status msgs.
 
 #### API:
-- Provides middleware functionality
+- Provides middleware functionality.
 
 #### ccu_store
-- interface to interact with the ccu db
+- interface to interact with the ccu db.
 
 #### robot_store
-- interface to interact with the robot db
+- interface to interact with the robot db.
 
 #### robot_proxy_store
-- interface to interact with the robot proxy db
+- interface to interact with the robot proxy db.
 
-## Without Docker
+## Installation
+
+### Without Docker
 
 Install the repositiories:
+- [ropod_common](https://github.com/ropod-project/ropod_common)
 - [mrta_datasets](https://github.com/anenriquez/mrta_datasets)
 - [mrta_planner](https://github.com/anenriquez/mrta_planner)
-- [ropod_common](https://github.com/ropod-project/ropod_common)
-
 
 Create directory for logger
 ```
@@ -102,11 +109,11 @@ sudo mkdir -p /var/log/mrta
 sudo chown -R $USER:$USER /var/log/mrta
 ```
 
-Get the mrta requirements by running: 
+Get the mrta requirements: 
 ```
 pip3 install -r requirements.txt
 ```
-Add mrta to your PYTHONPATH by running: 
+Add mrta to your PYTHONPATH: 
 ```
 pip3 install --user -e .
 ```
@@ -140,6 +147,8 @@ Example:
 ```	
 python3 ccu.py --experiment non_intentional_delays --approach tessi-corrective-re-allocate
 ```
+
+By default, uses the configuration file `mrs/config/default/config.yaml`.
 
 ## With Docker
 
