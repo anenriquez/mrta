@@ -185,7 +185,8 @@ class Timetable(STNInterface):
     def remove_task(self, task_id):
         self.remove_task_from_stn(task_id)
         self.remove_task_from_dispatchable_graph(task_id)
-        self.stn_tasks.pop(str(task_id))
+        if str(task_id) in self.stn_tasks:
+            self.stn_tasks.pop(str(task_id))
 
     def remove_task_from_stn(self, task_id):
         task_node_ids = self.stn.get_task_node_ids(task_id)

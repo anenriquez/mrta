@@ -3,6 +3,13 @@ from ropod.structs.status import ActionStatus as ActionStatusConst
 from mrs.utils.as_dict import AsDictMixin
 
 
+class ActionProgress(AsDictMixin):
+    def __init__(self, action_id, start_time, finish_time=None):
+        self.action_id = action_id
+        self.start_time = start_time
+        self.finish_time = finish_time
+
+
 class ActionStatus(AsDictMixin):
     def __init__(self, status, **kwargs):
         self.status = status

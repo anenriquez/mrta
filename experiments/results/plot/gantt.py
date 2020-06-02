@@ -72,7 +72,8 @@ def plot_gantt(title, schedule, colors, group_tasks=False, borders=False, **kwar
     if index:
         title += '_' + str(index)
     fig.write_image(directory + '/%s.png' % title)
-    fig.show()
+    fig.write_html(directory + '/%s.html' % title)
+    # fig.show()
 
 
 def get_gantt_robot_d_graph(timetable):

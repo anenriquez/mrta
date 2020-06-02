@@ -4,7 +4,7 @@ from ropod.structs.status import ActionStatus as ActionStatusConst
 
 class RecoveryMethod:
 
-    options = ["re-allocate", "abort"]
+    options = ["re-allocate", "preempt"]
 
     def __init__(self, name):
         self.logger = logging.getLogger('mrs.recovery.method')
@@ -43,7 +43,6 @@ class RecoveryMethod:
             # The remaining actions include the current action
             remaining_actions = task.plan[0].actions[action_idx:]
 
-        print("Remaining actions")
         for action in remaining_actions:
             if action.duration:
                 mean += action.duration.mean

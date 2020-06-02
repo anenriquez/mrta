@@ -30,7 +30,7 @@ class Round(SimulatorInterface):
         self.received_bids = dict()
         self.received_no_bids = dict()
         self.bidding_robots = {robot_id: BiddingRobot(robot_id) for robot_id in self.robot_ids}
-        self.start_time = datetime.now().timestamp()
+        self.start_time = time.time()
         self.time_to_allocate = None
 
     def start(self):

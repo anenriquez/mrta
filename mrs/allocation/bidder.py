@@ -1,5 +1,6 @@
 import copy
 import logging
+import time
 
 from fmlib.models.robot import Robot
 from fmlib.models.tasks import InterTimepointConstraint
@@ -48,6 +49,7 @@ class Bidder:
         self.auctioneer_name = auctioneer_name
         self.bid_placed = None
         self.changed_timetable = False
+        self.bid_times = dict()
 
         self.logger.debug("Bidder initialized %s", self.robot_id)
 
@@ -89,8 +91,10 @@ class Bidder:
         self.bid_placed = None
 
         for task in task_announcement.tasks:
+            start_time = time.time()
+            n_tasks = len(self.timetable.get_tasks())
             self.logger.debug("Computing bid of task %s round %s", task.task_id, round_id)
-            best_bid = self.compute_bid(task, round_id, earliest_admissible_time)
+            best_bid = self.compute_bid(task, n_tasks, round_id, earliest_admissible_time)
 
             if best_bid:
                 self.logger.debug("Best bid %s", best_bid)
@@ -99,6 +103,11 @@ class Bidder:
                 self.logger.warning("No bid for task %s", task.task_id)
                 no_bid = NoBid(task.task_id, self.robot_id, round_id)
                 no_bids.append(no_bid)
+
+            end_time = time.time()
+            if n_tasks not in self.bid_times:
+                self.bid_times[n_tasks] = list()
+            self.bid_times[n_tasks].append(end_time-start_time)
 
         smallest_bid = self.get_smallest_bid(bids)
 
@@ -120,9 +129,8 @@ class Bidder:
             self.logger.debug("Placing bid %s ", self.bid_placed)
             self.send_bid(bid)
 
-    def compute_bid(self, task, round_id, earliest_admissible_time):
+    def compute_bid(self, task, n_tasks, round_id, earliest_admissible_time):
         best_bid = None
-        n_tasks = len(self.timetable.get_tasks())
 
         # Insert task in each possible insertion_point of the stn
         # Add from insertion_point 1 onwards (insertion_point 0 is reserved for the ztp)

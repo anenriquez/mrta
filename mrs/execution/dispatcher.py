@@ -36,6 +36,7 @@ class Dispatcher(SimulatorInterface):
 
         self.robot_ids = list()
         self.d_graph_updates = dict()
+        self.dispatched_tasks = list()
 
         self.logger.debug("Dispatcher started")
 
@@ -101,7 +102,7 @@ class Dispatcher(SimulatorInterface):
         for robot_id in self.robot_ids:
             timetable = self.timetable_manager.get_timetable(robot_id)
             task = timetable.get_earliest_task()
-            if task and task.status.status == TaskStatusConst.ALLOCATED:
+            if task and task.start_time and task.task_id not in self.dispatched_tasks:
                 start_time = timetable.get_start_time(task.task_id)
                 if self.is_schedulable(start_time):
                     self.add_pre_task_action(task, robot_id)
@@ -117,9 +118,10 @@ class Dispatcher(SimulatorInterface):
             robot_id: a robot UUID
         """
         self.logger.debug("Dispatching task %s to robot %s", task.task_id, robot_id)
+        task.update_status(TaskStatusConst.DISPATCHED)
+        self.dispatched_tasks.append(task.task_id)
         task_msg = self.api.create_message(task)
         self.api.publish(task_msg, groups=['TASK-ALLOCATION'])
-        task.update_status(TaskStatusConst.DISPATCHED)
 
     def send_d_graph_update(self, robot_id):
         timetable = self.timetable_manager.get_timetable(robot_id)

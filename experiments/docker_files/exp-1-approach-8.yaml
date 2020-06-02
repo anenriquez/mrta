@@ -3,10 +3,10 @@ services:
     command:
     - python3
     - ccu.py
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: ccu
     depends_on:
     - mongo
@@ -43,10 +43,10 @@ services:
     - python3
     - robot.py
     - robot_001
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_001
     depends_on:
     - mongo
@@ -60,10 +60,10 @@ services:
     - python3
     - robot.py
     - robot_002
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_002
     depends_on:
     - mongo
@@ -77,10 +77,10 @@ services:
     - python3
     - robot.py
     - robot_003
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_003
     depends_on:
     - mongo
@@ -94,10 +94,10 @@ services:
     - python3
     - robot.py
     - robot_004
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_004
     depends_on:
     - mongo
@@ -111,10 +111,10 @@ services:
     - python3
     - robot.py
     - robot_005
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_005
     depends_on:
     - mongo
@@ -128,10 +128,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_001
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_proxy_001
     depends_on:
     - mongo
@@ -145,10 +145,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_002
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_proxy_002
     depends_on:
     - mongo
@@ -162,10 +162,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_003
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_proxy_003
     depends_on:
     - mongo
@@ -179,10 +179,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_004
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_proxy_004
     depends_on:
     - mongo
@@ -196,10 +196,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_005
-    - --experiment
-    - non_intentional_delays
     - --approach
     - tessi-srea-preventive-re-schedule-re-allocate
+    - --experiment
+    - non_intentional_delays
     container_name: robot_proxy_005
     depends_on:
     - mongo

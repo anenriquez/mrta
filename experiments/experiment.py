@@ -43,6 +43,8 @@ class Experiment:
                 allocate.check_termination_test()
                 time.sleep(0.5)
 
+            allocate.terminate()
+
             bidding_rule = self.config_params.get("bidder").get("bidding_rule")
 
             self.logger.info("Creating experiment model for db")
@@ -54,7 +56,6 @@ class Experiment:
                              experiment.approach,
                              experiment.bidding_rule,
                              experiment.dataset)
-            allocate.terminate()
 
         except (KeyboardInterrupt, SystemExit):
             print('Task request test interrupted; exiting')

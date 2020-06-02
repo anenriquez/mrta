@@ -45,18 +45,18 @@ class TaskPerformanceTracker:
             task_performance.update_scheduling(**kwargs)
 
     def update_delay(self, task_id, assigned_time, node_id, timetable):
-        self.logger.debug("Updating delay of task %s ", task_id)
         task_performance = TaskPerformance.get_task_performance(task_id)
         latest_time = timetable.dispatchable_graph.get_node_latest_time(node_id)
         if assigned_time > latest_time:
+            self.logger.debug("Updating delay of task %s ", task_id)
             delay = assigned_time - latest_time
             task_performance.update_delay(delay)
 
     def update_earliness(self, task_id, assigned_time, node_id, timetable):
-        self.logger.debug("Updating delay of task %s ", task_id)
         task_performance = TaskPerformance.get_task_performance(task_id)
         earliest_time = timetable.dispatchable_graph.get_node_earliest_time(node_id)
         if assigned_time < earliest_time:
+            self.logger.debug("Updating earliness of task %s ", task_id)
             earliness = earliest_time - assigned_time
             task_performance.update_earliness(earliness)
 

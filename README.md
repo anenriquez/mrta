@@ -4,93 +4,104 @@
 # Multi-Robot Task Allocation (MRTA)
 
 Allocates tasks with temporal constraints and uncertain durations to a multi-robot system.
- 
-Uses an auction-based approach based on [1]. 
 
-Each robot maintains a temporal network with its tasks.
-The temporal network is either a:
+Includes four allocation algorithms:
+- Temporal Sequential Single-Item auctions (TeSSI)[1]. 
+- Temporal Sequential Single-Item auctions with Degree of Strong Controllability (TeSSI-DSC) (based on [1] and [3]).
+- Temporal Sequential Single-Item auctions with Static Robust Execution Algorithm (TeSSI-SREA) (based on [1] and [2])
+- Temporal Sequential Single-Item auctions with Dynamic Robust Execution Algorithm (TeSSI-DREA) (based on [1] and [2])
+ 
+Each robot maintains a temporal network with its tasks. The temporal network is either a:
 - Simple Temporal Network (STN)
 - Simple Temporal Network with Uncertainties (STNU)
 - Probabilistic Simple Temporal Network (PSTN)
 
 The temporal network represents a Simple Temporal Problem (STP).
 
+The allocation methods can be combined with the delay recovery methods:
+- preemption
+- re-allocation
+- relaxation of constraints
+
 The [mrta_stn](https://github.com/anenriquez/mrta_stn/) repository includes the temporal
 network models and solvers for the STP.
 
-
-The bidding rule is a combination of two metrics of the temporal network.
-- Robustness
-- Temporal
-
-Configure the robustness and temporal parameters in `config/config.yaml`
-
-The robustness metric is a result of the STP solver and can take the values:
-
-- fpc
-- srea      [2]
-- dsc_lp    [3]
-
-The temporal metric measures a value of the dispatching graph (result of solving the STP).
-It can take the values:
-
-- completion_time
-- makespan
-
-## Component Diagram
-
-The system consists of a ccu (central control unit) and a robot instance per physical robot in the fleet.
-
-![component_diagram](https://github.com/anenriquez/mrta/blob/feature/schedule-monitor/documentation/component_diagram.png)
+The system consists of a FMS (Fleet Managements System), a RobotProxy and a Robot instance per physical robot in the fleet.
 
 Brief description of the components: 
 
+![component_diagram](https://github.com/ropod-project/mrta/blob/develop/documentation/mrs.png)
+
+### FMS: 
+- Gets tasks' plan from pickup to delivery and adds it to the task.
+- Requests the auctioneer to allocate tasks.
+ 
 #### Auctioneer
-- Announces unallocated tasks to the robots in the local network, opening an allocation round.
+- Announces unallocated tasks to the robot proxies in the local network, opening an allocation round.
 - Receives bids from the robot bidders.
 - Elects a winner per allocation round or throws an exception indicating that no allocation was possible in the current round.
 
 #### Dispatcher
--  Receives requests for a DISPATCH-QUEUE-UPDATE.
-- Creates a dispatchable graph with two tasks and checks its consistency.
--  If the graph is consistent, creates a DISPATCH-QUEUE-UPDATE message and sends it to the Schedule Monitor. 
+- Gets earliest task and checks schedulability condition (a task is schedulable x time before its start time).
+- Adds action between current robot's position and the task's pickup location.
+- Dispatches a task queue to the schedule execution monitor. 
+
+#### Timetable Monitor
+- Receives task-status messages 
+- Updates the corresponding robot's timetable accordingly and triggers recovery measures if necessary. 
+
+#### Fleet Monitor
+- Update robot's positions based on robot-pose messages.
+
+#### PerformanceTracker
+- Updates performance metrics during allocation, scheduling and execution
+
+#### Simulator
+- Controls simulation time using [simpy](https://simpy.readthedocs.io/en/latest/).
+
+### RobotProxy
+Acts on behalf of the robot.
 
 #### Bidder
 - Receives task announcements.
 - Computes a bid per task received in the task announcement. Bid calculation is dependant of the allocation method.
 - Sends its best bid to the auctioneer.
 
+#### Timetable Monitor
+- Same as the timetable monitor, but only updates the robot's proxy timetable.
+
+### Robot
+Physical robot (in this case, just a mockup).
+
 #### Schedule Monitor
-- Requests DISPATCH-QUEUE-UPDATEs to the Dispatcher.
-- Gets the earliest task in the DISPATCH-QUEUE-UPDATE message and checks if it is schedulable.
-- Requests the Scheduler to schedule the task. 
-- Sends the the task to the Executor Interface.
-- Applies corrective measures (if included in the config file).
- 
-#### Scheduler
-- Instantiates the pre-condition start time of a task in an STN and checks the consistency of the resulting temporal network.
--  If the network is consistent, sets the pre-condition start time of the task. 
+- Receives a task queue and schedules the first task in the queue.
+- Sends the task to the executor. 
+- Receives task-status messages from the executor and monitors the execution of the task.
+- Triggers recovery measures in case the current task violates the temporal constraints and the next task is at risk. 
 
-#### Executor Interface
-- Receives a Task from the Schedule Monitor.
-- Once the current time is equal to the start time of the task, sends the task to the Executor.
-
-All of the above components make use of the API object. The ccu components make use of the ccu_store object and the robot components use the robot_store component
+#### Executor
+- Determines the duration of actions based on a duration graph (travel time based on historical information) and sends task-status msgs.
 
 #### API:
-- Provides middleware functionality
+- Provides middleware functionality.
 
 #### ccu_store
-- interface to interact with the ccu db
+- interface to interact with the ccu db.
 
 #### robot_store
-- interface to interact with the robot db
+- interface to interact with the robot db.
 
+#### robot_proxy_store
+- interface to interact with the robot proxy db.
 
+## Installation
 
+### Without Docker
 
-
-# Installation
+Install the repositiories:
+- [ropod_common](https://github.com/ropod-project/ropod_common)
+- [mrta_datasets](https://github.com/anenriquez/mrta_datasets)
+- [mrta_planner](https://github.com/anenriquez/mrta_planner)
 
 Create directory for logger
 ```
@@ -98,58 +109,70 @@ sudo mkdir -p /var/log/mrta
 sudo chown -R $USER:$USER /var/log/mrta
 ```
 
-
-## Using Docker
-
-[Install docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
-
-[Install docker-compose](https://docs.docker.com/compose/install/)
-
-docker-compose build task_allocation_test
-
-docker-compose up -d robot
-
-docker-compose up -d ccu 
-
-docker-compose up task_allocation_test
-
-
-## Without Docker
-
-Install the repositories
-
--  [mrta_stn](https://github.com/anenriquez/mrta_stn)
-
-- [ropod_common](https://github.com/ropod-project/ropod_common)
-
-
-Get the requirements:
+Get the mrta requirements: 
 ```
 pip3 install -r requirements.txt
 ```
-
-Add the task_allocation to your `PYTHONPATH` by running:
-
+Add mrta to your PYTHONPATH: 
 ```
 pip3 install --user -e .
 ```
 
-Go to `/mrs` and run in a terminal
+Instructions for running experiments:
+
+Open a terminal per robot proxy and run:
+```
+ python3 robot_proxy.py robot_id --file config_file --experiment experiment_name --approach approach_name
+```
+Example: 
+```
+python3 robot_proxy.py robot_001 --experiment non_intentional_delays --approach tessi-corrective-re-allocate
+```
+Open a terminal per robot and run: 
+	
+```
+python3 robot.py robot_id --file config_file --experiment experiment_name --approach approach_name
+```
+	
+Example:
+```
+python3 robot.py robot_001 --experiment non_intentional_delays --approach tessi-corrective-re-allocate
+```
+Open a terminal and start the ccu: 
 
 ```
-python3 robot.py ropod_001
+python3 ccu.py --experiment experiment_name --approach approach_name
+```
+Example: 
+```	
+python3 ccu.py --experiment non_intentional_delays --approach tessi-corrective-re-allocate
 ```
 
-Run in another terminal
+By default, uses the configuration file `mrs/config/default/config.yaml`.
 
+## With Docker
+
+- [Install docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+
+- [Install docker-compose](https://docs.docker.com/compose/install/)
+
+Instructions for running experiments:
+
+Go to `mrs/experiments/run` and run: 
+```	
+python3 run_approach.py non_intentional_delays approach_name number_of_runs
 ```
-python3 ccu.py
+Example:
+```	
+python3 run_approach.py experiment_name tessi-corrective-re-allocate 10
 ```
 
-Go to `/tests` and run test in another terminal
-```
-python3 allocation_test.py 
-```
+Available approaches are specified in `mrs/config/default/approaches.yaml`
+
+Available experiments are specified in `mrs/experiments/config/config.yaml`
+
+Robot initial poses are specified in `mrs/experiments/config/poses/robot_init_poses.yaml`
+
 
 ## References
 

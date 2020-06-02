@@ -3,10 +3,10 @@ services:
     command:
     - python3
     - ccu.py
-    - --experiment
-    - robot_scalability_2
     - --approach
     - tessi-corrective-re-allocate
+    - --experiment
+    - robot_scalability_2
     container_name: ccu
     depends_on:
     - mongo
@@ -43,10 +43,10 @@ services:
     - python3
     - robot.py
     - robot_001
-    - --experiment
-    - robot_scalability_2
     - --approach
     - tessi-corrective-re-allocate
+    - --experiment
+    - robot_scalability_2
     container_name: robot_001
     depends_on:
     - mongo
@@ -60,10 +60,10 @@ services:
     - python3
     - robot.py
     - robot_002
-    - --experiment
-    - robot_scalability_2
     - --approach
     - tessi-corrective-re-allocate
+    - --experiment
+    - robot_scalability_2
     container_name: robot_002
     depends_on:
     - mongo
@@ -77,10 +77,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_001
-    - --experiment
-    - robot_scalability_2
     - --approach
     - tessi-corrective-re-allocate
+    - --experiment
+    - robot_scalability_2
     container_name: robot_proxy_001
     depends_on:
     - mongo
@@ -94,10 +94,10 @@ services:
     - python3
     - robot_proxy.py
     - robot_002
-    - --experiment
-    - robot_scalability_2
     - --approach
     - tessi-corrective-re-allocate
+    - --experiment
+    - robot_scalability_2
     container_name: robot_proxy_002
     depends_on:
     - mongo

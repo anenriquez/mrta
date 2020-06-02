@@ -15,6 +15,8 @@ from mrs.messages.task_status import TaskStatus
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 from mrs.utils.time import relative_to_ztp
+from mrs.db.models.bid import BidTime
+
 
 _component_modules = {'simulator': Simulator,
                       'timetable': Timetable,
@@ -57,6 +59,7 @@ class RobotProxy:
 
         if self.robot_id == task_status.robot_id:
             task = Task.get_task(task_status.task_id)
+
             self.logger.debug("Received task status %s for task %s", task_status.task_status, task.task_id)
 
             if task_status.task_status == TaskStatusConst.ONGOING:
@@ -100,6 +103,7 @@ class RobotProxy:
 
         self.logger.debug("Updated stn: \n %s ", self.timetable.stn)
         self.logger.debug("Updated dispatchable graph: \n %s", self.timetable.dispatchable_graph)
+        self.timetable.store()
 
         if self.d_graph_watchdog:
             self._re_compute_dispatchable_graph()
@@ -112,25 +116,51 @@ class RobotProxy:
 
     def _remove_task(self, task, status):
         self.logger.critical("Deleting task %s from timetable and changing its status to %s", task.task_id, status)
+
+        if not self.timetable.has_task(task.task_id):
+            self.logger.warning("Robot %s does not have task %s in its timetable: ", self.robot_id, task.task_id)
+            return
+
+        self.bidder.changed_timetable = True
+
+        prev_task = self.timetable.get_previous_task(task)
         next_task = self.timetable.get_next_task(task)
 
-        if status == TaskStatusConst.COMPLETED:
-            if next_task:
-                finish_current_task = self.timetable.stn.get_time(task.task_id, 'delivery', False)
-                self.timetable.stn.assign_earliest_time(finish_current_task, next_task.task_id, 'start', force=True)
-            self.update_robot_pose(task)
+        earliest_task = self.timetable.get_task(position=1)
+
+        if earliest_task and task.task_id == earliest_task.task_id and next_task:
+            self._remove_first_task(task, next_task, status)
+        else:
             self.timetable.remove_task(task.task_id)
 
-        else:
-            prev_task = self.timetable.get_previous_task(task)
-            self.timetable.remove_task(task.task_id)
-            if prev_task and next_task:
-                self.update_pre_task_constraint(next_task)
+        if status == TaskStatusConst.COMPLETED:
+            self.update_robot_pose(task)
+
+        if prev_task and next_task:
+            self.update_pre_task_constraint(next_task)
 
         task.update_status(status)
         self.logger.debug("STN: %s", self.timetable.stn)
         self.logger.debug("Dispatchable Graph: %s", self.timetable.dispatchable_graph)
+        self.timetable.store()
         self._re_compute_dispatchable_graph()
+
+    def _remove_first_task(self, task, next_task, status):
+        if status == TaskStatusConst.COMPLETED:
+            earliest_time = self.timetable.stn.get_time(task.task_id, 'delivery', False)
+            self.timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+        else:
+            nodes = self.timetable.stn.get_nodes_by_task(task.task_id)
+            node_id, node = nodes[0]
+            earliest_time = self.timetable.stn.get_node_earliest_time(node_id)
+            self.timetable.stn.assign_earliest_time(earliest_time, next_task.task_id, 'start', force=True)
+
+        start_next_task = self.timetable.dispatchable_graph.get_time(next_task.task_id, 'start')
+        if start_next_task < earliest_time:
+            self.timetable.dispatchable_graph.assign_earliest_time(earliest_time, next_task.task_id, 'start',
+                                                                   force=True)
+
+        self.timetable.remove_task(task.task_id)
 
     def _re_compute_dispatchable_graph(self):
         if self.timetable.stn.is_empty():
@@ -140,7 +170,6 @@ class RobotProxy:
         try:
             self.timetable.dispatchable_graph = self.timetable.compute_dispatchable_graph(self.timetable.stn)
             self.logger.debug("Dispatchable graph robot %s: %s", self.timetable.robot_id, self.timetable.dispatchable_graph)
-            self.bidder.changed_timetable = True
         except NoSTPSolution:
             self.logger.warning("Temporal network is inconsistent")
 
@@ -158,6 +187,12 @@ class RobotProxy:
         stn_task.update_edge("travel_time", travel_duration.mean, travel_duration.variance)
         self.timetable.add_stn_task(stn_task)
         self.timetable.update_task(stn_task)
+
+    def finish_test_cb(self, msg):
+        self.logger.critical("Received finished test")
+        for n_tasks, times_to_bid in self.bidder.bid_times.items():
+            BidTime.create_new(times_to_bid=times_to_bid, n_previously_allocated_tasks=n_tasks)
+        self.bidder.bid_times = dict()
 
     def run(self):
         try:

@@ -13,6 +13,8 @@ from mrs.simulation.simulator import SimulatorInterface
 from mrs.utils.time import to_timestamp
 from ropod.structs.task import TaskStatus as TaskStatusConst
 from ropod.utils.timestamp import TimeStamp
+from mrs.db.models.round import Round as RoundModel
+
 
 """ Implements a variation of the the TeSSI algorithm using the bidding_rule 
 specified in the config file
@@ -44,6 +46,8 @@ class Auctioneer(SimulatorInterface):
         self.changed_timetable = list()
         self.waiting_for_user_confirmation = list()
         self.round = Round(self.robot_ids, self.tasks_to_allocate)
+        self.allocating_task = False
+        self.timetable_monitor = kwargs.get("timetable_monitor")
 
     def configure(self, **kwargs):
         api = kwargs.get('api')
@@ -126,7 +130,7 @@ class Auctioneer(SimulatorInterface):
 
         self.allocations.append(allocation)
         self.allocation_times.append(self.round.time_to_allocate)
-        self.finish_round()
+        # self.finish_round()
 
     def undo_allocation(self, allocation_info):
         self.logger.warning("Undoing allocation of round %s", self.round.id)
@@ -147,6 +151,14 @@ class Auctioneer(SimulatorInterface):
 
     def finish_round(self):
         self.logger.debug("Finishing round %s", self.round.id)
+        kwargs = {'round_id': self.round.id,
+                  'tasks_to_allocate': [str(task.task_id) for task in self.round.tasks_to_allocate.values()],
+                  'time_to_allocate': self.round.time_to_allocate,
+                  'n_received_bids': len(self.round.received_bids),
+                  'n_received_no_bids': len(self.round.received_no_bids)}
+        if self.winning_bid and self.winning_bid.round_id == self.round.id:
+            kwargs.update(allocated_task=self.winning_bid.task_id)
+        RoundModel.create_new(**kwargs)
         self.round.finish()
 
     def announce_tasks(self):
@@ -161,7 +173,7 @@ class Auctioneer(SimulatorInterface):
         elif not self.is_valid_time(closure_time) and not self.alternative_timeslots:
             self.logger.warning("Task %s cannot not be allocated at its given temporal constraints",
                                 earliest_task.task_id)
-            earliest_task.update_status(TaskStatusConst.ABORTED)
+            earliest_task.update_status(TaskStatusConst.PREEMPTED)
             self.tasks_to_allocate.pop(earliest_task.task_id)
             return
 
@@ -211,6 +223,7 @@ class Auctioneer(SimulatorInterface):
         ack = TaskContractAcknowledgment.from_payload(payload)
 
         if ack.accept and ack.robot_id not in self.changed_timetable:
+            self.allocating_task = True
             self.logger.debug("Concluding allocation of task %s", ack.task_id)
             self.winning_bid.set_allocation_info(ack.allocation_info)
             self.process_allocation()
