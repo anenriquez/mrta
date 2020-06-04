@@ -156,15 +156,20 @@ By default, uses the configuration file `mrs/config/default/config.yaml`.
 
 - [Install docker-compose](https://docs.docker.com/compose/install/)
 
+Add mrta to your PYTHONPATH: 
+```
+pip3 install --user -e .
+```
+
 Instructions for running experiments:
 
-Go to `mrs/experiments/run` and run: 
+Go to `experiments/run` and run: 
 ```	
-python3 run_approach.py non_intentional_delays approach_name number_of_runs
+python3 run_approach.py experiment_name approach_name number_of_runs
 ```
 Example:
 ```	
-python3 run_approach.py experiment_name tessi-corrective-re-allocate 10
+python3 run_approach.py non_intentional_delays tessi-corrective-re-allocate 10
 ```
 
 Available approaches are specified in `mrs/config/default/approaches.yaml`
