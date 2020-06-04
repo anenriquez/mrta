@@ -30,7 +30,7 @@ The system consists of a FMS (Fleet Managements System), a RobotProxy and a Robo
 
 Brief description of the components: 
 
-![component_diagram](https://github.com/ropod-project/mrta/blob/develop/documentation/mrs.png)
+![component_diagram](https://github.com/anenriquez/mrta/blob/master/documentation/mrs.png)
 
 ### FMS: 
 - Gets tasks' plan from pickup to delivery and adds it to the task.
