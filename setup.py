@@ -3,12 +3,26 @@
 from setuptools import setup
 
 setup(name='mrs',
-      packages=['mrs', 'mrs.config', 'mrs.db.models', 'mrs.db.models.performance', 'mrs.db.queries', 'mrs.structs',
-                'mrs.utils', 'mrs.exceptions', 'mrs.task_allocation', 'mrs.task_execution'],
-      version='0.2.0',
+      packages=['mrs',
+                'mrs.config',
+                'mrs.config.default',
+                'mrs.db.models',
+                'mrs.db.models.performance',
+                'mrs.exceptions',
+                'mrs.allocation',
+                'mrs.tests',
+                'mrs.tests.datasets',
+                'mrs.messages',
+                'mrs.timetable',
+                'mrs.execution',
+                'mrs.simulation',
+                'mrs.performance',
+                'mrs.utils'],
       install_requires=[
-            'numpy'
+          'simpy',
+          'planner@git+https://github.com/anenriquez/mrta_planner.git@master#egg=planner',
       ],
+      version='0.2.0',
       description='Multi-Robot System (MRS) components for performing'
                   'Multi-Robot Task Allocation (MRTA) and executing'
                   'tasks with temporal constraints and uncertain '

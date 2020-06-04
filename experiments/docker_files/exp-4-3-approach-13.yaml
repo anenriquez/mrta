@@ -1,0 +1,143 @@
+services:
+  ccu:
+    command:
+    - python3
+    - ccu.py
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: ccu
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  mongo:
+    container_name: mongo
+    image: mongo:4.0-xenial
+    network_mode: host
+    ports:
+    - 27017:27017
+    volumes:
+    - /data/db:/data/db
+  mrta:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    command:
+    - python3
+    - experiment.py
+    - robot_scalability_3
+    - tessi-dsc-corrective-preempt
+    container_name: mrta
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/experiments/
+  robot_001:
+    command:
+    - python3
+    - robot.py
+    - robot_001
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_001
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_002:
+    command:
+    - python3
+    - robot.py
+    - robot_002
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_002
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_003:
+    command:
+    - python3
+    - robot.py
+    - robot_003
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_003
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_001:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_001
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_proxy_001
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_002:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_002
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_proxy_002
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+  robot_proxy_003:
+    command:
+    - python3
+    - robot_proxy.py
+    - robot_003
+    - --approach
+    - tessi-dsc-corrective-preempt
+    - --experiment
+    - robot_scalability_3
+    container_name: robot_proxy_003
+    depends_on:
+    - mongo
+    image: ropod-mrs
+    network_mode: host
+    stdin_open: 'true'
+    tty: 'true'
+    working_dir: /mrta/mrs/
+version: '2'

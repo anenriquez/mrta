@@ -1,67 +1,53 @@
 import collections
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-import yaml
-from ropod.utils.timestamp import TimeStamp
+from fmlib.models.requests import TransportationRequest
+from fmlib.models.tasks import TransportationTask, TransportationTaskConstraints
+from fmlib.models.tasks import TimepointConstraint, InterTimepointConstraint, TransportationTemporalConstraints
 from ropod.utils.uuid import generate_uuid
 
-from fmlib.models.tasks import Task
-from fmlib.models.requests import TransportationRequest
-from mrs.db.models.performance.task import TaskPerformance
-from mrs.db.models.performance.dataset import DatasetPerformance
+from mrs.utils.utils import load_yaml_file_from_module
 
 
-def load_yaml(file):
-    """ Reads a yaml file and returns a dictionary with its contents
+def load_tasks_to_db(dataset_module, dataset_name, **kwargs):
+    dataset_dict = load_yaml_file_from_module(dataset_module, dataset_name + '.yaml')
+    initial_time = kwargs.get('initial_time', datetime.now())
 
-    :param file: file to load
-    :return: data as dict()
-    """
-    with open(file, 'r') as file:
-        data = yaml.safe_load(file)
-    return data
-
-
-def load_yaml_dataset(dataset_path):
-    dataset_dict = load_yaml(dataset_path)
-    dataset_id = dataset_dict.get('dataset_id')
-
-    tasks_performance = list()
     tasks_dict = dataset_dict.get('tasks')
     ordered_tasks = collections.OrderedDict(sorted(tasks_dict.items()))
+    tasks = list()
 
     for task_id, task_info in ordered_tasks.items():
-        start_location = task_info.get("start_location")
-        finish_location = task_info.get("finish_location")
+        earliest_pickup_time, latest_pickup_time = reference_to_initial_time(task_info.get("earliest_pickup_time"),
+                                                                             task_info.get("latest_pickup_time"),
+                                                                             initial_time)
+        request = TransportationRequest(request_id=generate_uuid(),
+                                        pickup_location=task_info.get('pickup_location'),
+                                        delivery_location=task_info.get('delivery_location'),
+                                        earliest_pickup_time=earliest_pickup_time,
+                                        latest_pickup_time=latest_pickup_time,
+                                        hard_constraints=task_info.get('hard_constraints'))
+        request.save()
 
-        earliest_start_time, latest_start_time = reference_to_current_time(task_info.get("earliest_start_time"),
-                                                                           task_info.get("latest_start_time"))
-        hard_constraints = task_info.get("hard_constraints")
+        duration = InterTimepointConstraint()
 
-        request = TransportationRequest(request_id=generate_uuid(), pickup_location=start_location,
-                                        delivery_location=finish_location, earliest_pickup_time=earliest_start_time,
-                                        latest_pickup_time=latest_start_time, hard_constraints=hard_constraints)
+        pickup = TimepointConstraint(earliest_time=request.earliest_pickup_time,
+                                     latest_time=request.latest_pickup_time)
 
-        task = Task.create_new(task_id=task_id, request=request)
+        temporal = TransportationTemporalConstraints(pickup=pickup, duration=duration)
 
-    #     TaskLot.create(task_id, start_location, finish_location, earliest_start_time,
-    #                    latest_start_time, hard_constraints)
-        task_performance = TaskPerformance.create(task)
+        constraints = TransportationTaskConstraints(hard=request.hard_constraints, temporal=temporal)
 
-        tasks_performance.append(task_performance)
+        task = TransportationTask.create_new(task_id=task_id, request=request.request_id, constraints=constraints)
 
-    DatasetPerformance.create(dataset_id, tasks_performance)
+        tasks.append(task)
 
-    return tasks_performance
+    return tasks
 
 
-def reference_to_current_time(earliest_time, latest_time):
-    delta = timedelta(minutes=earliest_time)
-    r_earliest_time = TimeStamp(delta).to_str()
-
-    delta = timedelta(minutes=latest_time)
-    r_latest_time = TimeStamp(delta).to_str()
-
+def reference_to_initial_time(earliest_time, latest_time, initial_time):
+    r_earliest_time = initial_time + timedelta(seconds=earliest_time)
+    r_latest_time = initial_time + timedelta(seconds=latest_time)
     return r_earliest_time, r_latest_time
 
 

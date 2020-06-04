@@ -1,0 +1,231 @@
+version: 2
+
+ccu_store:
+  db_name: ccu_store
+  port: 27017
+
+robot_proxy_store:
+  db_name: robot_proxy_store
+  port: 27017
+
+robot_store:
+  db_name: robot_store
+  port: 27017
+
+simulator:
+  initial_time: 2020-01-23T08:00:00.000000
+  factor: 0.2
+
+fleet:
+  - robot_001
+  - robot_002
+  - robot_003
+  - robot_004
+  - robot_005
+
+allocation_method: tessi-srea
+
+planner:
+  map_name: brsu
+
+delay_recovery:
+  type_: corrective
+  method: re-allocate
+
+d_graph_watchdog: False
+
+auctioneer:
+  closure_window: 1 # minutes
+  alternative_timeslots: False
+
+dispatcher:
+  freeze_window: 0.1 # minutes
+  n_queued_tasks: 3
+
+bidder:
+  bidding_rule: completion_time
+  auctioneer_name: fms_zyre_api # This is completely Zyre dependent
+
+executor:
+  max_seed: 2147483647
+  map_name: brsu
+
+scheduler:
+  time_resolution: 0.5 # minutes
+
+ccu_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: fms_zyre_api
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - START-TEST
+        - ROBOT-POSE
+        - BID
+        - NO-BID
+        - TASK-CONTRACT-ACKNOWLEDGEMENT
+        - TASK-STATUS
+        - FINISH-TEST
+    acknowledge: false
+    debug_messages:
+      - 'TASK-REQUEST'
+    publish:
+      task-announcement:
+        msg_type: 'TASK-ANNOUNCEMENT'
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      task-contract:
+        msg_type: 'TASK-CONTRACT'
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      task-contract-cancellation:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-CONTRACT-CANCELLATION'
+        method: shout
+      task:
+        msg_type: 'TASK'
+        groups: ['TASK-ALLOCATION']
+        method: shout
+      d-graph-update:
+        msg_type: 'D-GRAPH-UPDATE'
+        groups: ['TASK-ALLOCATION']
+        method: whisper
+      remove-task-from-schedule:
+        msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
+        groups: ['TASK-ALLOCATION']
+        method: whisper
+    callbacks:
+      - msg_type: 'START-TEST'
+        component: '.start_test_cb'
+      - msg_type: 'FINISH-TEST'
+        component: '.finish_test_cb'
+      - msg_type: 'BID'
+        component: 'auctioneer.bid_cb'
+      - msg_type: 'NO-BID'
+        component: 'auctioneer.no_bid_cb'
+      - msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        component: 'auctioneer.task_contract_acknowledgement_cb'
+      - msg_type: 'TASK-STATUS'
+        component: 'timetable_monitor.task_status_cb'
+      - msg_type: 'ROBOT-POSE'
+        component: 'fleet_monitor.robot_pose_cb'
+
+robot_proxy_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: robot_id_proxy
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - TASK
+        - TASK-ANNOUNCEMENT
+        - TASK-CONTRACT
+        - TASK-CONTRACT-CANCELLATION
+        - ROBOT-POSE
+        - TASK-STATUS
+        - REMOVE-TASK-FROM-SCHEDULE
+        - FINISH-TEST
+      debug_msgs: false
+    acknowledge: false
+    publish:
+      bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'BID'
+        method: whisper
+      no-bid:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'NO-BID'
+        method: whisper
+      task-contract-acknowledgement:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-CONTRACT-ACKNOWLEDGEMENT'
+        method: shout
+      robot-pose:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'ROBOT-POSE'
+        method: shout
+    callbacks:
+      - msg_type: 'TASK-ANNOUNCEMENT'
+        component: 'bidder.task_announcement_cb'
+      - msg_type: 'TASK-CONTRACT'
+        component: 'bidder.task_contract_cb'
+      - msg_type: 'TASK-CONTRACT-CANCELLATION'
+        component: 'bidder.task_contract_cancellation_cb'
+      - msg_type: 'ROBOT-POSE'
+        component: '.robot_pose_cb'
+      - msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
+        component: '.remove_task_cb'
+      - msg_type: 'TASK'
+        component: '.task_cb'
+      - msg_type: 'TASK-STATUS'
+        component: '.task_status_cb'
+      - msg_type: 'FINISH-TEST'
+        component: '.finish_test_cb'
+
+robot_api:
+  version: 0.1.0
+  middleware:
+    - zyre
+  zyre:
+    zyre_node:
+      node_name: robot_id
+      interface: null
+      groups:
+        - TASK-ALLOCATION
+        - ROPOD
+      message_types: # Types of messages the node will listen to. Messages not listed will be ignored
+        - D-GRAPH-UPDATE
+        - TASK
+        - TASK-STATUS
+      debug_msgs: false
+    acknowledge: false
+    publish:
+      task:
+        msg_type: 'TASK'
+        method: whisper
+      task-status:
+        groups: ['TASK-ALLOCATION']
+        msg_type: 'TASK-STATUS'
+        method: shout
+    callbacks:
+      - msg_type: 'D-GRAPH-UPDATE'
+        component: 'schedule_execution_monitor.d_graph_update_cb'
+      - msg_type: 'TASK'
+        component: '.task_cb'
+      - msg_type: 'TASK-STATUS'
+        component: 'schedule_execution_monitor.task_status_cb'
+
+logger:
+  version: 1
+  formatters:
+    default:
+      format: '[%(levelname)-5.5s]  %(asctime)s [%(name)-35.35s] %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
+  handlers:
+    console:
+      class: ropod.utils.logging.color.ColorizingStreamHandler
+      level: DEBUG
+      formatter: default
+      stream: ext://sys.stdout
+    file:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: default
+      filename: /var/log/mrta/fms.log
+      when: 'm'
+      interval: 5
+  loggers:
+    mrs:
+      level: DEBUG
+  root:
+    level: DEBUG
+    handlers: [console, file]

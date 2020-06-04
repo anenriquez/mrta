@@ -1,14 +1,124 @@
 version: "2"
 
 services:
-  robot:
-    container_name: robot
+  mongo:
+    container_name: mongo
+    image: mongo:4.0-xenial
+    volumes:
+      - /data/db:/data/db
+    ports:
+      - "27017:27017"
+    network_mode: "host"
+
+  robot_001:
+    container_name: robot_001
     image: ropod-mrs
     working_dir: /mrta/mrs/
-    command: ["python3", "robot.py", "ropod_001"]
+    command: ["python3", "robot.py", "robot_001"]
     network_mode: "host"
     tty: true
     stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_001:
+    container_name: robot_proxy_001
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_001"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_002:
+    container_name: robot_002
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot.py", "robot_002"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_002:
+    container_name: robot_proxy_002
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_002"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_003:
+    container_name: robot_003
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot.py", "robot_003"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_003:
+    container_name: robot_proxy_003
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_003"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_004:
+    container_name: robot_004
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot.py", "robot_004"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_004:
+    container_name: robot_proxy_004
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_004"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_005:
+    container_name: robot_005
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot.py", "robot_005"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
+
+  robot_proxy_005:
+    container_name: robot_proxy_005
+    image: ropod-mrs
+    working_dir: /mrta/mrs/
+    command: ["python3", "robot_proxy.py", "robot_005"]
+    network_mode: "host"
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mongo
 
   ccu:
     container_name: ccu
@@ -18,18 +128,28 @@ services:
     network_mode: "host"
     tty: true
     stdin_open: true
+    depends_on:
+      - mongo
 
-  task_allocation_test:
+  mrta_test:
     build: .
-    container_name: task-mrs-test
+    container_name: mrta-test
     image: ropod-mrs
-    working_dir: /mrta/tests/
-    command: ["python3", "allocation_test.py"]
+    working_dir: /mrta/mrs/tests/
+    command: ["python3", "test.py"]
     network_mode: "host"
     tty: true
     stdin_open: true
     depends_on:
-      - robot
+      - mongo
       - ccu
-
-
+      - robot_001
+      - robot_002
+      - robot_003
+      - robot_004
+      - robot_005
+      - robot_proxy_001
+      - robot_proxy_002
+      - robot_proxy_003
+      - robot_proxy_004
+      - robot_proxy_005
