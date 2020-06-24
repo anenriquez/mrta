@@ -90,6 +90,17 @@ Physical robot (in this case, just a mockup)
 #### robot_proxy_store
 - interface to interact with the robot proxy db
 
+# Documentation
+
+Create documentation using [sphinx](https://www.sphinx-doc.org/en/master/)
+
+Go to `/docs` and run 
+```
+make html
+```
+
+Go to `/docs/_build/html` and open the documentation in a web browser.
+
 
 # Installation
 
