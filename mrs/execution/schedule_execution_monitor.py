@@ -1,13 +1,15 @@
 import logging
 
 from fmlib.models.tasks import TransportationTask as Task
+from pymodm.errors import DoesNotExist
+from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
+from ropod.utils.timestamp import TimeStamp
+
 from mrs.exceptions.execution import InconsistentAssignment
+from mrs.exceptions.execution import InconsistentSchedule
 from mrs.messages.d_graph_update import DGraphUpdate
 from mrs.messages.task_status import TaskStatus
 from mrs.utils.time import relative_to_ztp
-from ropod.structs.status import ActionStatus as ActionStatusConst, TaskStatus as TaskStatusConst
-from ropod.utils.timestamp import TimeStamp
-from mrs.exceptions.execution import InconsistentSchedule
 
 
 class ScheduleExecutionMonitor:
@@ -170,14 +172,26 @@ class ScheduleExecutionMonitor:
         task_msg = self.api.create_message(task)
         self.api.publish(task_msg, peer='executor_' + self.robot_id)
 
-    def process_tasks(self, tasks):
-        for task in tasks:
-            task_status = task.get_task_status(task.task_id)
+    def run(self):
+        """ Gets the earliest task assigned to this robot and calls the ``process_task`` method
+        for further processing
+        """
+        try:
+            tasks = Task.get_tasks_by_robot(self.robot_id)
+            if tasks and self.task is None:
+                earliest_task = Task.get_earliest_task(tasks)
+                if earliest_task:
+                    self.process_task(earliest_task)
+        except DoesNotExist:
+            pass
 
-            if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
-                self.schedule(task)
+    def process_task(self, task):
+        task_status = task.get_task_status(task.task_id)
 
-            # For real-time execution add is_executable condition
-            if task_status.status == TaskStatusConst.SCHEDULED:
-                self.send_task(task)
-                self.task = task
+        if task_status.status == TaskStatusConst.DISPATCHED and self.timetable.has_task(task.task_id):
+            self.schedule(task)
+
+        # For real-time execution add is_executable condition
+        if task_status.status == TaskStatusConst.SCHEDULED:
+            self.send_task(task)
+            self.task = task

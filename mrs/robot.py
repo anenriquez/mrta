@@ -1,9 +1,6 @@
 import argparse
 import logging.config
 
-from fmlib.models.tasks import TransportationTask as Task
-from pymodm.errors import DoesNotExist
-
 from mrs.config.configurator import Configurator
 from mrs.config.params import get_config_params
 from mrs.execution.delay_recovery import DelayRecovery
@@ -13,16 +10,30 @@ from mrs.execution.scheduler import Scheduler
 from mrs.simulation.simulator import Simulator
 from mrs.timetable.timetable import Timetable
 
-_component_modules = {'simulator': Simulator,
-                      'timetable': Timetable,
-                      'executor': Executor,
-                      'scheduler': Scheduler,
-                      'schedule_execution_monitor': ScheduleExecutionMonitor,
-                      'delay_recovery': DelayRecovery}
+_component_modules = {
+    'simulator': Simulator,
+    'timetable': Timetable,
+    'executor': Executor,
+    'scheduler': Scheduler,
+    'schedule_execution_monitor': ScheduleExecutionMonitor,
+    'delay_recovery': DelayRecovery
+}
 
 
 class Robot:
-    def __init__(self, robot_id, api, executor, schedule_execution_monitor, **kwargs):
+    """ Includes components that run in the physical robot
+
+    Args:
+        robot_id (str): ID that uniquely identifies the robot, e.g., robot_001
+        api (ob): Communication middleware API
+        executor (obj): Executes robot actions
+        schedule_execution_monitor (obj): Monitors the execution of the schedule and triggers delay recovery mechanisms
+                                          when needed
+        kwargs: Optional configuration arguments
+    """
+
+    def __init__(self, robot_id, api, executor, schedule_execution_monitor,
+                 **kwargs):
 
         self.robot_id = robot_id
         self.api = api
@@ -34,16 +45,13 @@ class Robot:
         self.logger.info("Initialized Robot %s", robot_id)
 
     def run(self):
+        """ Runs the robot components
+        """
         try:
             self.api.start()
             while True:
-                try:
-                    tasks = Task.get_tasks_by_robot(self.robot_id)
-                    if self.schedule_execution_monitor.task is None:
-                        self.schedule_execution_monitor.process_tasks(tasks)
-                    self.executor.run()
-                except DoesNotExist:
-                    pass
+                self.schedule_execution_monitor.run()
+                self.executor.run()
                 self.api.run()
         except (KeyboardInterrupt, SystemExit):
             self.logger.info("Terminating %s robot ...", self.robot_id)
@@ -57,12 +65,23 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('robot_id', type=str, help='example: robot_001')
-    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-    parser.add_argument('--experiment', type=str, action='store', help='Experiment_name')
-    parser.add_argument('--approach', type=str, action='store', help='Approach name')
+    parser.add_argument('--file',
+                        type=str,
+                        action='store',
+                        help='Path to the config file')
+    parser.add_argument('--experiment',
+                        type=str,
+                        action='store',
+                        help='Experiment_name')
+    parser.add_argument('--approach',
+                        type=str,
+                        action='store',
+                        help='Approach name')
     args = parser.parse_args()
 
-    config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
+    config_params = get_config_params(args.file,
+                                      experiment=args.experiment,
+                                      approach=args.approach)
     config = Configurator(config_params, component_modules=_component_modules)
     components = config.config_robot(args.robot_id)
     robot = Robot(**components)
