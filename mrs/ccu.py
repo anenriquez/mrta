@@ -20,18 +20,39 @@ from mrs.simulation.simulator import Simulator, SimulatorInterface
 from mrs.timetable.monitor import TimetableMonitor
 from mrs.timetable.timetable import TimetableManager
 
-_component_modules = {'simulator': Simulator,
-                      'timetable_manager': TimetableManager,
-                      'auctioneer': Auctioneer,
-                      'fleet_monitor': FleetMonitor,
-                      'dispatcher': Dispatcher,
-                      'delay_recovery': DelayRecovery,
-                      'timetable_monitor': TimetableMonitor,
-                      'performance_tracker': PerformanceTracker,
-                      }
+_component_modules = {
+    'simulator': Simulator,
+    'timetable_manager': TimetableManager,
+    'auctioneer': Auctioneer,
+    'fleet_monitor': FleetMonitor,
+    'dispatcher': Dispatcher,
+    'delay_recovery': DelayRecovery,
+    'timetable_monitor': TimetableMonitor,
+    'performance_tracker': PerformanceTracker,
+}
 
 
 class CCU:
+    """Central Control Unit
+
+    Args:
+        components(dict): Components added to the CCU
+        kwargs: Optional configuration arguments
+
+    Attributes:
+        auctioneer (obj): Opens allocation rounds: announces unallocated tasks to the robot proxies in the local network.
+                          Receives bids
+                          Elects a winner per allocation round
+        fleet_monitor (obj): Updates robots' positions based on robot-pose messages
+        dispatcher (obj): Sends task-queues to the robot and robot proxy
+        timetable_monitor (obj): Updates robots' timetables based on execution information and applies recovery methods
+        simulator_interface(obj): Controls the simulation clock time
+        performance_tracker(obj): Stores performance metrics in the ccu_store
+        api(obj): Communication middleware API
+        ccu_store(obj): Database to store ccu information
+        logger(obj): Logger object
+
+    """
 
     def __init__(self, components, **kwargs):
 
@@ -55,6 +76,18 @@ class CCU:
             self.__dict__[key] = value
 
     def start_test_cb(self, msg):
+        """ Starts test upon reception of start-test message
+
+            * Reads all ``UNALLOCATED`` tasks from the ``ccu_store``
+            * Create a RobotPerformance model per robot
+            * Add plan (from pickup to delivery) to all tasks
+            * Starts the simulation
+            * Requests the auctioneer to allocate the tasks
+
+        Args:
+            msg: start-test message in json format
+
+        """
         self.simulator_interface.stop()
         initial_time = msg["payload"]["initial_time"]
         self.logger.info("Start test at %s", initial_time)
@@ -71,7 +104,14 @@ class CCU:
         self.auctioneer.allocate(tasks)
 
     def add_task_plan(self, task):
-        path = self.dispatcher.get_path(task.request.pickup_location, task.request.delivery_location)
+        """ Adds task plan (from pickup to delivery) to the given task
+
+        Args:
+            task (obj)
+
+        """
+        path = self.dispatcher.get_path(task.request.pickup_location,
+                                        task.request.delivery_location)
 
         mean, variance = self.get_task_duration(path)
         task.update_duration(mean, variance)
@@ -82,27 +122,43 @@ class CCU:
         task.update_plan(task_plan)
         self.logger.debug('Task plan of task %s updated', task.task_id)
 
-        return task_plan
-
     def get_task_duration(self, plan):
+        """ Gets the estimated duration (mean, variance) for executing the plan
+
+        Args:
+            plan (list): List of nodes to traverse
+
+        Returns:
+            float: mean
+            float: variance
+
+        """
         mean, variance = self.dispatcher.get_path_estimated_duration(plan)
         return mean, variance
 
     def process_allocation(self):
+        """ Process new allocations:
+            * Adds robot to task
+            * Gets tentative schedule
+            * Updates performance allocation metrics
+            * Sends d-graph-update message
+
+        """
         while self.auctioneer.allocations:
             task_id, robot_ids = self.auctioneer.allocations.pop(0)
             task = self.auctioneer.allocated_tasks.get(task_id)
             task.assign_robots(robot_ids)
             task_schedule = self.auctioneer.get_task_schedule(task_id, robot_ids[0])
             task.update_schedule(task_schedule)
-
-            allocation_time = self.auctioneer.allocation_times.pop(0)
-            self.update_allocation_metrics(allocation_time)
+            self.update_allocation_metrics()
 
             for robot_id in robot_ids:
                 self.dispatcher.send_d_graph_update(robot_id)
 
-    def update_allocation_metrics(self, allocation_time):
+    def update_allocation_metrics(self):
+        """ Updates last's allocation performance metrics
+        """
+        allocation_time = self.auctioneer.allocation_times.pop(0)
         allocation_info = self.auctioneer.winning_bid.get_allocation_info()
         task = Task.get_task(allocation_info.new_task.task_id)
         self.performance_tracker.update_allocation_metrics(task, allocation_time)
@@ -111,6 +167,8 @@ class CCU:
             self.performance_tracker.update_allocation_metrics(task, only_constraints=True)
 
     def run(self):
+        """ Runs the CCU components
+        """
         try:
             self.api.start()
             while True:
@@ -134,17 +192,30 @@ if __name__ == '__main__':
     from planner.planner import Planner
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file', type=str, action='store', help='Path to the config file')
-    parser.add_argument('--experiment', type=str, action='store', help='Experiment_name')
-    parser.add_argument('--approach', type=str, action='store', help='Approach name')
+    parser.add_argument('--file',
+                        type=str,
+                        action='store',
+                        help='Path to the config file')
+    parser.add_argument('--experiment',
+                        type=str,
+                        action='store',
+                        help='Experiment_name')
+    parser.add_argument('--approach',
+                        type=str,
+                        action='store',
+                        help='Approach name')
     args = parser.parse_args()
 
-    config_params = get_config_params(args.file, experiment=args.experiment, approach=args.approach)
+    config_params = get_config_params(args.file,
+                                      experiment=args.experiment,
+                                      approach=args.approach)
     config = Configurator(config_params, component_modules=_component_modules)
     components_ = config.config_ccu()
 
-    kwargs = {"planner": Planner(**config_params.get("planner")),
-              "performance_tracker": components_.get("performance_tracker")}
+    kwargs = {
+        "planner": Planner(**config_params.get("planner")),
+        "performance_tracker": components_.get("performance_tracker")
+    }
 
     for name, c in components_.items():
         if hasattr(c, 'configure'):
