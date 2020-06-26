@@ -41,7 +41,7 @@ class AsDictMixin:
     @classmethod
     def from_payload(cls, payload):
         document = Document.from_payload(payload)
-        document.pop("metamodel")
+        document.pop("metamodel", None)
         return cls.from_dict(document)
 
     @classmethod
