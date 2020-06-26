@@ -159,11 +159,11 @@ robot_proxy_api:
       - msg_type: 'ROBOT-POSE'
         component: '.robot_pose_cb'
       - msg_type: 'REMOVE-TASK-FROM-SCHEDULE'
-        component: '.remove_task_cb'
+        component: 'timetable_monitor.remove_task_cb'
       - msg_type: 'TASK'
         component: '.task_cb'
       - msg_type: 'TASK-STATUS'
-        component: '.task_status_cb'
+        component: 'timetable_monitor.task_status_cb'
 
 
 robot_api:

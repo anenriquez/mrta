@@ -29,3 +29,8 @@ class InconsistentAssignment(Exception):
         self.assigned_time = assigned_time
         self.task_id = task_id
         self.node_type = node_type
+
+
+class EmptyTimetable(Exception):
+    def __init__(self):
+        """Raised when the timetable is empty"""
