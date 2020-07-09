@@ -8,6 +8,10 @@ markers = ['^', '8', 's', 'd']
 max_n_runs = 15
 colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
 
+font = {'size': 14}
+
+plt.rc('font', **font)
+
 
 def get_title(experiment_name, recovery_method, dataset_name):
     title = "Experiment: " + experiment_name + '\n' + \
